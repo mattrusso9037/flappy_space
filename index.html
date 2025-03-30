@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Spaceman Warp - Music Update</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #000020; /* Dark space blue */
+            margin: 0;
+            font-family: 'Press Start 2P', cursive;
+            color: #fff;
+            flex-direction: column; /* Stack canvas and controls vertically */
+            overflow: hidden; /* Prevent scrollbars */
+        }
+        #gameCanvas {
+            background-color: #000010; /* Even darker space blue for contrast */
+            border: 3px solid #fff;
+            display: block; /* Prevents extra space below canvas */
+            max-width: 95%;
+            max-height: 80vh;
+            aspect-ratio: 16 / 9; /* Maintain aspect ratio */
+            border-radius: 10px; /* Rounded corners for the canvas */
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5); /* Glow effect */
+        }
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        button {
+            font-family: 'Press Start 2P', cursive;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: linear-gradient(145deg, #4a4a8a, #3a3a6a); /* Gradient background */
+            color: white;
+            border: 2px solid #fff;
+            border-radius: 8px; /* Rounded corners */
+            box-shadow: 0 4px #2a2a5a; /* Button shadow */
+            transition: all 0.1s ease;
+            margin: 0 10px;
+        }
+        button:active {
+            transform: translateY(2px); /* Press effect */
+            box-shadow: 0 2px #2a2a5a;
+        }
+        #messageBox {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.85); /* Slightly more opaque */
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #fff;
+            text-align: center;
+            display: none; /* Hidden by default */
+            z-index: 10;
+            font-size: 18px;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+        }
+        #messageBox h2 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #ffcc00; /* Yellow title */
+        }
+        #messageBox p {
+            margin-bottom: 20px;
+        }
+        /* Style for temporary messages */
+        #levelMessage {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            color: #00ff00; /* Bright green */
+            text-shadow: 2px 2px #000;
+            z-index: 5;
+            display: none; /* Hidden initially */
+            padding: 10px 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+    <div class="controls">
+        <button id="flapButton">Flap!</button>
+        <button id="resetButton" style="display: none;">Retry</button>
+    </div>
+
+    <div id="messageBox">
+        <h2>Flappy Spaceman Warp</h2>
+        <p>Click 'Flap!' or tap screen to fly.</p>
+        <p>Avoid planets and asteroids!</p>
+        <p>Hit <span style="color: #00ffff;">warp orbs</span> before time runs out!</p>
+        <button id="startButton">Start Game</button>
+    </div>
+
+    <div id="levelMessage">Level Complete!</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const flapButton = document.getElementById('flapButton');
+        const resetButton = document.getElementById('resetButton');
+        const startButton = document.getElementById('startButton');
+        const messageBox = document.getElementById('messageBox');
+        const levelMessage = document.getElementById('levelMessage');
+
+
+        // --- Level Configuration (Unchanged) ---
+        const levels = [
+            { level: 1, requiredWarps: 3, timeLimit: 45, planetFreq: 120, asteroidFreq: 90, asteroidSizeFactor: 1.0, asteroidSpeedFactor: 1.0 },
+            { level: 2, requiredWarps: 5, timeLimit: 65, planetFreq: 130, asteroidFreq: 80, asteroidSizeFactor: 1.05, asteroidSpeedFactor: 1.05 },
+            { level: 3, requiredWarps: 7, timeLimit: 80, planetFreq: 140, asteroidFreq: 70, asteroidSizeFactor: 1.1, asteroidSpeedFactor: 1.15 },
+            { level: 4, requiredWarps: 8, timeLimit: 85, planetFreq: 150, asteroidFreq: 65, asteroidSizeFactor: 1.15, asteroidSpeedFactor: 1.25 },
+            { level: 5, requiredWarps: 10, timeLimit: 90, planetFreq: 160, asteroidFreq: 60, asteroidSizeFactor: 1.2, asteroidSpeedFactor: 1.35 },
+        ];
+        const MAX_LEVEL = levels.length;
+
+        // --- Game Configuration (Unchanged) ---
+        const debugMode = false;
+        const STAR_COUNT = 100;
+        const PLANET_MIN_SIZE_FACTOR = 0.04; const PLANET_MAX_SIZE_FACTOR = 0.08;
+        const ASTEROID_MIN_SIZE_FACTOR = 0.02; const ASTEROID_MAX_SIZE_FACTOR = 0.05;
+        const ASTEROID_BASE_SPEED_MULTIPLIER_MIN = 1.3; const ASTEROID_BASE_SPEED_MULTIPLIER_MAX = 1.8;
+        const BLACK_HOLE_GROWTH_RATE = 0.5; const BLACK_HOLE_MAX_SIZE_FACTOR = 0.3;
+
+        // Game state variables (Unchanged)
+        let spaceman; let obstacles = []; let asteroids = []; let warpPoints = []; let stars = [];
+        let score = 0; let frame = 0; let gameSpeed = 2;
+        let gravity = 0.15; let lift = -4; let obstacleGap = 150;
+        let isGameOver = true; let gameWon = false;
+        let isWarping = false; let warpDuration = 60; let warpTimer = 0;
+        let spacemanSize = 30; let spacemanEmoji = '🧑‍🚀';
+        let currentLevel = 1; let warpPointsRequired = 0; let warpPointsActivatedThisLevel = 0;
+        let currentPlanetFreq = 120; let currentAsteroidFreq = 90;
+        let currentAsteroidSizeFactor = 1.0; let currentAsteroidSpeedFactor = 1.0;
+        let levelMessageTimeout; let levelStartTime = 0; let currentTimeLimit = 0;
+        let timeRemaining = 0; let isTimeUp = false;
+        let isBlackHoleAnimating = false; let blackHoleX = 0; let blackHoleY = 0;
+        let blackHoleRadius = 0; let blackHoleTargetRadius = 0; let spacemanShrinkFactor = 1.0;
+
+        // --- Audio Setup (Tone.js) ---
+        let audioReady = false;
+        let musicLoop;
+        let musicSynth;
+        let warpSynth;
+        let collisionSynth;
+        let endSynth; // For game over / win
+        let reverb; // <<< Added reverb
+
+        function setupAudio() {
+             // Effects
+            reverb = new Tone.Reverb({
+                decay: 4, // Longer decay for spacey feel
+                wet: 0.4 // Mix level of reverb
+            }).toDestination(); // Connect reverb output to master destination
+
+            // Synths
+            musicSynth = new Tone.FMSynth({
+                volume: -25,
+                harmonicity: 2.0, // Slightly adjusted harmonicity
+                modulationIndex: 8, // Slightly adjusted index
+                envelope: { attack: 0.05, decay: 0.2, sustain: 0.1, release: 1.0 }, // Longer release
+                modulation: { type: "triangle" }, // Different modulator shape
+                modulationEnvelope: { attack: 0.2, decay: 0.3, sustain: 0.3, release: 1.0 } // Longer release
+            }).connect(reverb); // <<< Connect synth output to reverb input
+
+            warpSynth = new Tone.Synth({
+                volume: -10, oscillator: { type: 'triangle' },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.1 }
+            }).toDestination();
+
+            collisionSynth = new Tone.NoiseSynth({
+                volume: -5, noise: { type: 'white' },
+                envelope: { attack: 0.005, decay: 0.15, sustain: 0, release: 0.1 }
+            }).toDestination();
+
+             endSynth = new Tone.Synth({
+                 volume: -8, oscillator: { type: 'sine' },
+                 envelope: { attack: 0.01, decay: 0.5, sustain: 0.1, release: 0.5 }
+             }).toDestination();
+
+
+            // Music Loop - Longer, more varied sequence with rests (null)
+            const sequence = [
+                "C3", null, "G3", "E3", "A3", null, ["C4", "E4"], null,
+                "D3", null, "F#3", "A3", "G3", null, ["B3", "D4"], null
+            ];
+            let seqIndex = 0;
+            musicLoop = new Tone.Loop(time => {
+                let note = sequence[seqIndex % sequence.length];
+                // Only play if note is not null (rest)
+                if (note) {
+                     musicSynth.triggerAttackRelease(note, "4n", time); // Play note for a quarter note duration
+                }
+                seqIndex++;
+            }, "2n"); // <<< Trigger every half note (slower progression through sequence)
+
+            Tone.Transport.bpm.value = 90; // Slightly faster tempo
+            audioReady = true;
+            console.log("Audio setup complete with reverb and new sequence");
+        }
+
+        function startMusic() { /* Unchanged */ if (audioReady && Tone.Transport.state !== 'started') { Tone.Transport.start(); musicLoop.start(0); console.log("Music started"); } }
+        function stopMusic() { /* Unchanged */ if (audioReady && Tone.Transport.state === 'started') { Tone.Transport.stop(); console.log("Music stopped"); } }
+
+
+        // --- Initialization Functions ---
+
+        function initStars() { /* Unchanged */ stars = []; for (let i = 0; i < STAR_COUNT; i++) { stars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 2 + 0.5, speed: Math.random() * 0.3 + 0.1 }); } }
+        function resizeCanvas() { /* Unchanged */ const aspectRatio = 16 / 9; let newWidth = window.innerWidth * 0.95; let newHeight = window.innerHeight * 0.80; if (newWidth / newHeight > aspectRatio) { newWidth = newHeight * aspectRatio; } else { newHeight = newWidth / aspectRatio; } canvas.width = newWidth; canvas.height = newHeight; obstacleGap = canvas.height / 4; lift = -canvas.height * 0.01; gravity = canvas.height * 0.00035; spacemanSize = canvas.height * 0.05; gameSpeed = canvas.width * 0.003; initStars(); if (!isGameOver && spaceman) { spaceman.size = spacemanSize; spaceman.x = canvas.width / 4; if (spaceman.y > canvas.height) spaceman.y = canvas.height / 2; draw(); } else if(!gameWon && !isGameOver) { messageBox.style.display = 'block'; drawBackground(); } else { drawBackground(); } }
+        function loadLevel(levelNum) { /* Unchanged */ if (levelNum > MAX_LEVEL) return; const levelConfig = levels[levelNum - 1]; currentLevel = levelConfig.level; warpPointsRequired = levelConfig.requiredWarps; currentTimeLimit = levelConfig.timeLimit; currentPlanetFreq = levelConfig.planetFreq; currentAsteroidFreq = levelConfig.asteroidFreq; currentAsteroidSizeFactor = levelConfig.asteroidSizeFactor; currentAsteroidSpeedFactor = levelConfig.asteroidSpeedFactor; warpPointsActivatedThisLevel = 0; levelStartTime = performance.now(); timeRemaining = currentTimeLimit; isTimeUp = false; console.log(`Loading Level ${currentLevel}: Warps=${warpPointsRequired}, Time=${currentTimeLimit}s`); }
+        function showLevelMessage(message, duration = 2000) { /* Unchanged */ levelMessage.textContent = message; levelMessage.style.display = 'block'; if (levelMessageTimeout) clearTimeout(levelMessageTimeout); levelMessageTimeout = setTimeout(() => { levelMessage.style.display = 'none'; }, duration); }
+
+
+        // --- Game Objects (Classes: Spaceman, ObstaclePair, WarpPoint, Asteroid) ---
+        // Spaceman flap method modified
+        class Spaceman {
+            constructor() { this.x = canvas.width / 4; this.y = canvas.height / 2; this.velocity = 0; this.size = spacemanSize; this.hitboxWidth = this.size * 0.5; this.hitboxHeight = this.size * 0.8; }
+            update() { this.velocity += gravity; this.velocity *= 0.95; this.y += this.velocity; if (this.y - this.hitboxHeight / 2 < 0) { this.y = this.hitboxHeight / 2; this.velocity = 0; } this.hitboxWidth = this.size * 0.5; this.hitboxHeight = this.size * 0.8; }
+            flap() {
+                // <<< REMOVED sound trigger from here >>>
+                // if(audioReady) warpSynth.triggerAttackRelease("A4", "16n", Tone.now() + 0.01);
+                this.velocity = lift;
+            }
+            draw(shrinkFactor = 1.0) { const currentSize = this.size * shrinkFactor; const currentFont = `${currentSize}px Arial`; if (ctx.font !== currentFont) ctx.font = currentFont; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (isWarping) { ctx.globalAlpha = (Math.sin(frame * 0.5) + 1) / 2 * 0.5 + 0.5; } ctx.fillText(spacemanEmoji, this.x, this.y); ctx.globalAlpha = 1.0; if (debugMode && shrinkFactor === 1.0) { const currentHitboxWidth = this.hitboxWidth * shrinkFactor; const currentHitboxHeight = this.hitboxHeight * shrinkFactor; ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)'; ctx.lineWidth = 1; ctx.strokeRect( this.x - currentHitboxWidth / 2, this.y - currentHitboxHeight / 2, currentHitboxWidth, currentHitboxHeight ); } }
+        }
+        class ObstaclePair { /* Unchanged */ constructor() { this.x = canvas.width; this.gapY = Math.random() * (canvas.height - obstacleGap - (canvas.height * PLANET_MAX_SIZE_FACTOR * 2)) + (canvas.height * PLANET_MAX_SIZE_FACTOR); this.topPlanet = { size: (Math.random() * (PLANET_MAX_SIZE_FACTOR - PLANET_MIN_SIZE_FACTOR) + PLANET_MIN_SIZE_FACTOR) * canvas.height, color: `hsl(${Math.random() * 360}, 70%, 60%)`, hasRings: Math.random() > 0.7, ringColor: `hsl(${Math.random() * 360}, 40%, 70%)` }; this.topPlanet.y = Math.random() * (this.gapY - this.topPlanet.size) + this.topPlanet.size / 2; this.bottomPlanet = { size: (Math.random() * (PLANET_MAX_SIZE_FACTOR - PLANET_MIN_SIZE_FACTOR) + PLANET_MIN_SIZE_FACTOR) * canvas.height, color: `hsl(${Math.random() * 360}, 70%, 60%)`, hasRings: Math.random() > 0.7, ringColor: `hsl(${Math.random() * 360}, 40%, 70%)` }; const bottomSectionStart = this.gapY + obstacleGap; const bottomSectionHeight = canvas.height - bottomSectionStart; this.bottomPlanet.y = bottomSectionStart + Math.random() * (bottomSectionHeight - this.bottomPlanet.size) + this.bottomPlanet.size / 2; this.passed = false; } update() { this.x -= gameSpeed; } draw() { const maxPlanetSize = Math.max(this.topPlanet.size, this.bottomPlanet.size); if (this.x + maxPlanetSize / 2 > 0 && this.x - maxPlanetSize / 2 < canvas.width) { this.drawSinglePlanet(this.x, this.topPlanet.y, this.topPlanet.size, this.topPlanet.color, this.topPlanet.hasRings, this.topPlanet.ringColor); this.drawSinglePlanet(this.x, this.bottomPlanet.y, this.bottomPlanet.size, this.bottomPlanet.color, this.bottomPlanet.hasRings, this.bottomPlanet.ringColor); if (debugMode) { ctx.strokeStyle = 'rgba(0, 255, 0, 0.7)'; ctx.lineWidth = 1; ctx.strokeRect(this.x - this.topPlanet.size / 2, this.topPlanet.y - this.topPlanet.size / 2, this.topPlanet.size, this.topPlanet.size); ctx.strokeRect(this.x - this.bottomPlanet.size / 2, this.bottomPlanet.y - this.bottomPlanet.size / 2, this.bottomPlanet.size, this.bottomPlanet.size); } } } drawSinglePlanet(px, py, pSize, pColor, pHasRings, pRingColor) { ctx.fillStyle = pColor; ctx.beginPath(); ctx.arc(px, py, pSize / 2, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = `hsl(${this.extractHue(pColor)}, ${this.extractSaturation(pColor)}%, ${this.extractLightness(pColor) * 0.8}%)`; ctx.beginPath(); ctx.arc(px, py, pSize / 2, Math.PI * 0.3, Math.PI * 0.7); ctx.fill(); ctx.fillStyle = `hsl(${this.extractHue(pColor)}, ${this.extractSaturation(pColor)}%, ${Math.min(100, this.extractLightness(pColor) * 1.2)}%)`; ctx.beginPath(); ctx.arc(px, py, pSize / 2, Math.PI * 1.3, Math.PI * 1.7); ctx.fill(); if (pHasRings) { ctx.strokeStyle = pRingColor; ctx.lineWidth = Math.max(1, pSize * 0.05); ctx.beginPath(); ctx.ellipse(px, py, pSize * 0.8, pSize * 0.25, Math.PI / 10, 0, Math.PI * 2); ctx.stroke(); ctx.lineWidth = 1; } } extractHue(hslColor) { return parseFloat(hslColor.substring(hslColor.indexOf('(') + 1, hslColor.indexOf(','))); } extractSaturation(hslColor) { return parseFloat(hslColor.substring(hslColor.indexOf(',') + 1, hslColor.indexOf('%'))); } extractLightness(hslColor) { return parseFloat(hslColor.substring(hslColor.lastIndexOf(',') + 1, hslColor.lastIndexOf('%'))); } }
+        class WarpPoint { /* Unchanged */ constructor(obstaclePair) { this.size = canvas.height * 0.03; this.x = obstaclePair.x; this.y = obstaclePair.gapY + obstacleGap / 2; this.active = true; } update() { this.x -= gameSpeed; } draw() { if (!this.active) return; if (this.x + this.size / 2 > 0 && this.x - this.size / 2 < canvas.width) { ctx.fillStyle = '#00ffff'; ctx.beginPath(); ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2); ctx.fill(); ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0; if (debugMode) { ctx.strokeStyle = 'rgba(0, 255, 255, 0.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2); ctx.stroke(); } } } }
+        class Asteroid { /* Unchanged */ constructor() { this.x = canvas.width; const minSize = ASTEROID_MIN_SIZE_FACTOR * canvas.height * currentAsteroidSizeFactor; const maxSize = ASTEROID_MAX_SIZE_FACTOR * canvas.height * currentAsteroidSizeFactor; this.size = Math.random() * (maxSize - minSize) + minSize; const spawnMargin = this.size; this.y = Math.random() * (canvas.height - spawnMargin * 2) + spawnMargin; const speedMultiplier = (Math.random() * (ASTEROID_BASE_SPEED_MULTIPLIER_MAX - ASTEROID_BASE_SPEED_MULTIPLIER_MIN) + ASTEROID_BASE_SPEED_MULTIPLIER_MIN) * currentAsteroidSpeedFactor; this.speed = gameSpeed * speedMultiplier; this.rotation = Math.random() * Math.PI * 2; this.rotationSpeed = (Math.random() - 0.5) * 0.05; this.points = []; this.initShape(); } initShape() { const numPoints = 7 + Math.floor(Math.random() * 6); for (let i = 0; i < numPoints; i++) { const angle = (i / numPoints) * Math.PI * 2; const radius = this.size / 2 * (0.7 + Math.random() * 0.6); this.points.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius }); } } update() { this.x -= this.speed; this.rotation += this.rotationSpeed; } draw() { if (this.x + this.size / 2 > 0 && this.x - this.size / 2 < canvas.width) { ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rotation); ctx.fillStyle = '#A9A9A9'; ctx.strokeStyle = '#696969'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(this.points[0].x, this.points[0].y); for (let i = 1; i < this.points.length; i++) { ctx.lineTo(this.points[i].x, this.points[i].y); } ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); if (debugMode) { ctx.strokeStyle = 'rgba(255, 165, 0, 0.7)'; ctx.lineWidth = 1; ctx.strokeRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size); } } } }
+
+
+        // --- Game Logic ---
+
+        function resetGame() { /* Unchanged except for startMusic call */ spaceman = new Spaceman(); obstacles = []; asteroids = []; warpPoints = []; score = 0; frame = 0; isGameOver = false; gameWon = false; isTimeUp = false; isWarping = false; warpTimer = 0; isBlackHoleAnimating = false; blackHoleRadius = 0; spacemanShrinkFactor = 1.0; gameSpeed = canvas.width * 0.003; loadLevel(1); initStars(); messageBox.style.display = 'none'; levelMessage.style.display = 'none'; resetButton.style.display = 'none'; flapButton.style.display = 'inline-block'; if (audioReady) { startMusic(); } else { console.warn("Audio not ready on reset"); if (typeof Tone !== 'undefined') { setupAudio(); } } gameLoop(); }
+        function handleInput() { /* Unchanged */ if (!isGameOver && !gameWon && !isBlackHoleAnimating) { spaceman.flap(); } }
+        function checkCollisions() { /* Unchanged */ if (isBlackHoleAnimating) return false; if (spaceman.y + spaceman.hitboxHeight / 2 >= canvas.height) { if(audioReady) collisionSynth.triggerAttackRelease("4n"); return true; } if (!isWarping) { for (let i = 0; i < obstacles.length; i++) { let obsPair = obstacles[i]; if (checkRectOverlap(spaceman, obsPair.topPlanet.x, obsPair.topPlanet.y, obsPair.topPlanet.size)){ if(audioReady) collisionSynth.triggerAttackRelease("4n"); return true; } if (checkRectOverlap(spaceman, obsPair.bottomPlanet.x, obsPair.bottomPlanet.y, obsPair.bottomPlanet.size)){ if(audioReady) collisionSynth.triggerAttackRelease("4n"); return true; } } for (let i = 0; i < asteroids.length; i++) { let ast = asteroids[i]; if (checkRectOverlap(spaceman, ast.x, ast.y, ast.size)) { if(audioReady) collisionSynth.triggerAttackRelease("4n"); return true; } } } for (let i = 0; i < obstacles.length; i++) { let obsPair = obstacles[i]; if (!obsPair.passed && obsPair.x < spaceman.x - spaceman.hitboxWidth / 2) { obsPair.passed = true; } } for (let i = 0; i < warpPoints.length; i++) { let wp = warpPoints[i]; if (!wp.active) continue; if (wp.x + wp.size / 2 > 0 && wp.x - wp.size / 2 < canvas.width) { let dx = spaceman.x - wp.x; let dy = spaceman.y - wp.y; let distance = Math.sqrt(dx * dx + dy * dy); if (distance < wp.size / 2 + spaceman.hitboxWidth / 2) { isWarping = true; warpTimer = warpDuration; wp.active = false; if(audioReady) warpSynth.triggerAttackRelease("G5", "8n"); warpPointsActivatedThisLevel++; score += 10; console.log(`Warp activated! Score: ${score}, Progress: ${warpPointsActivatedThisLevel}/${warpPointsRequired}`); if (warpPointsActivatedThisLevel >= warpPointsRequired) { if (currentLevel < MAX_LEVEL) { showLevelMessage(`Level ${currentLevel} Complete!`); loadLevel(currentLevel + 1); } else { winGame(); return false; } } } } } return false; }
+        function checkRectOverlap(sp, objX, objY, objSize) { /* Unchanged */ const spLeft = sp.x - sp.hitboxWidth / 2; const spRight = sp.x + sp.hitboxWidth / 2; const spTop = sp.y - sp.hitboxHeight / 2; const spBottom = sp.y + sp.hitboxHeight / 2; const objLeft = objX - objSize / 2; const objRight = objX + objSize / 2; const objTop = objY - objSize / 2; const objBottom = objY + objSize / 2; if (spLeft < objRight && spRight > objLeft && spTop < objBottom && spBottom > objTop) { return true; } return false; }
+        function update() { /* Unchanged */ if (isGameOver || gameWon) return; if (isBlackHoleAnimating) { blackHoleRadius += BLACK_HOLE_GROWTH_RATE; let dx = spaceman.x - blackHoleX; let dy = spaceman.y - blackHoleY; let distance = Math.sqrt(dx*dx + dy*dy); if(distance < blackHoleRadius * 0.8){ spacemanShrinkFactor = Math.max(0, spacemanShrinkFactor - 0.02); } if (blackHoleRadius >= blackHoleTargetRadius || spacemanShrinkFactor <= 0) { isBlackHoleAnimating = false; gameOver("Time's Up!"); } return; } frame++; const elapsedTime = (performance.now() - levelStartTime) / 1000; timeRemaining = Math.max(0, currentTimeLimit - elapsedTime); if (timeRemaining <= 0 && !isTimeUp) { isTimeUp = true; gameOverTimeOut(); return; } spaceman.update(); if (isWarping) { warpTimer--; if (warpTimer <= 0) isWarping = false; } stars.forEach(star => { star.x -= star.speed * gameSpeed; if (star.x < -star.size) { star.x = canvas.width + Math.random() * 5; star.y = Math.random() * canvas.height; } }); if (frame % currentPlanetFreq === 0) { const newObstaclePair = new ObstaclePair(); obstacles.push(newObstaclePair); warpPoints.push(new WarpPoint(newObstaclePair)); } if (frame % currentAsteroidFreq === 0) { asteroids.push(new Asteroid()); } for (let i = obstacles.length - 1; i >= 0; i--) { obstacles[i].update(); const maxPlanetSize = Math.max(obstacles[i].topPlanet.size, obstacles[i].bottomPlanet.size); if (obstacles[i].x + maxPlanetSize / 2 < 0) { obstacles.splice(i, 1); } } for (let i = asteroids.length - 1; i >= 0; i--) { asteroids[i].update(); if (asteroids[i].x + asteroids[i].size / 2 < 0) { asteroids.splice(i, 1); } } for (let i = warpPoints.length - 1; i >= 0; i--) { warpPoints[i].update(); if (warpPoints[i].x + warpPoints[i].size / 2 < 0) { warpPoints.splice(i, 1); } } if (checkCollisions()) { gameOver(); } }
+
+        // --- Drawing Functions ---
+
+        function drawBackground() { /* Unchanged */ ctx.fillStyle = '#000010'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#FFFFFF'; stars.forEach(star => { ctx.fillRect(star.x, star.y, star.size, star.size); }); }
+        function draw() { /* Unchanged */ drawBackground(); if (!isBlackHoleAnimating || blackHoleRadius < blackHoleTargetRadius * 0.8) { obstacles.forEach(obsPair => obsPair.draw()); asteroids.forEach(ast => ast.draw()); warpPoints.forEach(wp => wp.draw()); } if (spaceman) { spaceman.draw(spacemanShrinkFactor); } if (isBlackHoleAnimating) { ctx.fillStyle = '#000000'; ctx.beginPath(); ctx.arc(blackHoleX, blackHoleY, blackHoleRadius, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#202020'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(blackHoleX, blackHoleY, blackHoleRadius * 0.95, 0, Math.PI * 2); ctx.stroke(); } if (!isBlackHoleAnimating) { ctx.fillStyle = '#fff'; const fontSize = canvas.height * 0.04; ctx.font = `${fontSize}px 'Press Start 2P'`; ctx.textBaseline = 'top'; ctx.textAlign = 'left'; ctx.fillText(`Score: ${score}`, 10, 10); ctx.textAlign = 'right'; ctx.fillText(`Level: ${currentLevel}`, canvas.width - 10, 10); ctx.textAlign = 'center'; ctx.fillText(`Warps: ${warpPointsActivatedThisLevel} / ${warpPointsRequired}`, canvas.width / 2, 10); ctx.fillStyle = timeRemaining < 10 ? '#ff6666' : '#fff'; ctx.fillText(`Time: ${Math.ceil(timeRemaining)}`, canvas.width / 2, 10 + fontSize * 1.2); if (isWarping) { ctx.fillStyle = '#00ffff'; ctx.textAlign = 'left'; ctx.fillText(`Warp Active!`, 10, 10 + fontSize * 1.2); } } }
+
+        // Game Over / Win Functions (Unchanged)
+        function gameOver(reason = "Collision!") { if (isGameOver || gameWon) return; isGameOver = true; stopMusic(); if(audioReady) endSynth.triggerAttackRelease("C3", "1n"); console.log("Game Over triggered:", reason); if (!isBlackHoleAnimating) { showGameOverMessage(reason); } }
+        function gameOverTimeOut() { if (isGameOver || gameWon || isBlackHoleAnimating) return; console.log("Time's Up! Starting animation."); stopMusic(); if(audioReady) collisionSynth.triggerAttackRelease("2n"); isTimeUp = true; isBlackHoleAnimating = true; blackHoleX = spaceman.x + (Math.random() - 0.5) * 50; blackHoleY = spaceman.y + (Math.random() - 0.5) * 50; blackHoleRadius = 0; blackHoleTargetRadius = canvas.height * BLACK_HOLE_MAX_SIZE_FACTOR; spacemanShrinkFactor = 1.0; }
+        function showGameOverMessage(reason = "Collision!") { messageBox.innerHTML = `<h2>Game Over!</h2><p>${reason}</p><p>Level: ${currentLevel}</p><p>Score: ${score}</p>`; messageBox.appendChild(resetButton); messageBox.style.display = 'block'; resetButton.style.display = 'inline-block'; flapButton.style.display = 'none'; }
+        function winGame() { if (isGameOver || gameWon) return; gameWon = true; stopMusic(); if(audioReady) endSynth.triggerAttackRelease("C5", "1n"); console.log("Game Won triggered"); setTimeout(() => { messageBox.innerHTML = `<h2>You Win!</h2><p>Congratulations!</p><p>Final Score: ${score}</p>`; messageBox.appendChild(resetButton); messageBox.style.display = 'block'; resetButton.style.display = 'inline-block'; flapButton.style.display = 'none'; }, 300); }
+        function gameLoop() { /* Unchanged */ if ((isGameOver && !isBlackHoleAnimating) || gameWon) return; update(); draw(); requestAnimationFrame(gameLoop); }
+
+        // --- Event Listeners (Unchanged) ---
+        flapButton.addEventListener('click', handleInput);
+        canvas.addEventListener('click', handleInput);
+        resetButton.addEventListener('click', resetGame);
+        startButton.addEventListener('click', async () => { messageBox.style.display = 'none'; if (typeof Tone !== 'undefined' && !audioReady) { await Tone.start(); console.log('Audio context started!'); setupAudio(); } resetGame(); });
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); handleInput(); } });
+
+        // Initial setup on load (Unchanged)
+        window.onload = () => { resizeCanvas(); messageBox.style.display = 'block'; drawBackground(); };
+
+    </script>
+
+</body>
+</html>
