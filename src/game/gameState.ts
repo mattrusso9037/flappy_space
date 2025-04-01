@@ -1,6 +1,10 @@
 import * as PIXI from 'pixi.js';
 import { LEVELS, GAME_WIDTH, GAME_HEIGHT, ASTRONAUT, OBSTACLE } from './config';
-import { Astronaut, Obstacle, Planet, Star, Orb } from './entities';
+import { Astronaut } from './entities/Astronaut';
+import { Obstacle } from './entities/Obstacle';
+import { Planet } from './entities/Planet';
+import { Star } from './entities/Star';
+import { Orb } from './entities/Orb';
 import { createGameLoop, TickerTime } from './gameLoop';
 import audioManager from './audio';
 import assetManager from './assetManager';
@@ -302,6 +306,7 @@ export class GameManager {
       planetY = safeZoneY + safeZoneSize + Math.random() * (GAME_HEIGHT - (safeZoneY + safeZoneSize) - radius * 2) + radius;
     }
     
+    // Create the first planet
     const planet = new Planet(
       GAME_WIDTH + radius,
       planetY,
@@ -309,26 +314,109 @@ export class GameManager {
       speed
     );
     
+    // Check for overlaps with existing obstacles and adjust position if needed
+    this.ensureNoOverlap(planet);
+    
+    // Add the first planet to obstacles and the stage
+    this.app.stage.addChild(planet.glowGraphics);
+    this.app.stage.addChild(planet.graphics);
+    this.obstacles.push(planet);
+    
+    // Spawn a second planet with a probability
     if (Math.random() < 0.3 && this.state.level > 1) {
+      // Determine the second planet's vertical position
       const secondPlanetY = positionAbove 
         ? safeZoneY + safeZoneSize + Math.random() * (GAME_HEIGHT - (safeZoneY + safeZoneSize) - radius * 2) + radius
         : Math.random() * (safeZoneY - radius * 2) + radius;
       
+      // Calculate radius for second planet
+      const secondRadius = radius * (0.7 + Math.random() * 0.6);
+      
+      // Create the second planet with a horizontal offset
       const secondPlanet = new Planet(
-        GAME_WIDTH + radius + Math.random() * 100,
+        GAME_WIDTH + radius + 100 + Math.random() * 150, // Ensure horizontal spacing
         secondPlanetY,
-        radius * (0.7 + Math.random() * 0.6),
+        secondRadius,
         speed
       );
+      
+      // Check for overlaps with all existing obstacles including the first planet
+      this.ensureNoOverlap(secondPlanet);
       
       this.app.stage.addChild(secondPlanet.glowGraphics);
       this.app.stage.addChild(secondPlanet.graphics);
       this.obstacles.push(secondPlanet);
     }
+  }
+  
+  // Utility function to check if two planets overlap
+  private planetsOverlap(planet1: Planet, planet2: Planet): boolean {
+    // Calculate the distance between planet centers
+    const dx = planet2.x - planet1.x;
+    const dy = planet2.y - planet1.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
     
-    this.app.stage.addChild(planet.glowGraphics);
-    this.app.stage.addChild(planet.graphics);
-    this.obstacles.push(planet);
+    // If the distance is less than the sum of radii (plus some buffer space)
+    // then planets overlap
+    const minSeparation = planet1.radius + planet2.radius + 10; // 10px buffer
+    
+    return distance < minSeparation;
+  }
+  
+  // Function to ensure a planet doesn't overlap with any existing obstacles
+  private ensureNoOverlap(planet: Planet): void {
+    // Maximum attempts to find a non-overlapping position
+    const maxAttempts = 5;
+    let attempts = 0;
+    let overlapping = false;
+    
+    do {
+      overlapping = false;
+      
+      // Check if this planet overlaps with any existing obstacles
+      for (const obstacle of this.obstacles) {
+        // Only check obstacles that are planets and still on screen
+        if (obstacle instanceof Planet && !obstacle.isOffScreen()) {
+          const existingPlanet = obstacle as Planet;
+          
+          if (this.planetsOverlap(planet, existingPlanet)) {
+            overlapping = true;
+            
+            // Adjust vertical position to avoid overlap
+            if (planet.y < existingPlanet.y) {
+              // New planet is above existing, move it further up
+              planet.y = Math.max(
+                planet.radius, // Keep within game bounds
+                existingPlanet.y - existingPlanet.radius - planet.radius - 20 // Add spacing
+              );
+            } else {
+              // New planet is below existing, move it further down
+              planet.y = Math.min(
+                GAME_HEIGHT - planet.radius, // Keep within game bounds
+                existingPlanet.y + existingPlanet.radius + planet.radius + 20 // Add spacing
+              );
+            }
+            
+            // If we've made too many attempts, try changing horizontal position
+            if (attempts > 2) {
+              // Move the planet a bit further to the right
+              planet.x += planet.radius * 1.2;
+            }
+            
+            // Update graphics position
+            planet.graphics.y = planet.y;
+            planet.glowGraphics.y = planet.y;
+            planet.graphics.x = planet.x;
+            planet.glowGraphics.x = planet.x;
+            
+            // Break to recheck with the new position
+            break;
+          }
+        }
+      }
+      
+      attempts++;
+    } while (overlapping && attempts < maxAttempts);
   }
   
   private clearStage() {
