@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { LEVELS, GAME_WIDTH, GAME_HEIGHT, ASTRONAUT, OBSTACLE } from './config';
-import { Astronaut, Obstacle, Star } from './gameObjects';
+import { Astronaut, Obstacle, Star } from './entities';
 import { createGameLoop, TickerTime } from './gameLoop';
 import audioManager from './audio';
 import assetManager from './assetManager';
