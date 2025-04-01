@@ -82,7 +82,8 @@ export class GameManager {
     
     // Add spacebar handler for game start
     document.addEventListener('keydown', (e) => {
-      if (e.key === ' ' && !this.state.isStarted && !this.state.isGameOver) {
+      console.log('keydown', e.key, this.state.isStarted, this.state.isGameOver);
+      if (e.key === ' ' && !this.state.isStarted) {
         this.startGame();
       } else if (e.key === 'd' || e.key === 'D') {
         this.toggleDebugMode();
@@ -420,6 +421,7 @@ export class GameManager {
   }
   
   private clearStage() {
+    if (!this.app.stage) return;
     while (this.app.stage.children.length > 0) {
       this.app.stage.removeChildAt(0);
     }
