@@ -32,6 +32,15 @@ export function createGameLoop(gameManager: GameManager) {
       lastUIUpdateTime = gameManager.state.time;
     }
     
+    // Update scoreboard
+    gameManager.scoreboard.update(
+      gameManager.state.score,
+      gameManager.state.level,
+      gameManager.state.orbsCollected,
+      gameManager.state.orbsRequired,
+      gameManager.state.timeRemaining
+    );
+    
     // Check if level timer has run out or if enough orbs have been collected
     if (gameManager.checkLevelTimer()) {
       return; // Level complete or game over

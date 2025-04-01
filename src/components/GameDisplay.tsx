@@ -89,13 +89,19 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
           
           app.renderer.resize(width, height);
           
-          // Scale the stage to maintain aspect ratio
+          // Scale the stage to maintain aspect ratio but fill the container
           const scale = Math.min(width / GAME_WIDTH, height / GAME_HEIGHT);
           app.stage.scale.set(scale);
           
-          // Center the stage
+          // Center the game stage within the container
           app.stage.position.x = (width - GAME_WIDTH * scale) / 2;
           app.stage.position.y = (height - GAME_HEIGHT * scale) / 2;
+
+          // Ensure the canvas fills the container
+          if (app.canvas) {
+            app.canvas.style.width = '100%';
+            app.canvas.style.height = '100%';
+          }
         };
         
         // Initial resize
@@ -225,7 +231,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       )}
       
       {/* Show game start or game over messages */}
-      {(isLoaded && !gameStarted && !loadError) && (
+      {(!gameStarted || gameManagerRef.current?.state.isGameOver) && (
         <div className="start-overlay">
           <h2>{gameManagerRef.current?.state.isGameOver ? 'Game Over!' : 'Flappy Spaceman'}</h2>
           {gameManagerRef.current?.state.isGameOver && (
@@ -238,8 +244,8 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
               )}
             </>
           )}
-          <p>{gameManagerRef.current?.state.isGameOver ? 'Click START to try again' : 'Click START to play'}</p>
-          <p>Press Space, Up Arrow, or W to fly!</p>
+          <p>{gameManagerRef.current?.state.isGameOver ? 'Press SPACE to try again' : 'Press SPACE to start'}</p>
+          <p>Use SPACE, Up Arrow, or W to fly!</p>
           {!gameManagerRef.current?.state.isGameOver && (
             <p className="mission-goal">Collect all orbs before time runs out!</p>
           )}

@@ -5,6 +5,7 @@ import { createGameLoop, TickerTime } from './gameLoop';
 import audioManager from './audio';
 import assetManager from './assetManager';
 import inputManager, { InputEvent } from './inputManager';
+import { Scoreboard } from './scoreboard';
 
 export interface GameState {
   score: number;
@@ -33,6 +34,7 @@ export class GameManager {
   updateCallback: (state: GameState) => void;
   private jumpHandler: () => void;
   private debugGraphics: PIXI.Graphics;
+  scoreboard: Scoreboard;
   
   constructor(app: PIXI.Application, updateCallback: (state: GameState) => void) {
     this.app = app;
@@ -46,6 +48,10 @@ export class GameManager {
     
     this.debugGraphics = new PIXI.Graphics();
     this.app.stage.addChild(this.debugGraphics);
+    
+    // Initialize scoreboard
+    this.scoreboard = new Scoreboard();
+    this.app.stage.addChild(this.scoreboard.getContainer());
     
     const currentLevel = LEVELS[0]; // Start with level 1
     
@@ -70,8 +76,11 @@ export class GameManager {
     this.jumpHandler = this.flap.bind(this);
     inputManager.on(InputEvent.JUMP, this.jumpHandler);
     
+    // Add spacebar handler for game start
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'd' || e.key === 'D') {
+      if (e.key === ' ' && !this.state.isStarted && !this.state.isGameOver) {
+        this.startGame();
+      } else if (e.key === 'd' || e.key === 'D') {
         this.toggleDebugMode();
       }
     });
@@ -162,6 +171,9 @@ export class GameManager {
     this.debugGraphics.clear();
     this.app.stage.addChild(this.debugGraphics);
     
+    // Re-add scoreboard
+    this.app.stage.addChild(this.scoreboard.getContainer());
+    
     const currentLevel = LEVELS[0]; // Start with level 1
     
     this.state = {
@@ -183,6 +195,15 @@ export class GameManager {
     this.orbs = [];
     this.lastObstacleTime = 0;
     this.lastOrbTime = 0;
+    
+    // Update scoreboard with initial state
+    this.scoreboard.update(
+      this.state.score,
+      this.state.level,
+      this.state.orbsCollected,
+      this.state.orbsRequired,
+      this.state.timeRemaining
+    );
     
     this.updateCallback(this.state);
   }

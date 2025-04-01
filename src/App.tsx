@@ -72,7 +72,7 @@ function App() {
       
       <main className="App-main">
         <div className="game-container">
-          <GameDisplay 
+          <GameDisplay
             gameStarted={gameStarted} 
             onGameClick={handleGameClick}
             onGameStateChange={handleGameStateChange}
@@ -91,31 +91,9 @@ function App() {
               />
             </div>
             
-            <div className="game-controls">
-              {!gameStarted && (
-                <div className="game-buttons">
-                  <Button onClick={handleStartGame}>
-                    {gameState.isGameOver ? 'Try Again' : 'Start Game'}
-                  </Button>
-                </div>
-              )}
-              
-              {gameStarted && (
-                <div className="game-buttons">
-                  <Button onClick={handleResetGame}>Reset</Button>
-                </div>
-              )}
-            </div>
+        
             
-            <div className="game-instructions">
-              <h3>Controls:</h3>
-              <ul>
-                <li>Press <strong>Space</strong>, <strong>↑</strong>, or <strong>W</strong> key to fly</li>
-                <li>Click or tap the screen to fly</li>
-                <li>Avoid obstacles and collect blue orbs</li>
-                <li>Collect {gameState.orbsRequired} orbs before time runs out!</li>
-              </ul>
-            </div>
+           
           </div>
         </div>
       </main>
@@ -126,10 +104,6 @@ function App() {
           isVisible={gameState.isLevelComplete}
         />
       )}
-      
-      <footer className="App-footer">
-        <p>Made with React, TypeScript, and Pixi.js</p>
-      </footer>
     </div>
   )
 }
