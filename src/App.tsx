@@ -6,6 +6,7 @@ import MessageBox from './components/MessageBox'
 import LevelMessage from './components/LevelMessage'
 import { GameState } from './game/gameState'
 import './App.css'
+import Button from './components/Button'
 
 function App() {
   // Game state
@@ -37,48 +38,66 @@ function App() {
     setGameStarted(true)
   }
   
-  const handleReset = () => {
+  const handleResetGame = () => {
     setGameStarted(false)
+    // We'll trigger a reset in the game manager through the props
   }
   
-  const handleFlap = () => {
-    // This is just a UI action - the actual flap happens in the game manager
-    // We still need this to handle the button clicks
+  const handleGameClick = () => {
+    // This is handled in the GameDisplay component
   }
 
   return (
-    <div className="game-container">
-      <h1>Flappy Spaceman</h1>
+    <div className="App">
+      <header className="App-header">
+        <h1>Flappy Spaceman</h1>
+      </header>
       
-      <GameDisplay 
-        gameStarted={gameStarted} 
-        onGameClick={handleFlap}
-        onGameStateChange={handleGameStateChange}
-      />
+      <main className="App-main">
+        <div className="game-container">
+          <GameDisplay 
+            gameStarted={gameStarted} 
+            onGameClick={handleGameClick}
+            onGameStateChange={handleGameStateChange}
+          />
+          
+          <div className="game-ui">
+            <div className="game-controls">
+              <div className="game-stats">
+                <p>Score: {gameState.score}</p>
+                <p>Level: {gameState.level}</p>
+              </div>
+              
+              {!gameStarted && (
+                <div className="game-buttons">
+                  <Button onClick={handleStartGame}>
+                    {gameState.isGameOver ? 'Try Again' : 'Start Game'}
+                  </Button>
+                </div>
+              )}
+              
+              {gameStarted && (
+                <div className="game-buttons">
+                  <Button onClick={handleResetGame}>Reset</Button>
+                </div>
+              )}
+            </div>
+            
+            <div className="game-instructions">
+              <h3>Controls:</h3>
+              <ul>
+                <li>Press <strong>Space</strong>, <strong>↑</strong>, or <strong>W</strong> key to fly</li>
+                <li>Click or tap the screen to fly</li>
+                <li>Avoid obstacles and collect points</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </main>
       
-      <Controls 
-        gameStarted={gameStarted} 
-        onFlap={handleFlap}
-        onReset={handleReset}
-      />
-      
-      <Scoreboard 
-        score={gameState.score}
-        level={gameState.level}
-        warps={gameState.warps}
-        time={gameState.time}
-      />
-      
-      <MessageBox 
-        message={gameState.isGameOver ? "Game Over!" : "Welcome to Flappy Spaceman!"}
-        isVisible={!gameStarted || gameState.isGameOver}
-        onStartGame={handleStartGame}
-      />
-      
-      <LevelMessage 
-        isVisible={gameState.isLevelComplete}
-        level={gameState.level - 1} // Show the completed level
-      />
+      <footer className="App-footer">
+        <p>Made with React, TypeScript, and Pixi.js</p>
+      </footer>
     </div>
   )
 }

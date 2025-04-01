@@ -2,6 +2,8 @@ import { useRef, useEffect, useState } from 'react';
 import * as PIXI from 'pixi.js';
 import { GameManager, GameState } from '../game/gameState';
 import { GAME_WIDTH, GAME_HEIGHT } from '../game/config';
+import assetManager from '../game/assetManager';
+import inputManager from '../game/inputManager';
 
 interface GameDisplayProps {
   gameStarted: boolean;
@@ -15,18 +17,21 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   const gameManagerRef = useRef<GameManager | null>(null);
   const resizeListenerRef = useRef<(() => void) | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Initialize Pixi app
   useEffect(() => {
     const setupApp = async () => {
       if (containerRef.current && !appRef.current) {
         try {
+          console.log('Setting up Pixi application...');
+          
           // Create a new application with modern API
           const app = new PIXI.Application();
           
           // Initialize the application
           await app.init({
-            background: '#000000',
+            background: '#000033', // Changed to match game background
             antialias: true,
             resolution: window.devicePixelRatio || 1,
           });
@@ -66,12 +71,21 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
           // Add window resize listener
           window.addEventListener('resize', resizeCanvas);
           
-          // Load assets
-          await PIXI.Assets.load('/assets/astro-sprite.png');
-          setIsLoaded(true);
+          // Load assets using our asset manager
+          console.log('Starting to load assets...');
+          try {
+            await assetManager.loadAssets();
+            console.log('Assets loaded successfully');
+            setIsLoaded(true);
+            setLoadError(null);
+          } catch (assetError) {
+            console.error('Failed to load assets:', assetError);
+            setLoadError(`Failed to load game assets: ${assetError instanceof Error ? assetError.message : String(assetError)}`);
+          }
           
         } catch (error) {
           console.error('Error initializing Pixi application:', error);
+          setLoadError(`Error initializing game: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
     };
@@ -86,11 +100,19 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         resizeListenerRef.current = null;
       }
       
+      // Clean up game manager
+      if (gameManagerRef.current) {
+        gameManagerRef.current.dispose();
+      }
+      
       // Destroy Pixi app
       if (appRef.current) {
         appRef.current.destroy();
         appRef.current = null;
       }
+      
+      // Clean up input manager
+      inputManager.disable();
       
       // Clear game manager reference
       gameManagerRef.current = null;
@@ -101,14 +123,21 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   useEffect(() => {
     if (!appRef.current || !isLoaded) return;
     
-    // Initialize game manager if it doesn't exist
-    if (!gameManagerRef.current) {
-      gameManagerRef.current = new GameManager(appRef.current, (state: GameState) => {
-        onGameStateChange(state);
-      });
-      
-      // Setup initial game state
-      gameManagerRef.current.setupGame();
+    try {
+      console.log('Initializing game manager...');
+      // Initialize game manager if it doesn't exist
+      if (!gameManagerRef.current) {
+        gameManagerRef.current = new GameManager(appRef.current, (state: GameState) => {
+          onGameStateChange(state);
+        });
+        
+        // Setup initial game state
+        gameManagerRef.current.setupGame();
+        console.log('Game manager initialized successfully');
+      }
+    } catch (error) {
+      console.error('Error initializing game manager:', error);
+      setLoadError(`Error setting up game: ${error instanceof Error ? error.message : String(error)}`);
     }
   }, [isLoaded, onGameStateChange]);
   
@@ -139,7 +168,24 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       className="game-display"
       style={{ cursor: gameStarted ? 'pointer' : 'default' }}
       onClick={handleGameClick}
-    />
+    >
+      {/* Show loading error if there is one */}
+      {loadError && (
+        <div className="error-overlay">
+          <h3>Error</h3>
+          <p>{loadError}</p>
+          <p className="error-tip">Check browser console for more details (F12)</p>
+        </div>
+      )}
+      
+      {/* Show loading indicator */}
+      {!isLoaded && !loadError && (
+        <div className="loading-overlay">
+          <h3>Loading game assets...</h3>
+          <div className="loading-spinner"></div>
+        </div>
+      )}
+    </div>
   );
 };
 

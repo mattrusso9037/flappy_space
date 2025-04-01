@@ -1,12 +1,25 @@
 import * as PIXI from 'pixi.js';
 import { GRAVITY, JUMP_VELOCITY, MAX_VELOCITY, GAME_HEIGHT, COLORS } from './config';
 
+// Helper function to check if two rectangles overlap
+function rectanglesIntersect(r1: PIXI.Bounds, r2: PIXI.Bounds): boolean {
+  return !(
+    r1.maxX < r2.minX ||
+    r1.minX > r2.maxX ||
+    r1.maxY < r2.minY ||
+    r1.minY > r2.maxY
+  );
+}
+
 export class Astronaut {
   sprite: PIXI.Sprite;
   velocity: number;
   rotation: number;
   dead: boolean;
-
+  
+  // Simplified properties - no animation frames for now
+  // We'll implement proper animation in a future update if the sprite sheet is provided
+  
   constructor(texture: PIXI.Texture, x: number, y: number) {
     this.sprite = new PIXI.Sprite(texture);
     this.sprite.width = 50;
@@ -20,7 +33,7 @@ export class Astronaut {
     this.dead = false;
   }
 
-  update() {
+  update(deltaMS: number = 16.667) {
     if (this.dead) return;
 
     // Apply gravity
@@ -48,6 +61,8 @@ export class Astronaut {
       this.velocity = 0;
       this.die();
     }
+    
+    // Animation can be added here in future updates
   }
 
   flap() {
@@ -114,8 +129,8 @@ export class Obstacle {
     const bottomPipeBounds = this.bottomPipe.getBounds();
 
     return (
-      astronautBounds.intersects(topPipeBounds) || 
-      astronautBounds.intersects(bottomPipeBounds)
+      rectanglesIntersect(astronautBounds, topPipeBounds) || 
+      rectanglesIntersect(astronautBounds, bottomPipeBounds)
     );
   }
 

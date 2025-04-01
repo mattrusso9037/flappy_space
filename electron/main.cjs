@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, protocol } = require('electron');
 const path = require('path');
 const url = require('url');
 const fs = require('fs');
@@ -6,6 +6,13 @@ const fs = require('fs');
 // Better detect development mode
 const isDev = process.env.NODE_ENV === 'development' || 
               !fs.existsSync(path.join(__dirname, '../dist/index.html'));
+
+// Log important paths for debugging
+console.log('App paths:');
+console.log('- __dirname:', __dirname);
+console.log('- App path:', app.getAppPath());
+console.log('- Current working directory:', process.cwd());
+console.log('- Development mode:', isDev);
 
 let mainWindow;
 
@@ -17,8 +24,24 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs')
+      preload: path.join(__dirname, 'preload.cjs'),
+      // Enable more detailed Chromium logging
+      additionalArguments: ['--enable-logging=stderr', '--v=1']
     }
+  });
+
+  // Enable DevTools in development mode
+  if (isDev) {
+    mainWindow.webContents.openDevTools();
+  }
+
+  // Log when page loads or fails
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Page loaded successfully');
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Page failed to load:', errorCode, errorDescription);
   });
 
   // Load the app
@@ -33,8 +56,6 @@ function createWindow() {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
       }
     });
-    // Open DevTools
-    mainWindow.webContents.openDevTools();
   } else {
     // In production, load from the built files
     console.log('Running in production mode, loading from built files...');
@@ -47,8 +68,22 @@ function createWindow() {
   });
 }
 
-// This method will be called when Electron has finished initialization
-app.whenReady().then(createWindow);
+// Register the file protocol for direct asset access
+// This ensures assets can be loaded using the file:// protocol when packaged
+app.whenReady().then(() => {
+  // Register file protocol handler
+  protocol.registerFileProtocol('file', (request, callback) => {
+    // Extract the file path from the request URL
+    const filePath = decodeURIComponent(request.url.slice('file://'.length));
+    try {
+      callback({ path: filePath });
+    } catch (error) {
+      console.error('Failed to register protocol:', error);
+    }
+  });
+
+  createWindow();
+});
 
 // Quit when all windows are closed
 app.on('window-all-closed', function () {

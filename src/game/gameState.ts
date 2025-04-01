@@ -1,7 +1,10 @@
 import * as PIXI from 'pixi.js';
-import { LEVELS, SCORE_PER_OBSTACLE, POINTS_TO_NEXT_LEVEL, GAME_WIDTH, GAME_HEIGHT, ASTRONAUT, OBSTACLE } from './config';
+import { LEVELS, GAME_WIDTH, GAME_HEIGHT, ASTRONAUT, OBSTACLE } from './config';
 import { Astronaut, Obstacle, Star } from './gameObjects';
+import { createGameLoop, TickerTime } from './gameLoop';
 import audioManager from './audio';
+import assetManager from './assetManager';
+import inputManager, { InputEvent } from './inputManager';
 
 export interface GameState {
   score: number;
@@ -13,13 +16,6 @@ export interface GameState {
   isLevelComplete: boolean;
 }
 
-// Define a type for the ticker time parameter
-interface TickerTime {
-  deltaTime: number;
-  deltaMS: number;
-  elapsedMS: number;
-}
-
 export class GameManager {
   app: PIXI.Application;
   astronaut: Astronaut | null;
@@ -28,6 +24,7 @@ export class GameManager {
   state: GameState;
   lastObstacleTime: number;
   updateCallback: (state: GameState) => void;
+  private jumpHandler: () => void;
   
   constructor(app: PIXI.Application, updateCallback: (state: GameState) => void) {
     this.app = app;
@@ -47,18 +44,21 @@ export class GameManager {
       isLevelComplete: false
     };
     
-    // Setup game ticker with modern time parameter
-    this.app.ticker.add((time) => {
-      this.gameLoop(time);
-    });
+    // Setup game ticker with the game loop module
+    const gameLoop = createGameLoop(this);
+    this.app.ticker.add((time) => gameLoop(time));
+    
+    // Setup input handling
+    this.jumpHandler = this.flap.bind(this);
+    inputManager.on(InputEvent.JUMP, this.jumpHandler);
   }
   
   setupGame() {
     this.clearStage();
     this.createBackground();
     
-    // Load astronaut texture
-    const astronautTexture = PIXI.Assets.get('/assets/astro-sprite.png');
+    // Load astronaut texture from asset manager
+    const astronautTexture = assetManager.getTexture('astronaut');
     this.astronaut = new Astronaut(
       astronautTexture, 
       ASTRONAUT.startX, 
@@ -94,6 +94,9 @@ export class GameManager {
     // Initialize audio on user interaction
     audioManager.initialize();
     
+    // Enable input handling
+    inputManager.enable();
+    
     // Update UI
     this.updateCallback(this.state);
   }
@@ -104,6 +107,9 @@ export class GameManager {
     
     // Play hit sound
     audioManager.play('hit');
+    
+    // Disable input handling during game over
+    inputManager.disable();
     
     // Update UI
     this.updateCallback(this.state);
@@ -148,70 +154,27 @@ export class GameManager {
     audioManager.play('jump');
   }
   
-  private gameLoop(time: TickerTime) {
-    if (!this.state.isStarted || this.state.isGameOver) return;
+  dispose() {
+    // Clean up resources and event listeners
+    inputManager.off(InputEvent.JUMP, this.jumpHandler);
+    inputManager.disable();
+  }
+  
+  spawnObstacle(speed: number) {
+    // Calculate random gap position
+    const gapY = Math.random() * (GAME_HEIGHT - OBSTACLE.gap - OBSTACLE.minHeight * 2) + OBSTACLE.minHeight;
     
-    // Update time using deltaMS for consistent time tracking
-    this.state.time += time.deltaMS;
+    const obstacle = new Obstacle(
+      GAME_WIDTH,      // x position (right edge of screen)
+      gapY,            // gap start y position
+      OBSTACLE.gap,    // gap height
+      OBSTACLE.width,  // obstacle width
+      speed            // movement speed
+    );
     
-    // Update astronaut
-    if (this.astronaut) {
-      this.astronaut.update();
-      
-      if (this.astronaut.dead) {
-        this.gameOver();
-        return;
-      }
-    }
-    
-    // Current level settings
-    const currentLevel = LEVELS[this.state.level - 1];
-    
-    // Spawn new obstacles
-    const currentTime = this.state.time;
-    if (currentTime - this.lastObstacleTime > currentLevel.spawnInterval) {
-      this.spawnObstacle(currentLevel.speed);
-      this.lastObstacleTime = currentTime;
-    }
-    
-    // Update obstacles
-    for (let i = this.obstacles.length - 1; i >= 0; i--) {
-      const obstacle = this.obstacles[i];
-      obstacle.update();
-      
-      // Check if astronaut passed the obstacle
-      if (this.astronaut && obstacle.isPassed(this.astronaut.sprite.x)) {
-        this.state.score += SCORE_PER_OBSTACLE;
-        
-        // Play score sound
-        audioManager.play('score');
-        
-        // Check for level up
-        if (this.state.score % POINTS_TO_NEXT_LEVEL === 0) {
-          this.levelComplete();
-        }
-        
-        // Update UI
-        this.updateCallback(this.state);
-      }
-      
-      // Check for collision
-      if (this.astronaut && obstacle.checkCollision(this.astronaut)) {
-        this.astronaut.die();
-        this.gameOver();
-        return;
-      }
-      
-      // Remove off-screen obstacles
-      if (obstacle.isOffScreen()) {
-        this.app.stage.removeChild(obstacle.topPipe);
-        this.app.stage.removeChild(obstacle.bottomPipe);
-        this.obstacles.splice(i, 1);
-      }
-    }
-    
-    // Update stars
-    this.stars.forEach(star => star.update());
+    this.app.stage.addChild(obstacle.topPipe);
+    this.app.stage.addChild(obstacle.bottomPipe);
+    this.obstacles.push(obstacle);
   }
   
   private clearStage() {
@@ -240,22 +203,5 @@ export class GameManager {
       this.stars.push(star);
       this.app.stage.addChild(star.graphics);
     }
-  }
-  
-  private spawnObstacle(speed: number) {
-    // Calculate random gap position
-    const gapY = Math.random() * (GAME_HEIGHT - OBSTACLE.gap - OBSTACLE.minHeight * 2) + OBSTACLE.minHeight;
-    
-    const obstacle = new Obstacle(
-      GAME_WIDTH,      // x position (right edge of screen)
-      gapY,            // gap start y position
-      OBSTACLE.gap,    // gap height
-      OBSTACLE.width,  // obstacle width
-      speed            // movement speed
-    );
-    
-    this.app.stage.addChild(obstacle.topPipe);
-    this.app.stage.addChild(obstacle.bottomPipe);
-    this.obstacles.push(obstacle);
   }
 } 

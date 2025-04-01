@@ -41,89 +41,121 @@
   color: #888;
 }
 
-.game-container {
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  text-align: center;
+  background-color: #282c34;
+  color: white;
+}
+
+.App-header {
+  padding: 1rem;
+  background-color: #1a1d22;
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.App-main {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+  justify-content: center;
+  padding: 1rem;
 }
 
-h1 {
-  font-family: 'Press Start 2P', cursive;
-  margin-bottom: 20px;
-  color: #fff;
-  text-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 30px #0ff;
+.App-footer {
+  padding: 1rem;
+  background-color: #1a1d22;
+  font-size: 0.8rem;
+}
+
+.game-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1200px;
+  height: 80vh;
+  margin: 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .game-display {
+  flex: 1;
   position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background-color: #000;
-  border: 4px solid #444;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  overflow: hidden;
+  background-color: #000033;
 }
 
-.game-message {
+.game-ui {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  background-color: #1a1d22;
+}
+
+@media (min-width: 768px) {
+  .game-ui {
+    flex-direction: row;
+  }
+}
+
+.game-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.game-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  margin-bottom: 1rem;
+}
+
+.game-stats p {
+  margin: 0.5rem 1rem;
+  font-size: 1.2rem;
+}
+
+.game-buttons {
   display: flex;
   justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-  color: #0ff;
-  font-family: 'Press Start 2P', cursive;
-  font-size: 0.8rem;
-  padding: 20px;
-  text-align: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
 }
 
-.controls {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
+.game-instructions {
+  flex: 1;
+  text-align: left;
+  padding: 0 1rem;
 }
 
-.controls button {
-  font-family: 'Press Start 2P', cursive;
-  font-size: 0.7rem;
-  padding: 12px 24px;
-  background-color: #333;
-  color: #fff;
-  border: 3px solid #555;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
+.game-instructions h3 {
+  margin-top: 0;
 }
 
-.controls button:hover {
-  background-color: #444;
-  border-color: #0ff;
-  transform: translateY(-2px);
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+.game-instructions ul {
+  padding-left: 1.5rem;
+  line-height: 1.6;
 }
 
-.boost-button {
-  background-color: #4a0 !important;
-  border-color: #590 !important;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.boost-button:hover {
-  background-color: #5b0 !important;
-  border-color: #7c0 !important;
-}
-
-.retry-button {
-  background-color: #a44 !important;
-  border-color: #c55 !important;
-}
-
-.retry-button:hover {
-  background-color: #b55 !important;
-  border-color: #d66 !important;
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
 .scoreboard {
