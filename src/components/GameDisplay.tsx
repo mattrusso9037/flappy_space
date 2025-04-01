@@ -2,31 +2,42 @@ import { useRef, useEffect } from 'react';
 
 interface GameDisplayProps {
   gameStarted: boolean;
+  onGameClick?: () => void;
 }
 
-const GameDisplay = ({ gameStarted }: GameDisplayProps) => {
+const GameDisplay = ({ gameStarted, onGameClick }: GameDisplayProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // This is where we'll initialize Pixi.js in Phase 3
+    // This will be where we initialize Pixi.js in Phase 3
     if (!containerRef.current) return;
 
-    // For now, we'll just display a message
     const container = containerRef.current;
     container.innerHTML = '';
     
+    // Create a placeholder message
     const message = document.createElement('div');
     message.className = 'game-message';
     message.textContent = gameStarted 
-      ? 'Game running! Pixi.js will be integrated in Phase 3.' 
+      ? 'Game running! Click/tap to boost. Pixi.js will be integrated in Phase 3.' 
       : 'Press Start to begin!';
     
     container.appendChild(message);
 
-    return () => {
-      // Cleanup function will be added when we integrate Pixi.js
+    // Setup container for clicks
+    const handleClick = () => {
+      if (gameStarted && onGameClick) {
+        onGameClick();
+      }
     };
-  }, [gameStarted]);
+
+    container.addEventListener('click', handleClick);
+    
+    return () => {
+      // Cleanup
+      container.removeEventListener('click', handleClick);
+    };
+  }, [gameStarted, onGameClick]);
 
   return (
     <div 
@@ -38,7 +49,8 @@ const GameDisplay = ({ gameStarted }: GameDisplayProps) => {
         alignItems: 'center',
         color: '#0ff',
         fontSize: '1rem',
-        textAlign: 'center'
+        textAlign: 'center',
+        cursor: gameStarted ? 'pointer' : 'default'
       }}
     />
   );

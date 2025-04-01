@@ -68,14 +68,17 @@ h1 {
   overflow: hidden;
 }
 
-.placeholder-canvas {
+.game-message {
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
   height: 100%;
-  color: #888;
-  font-family: monospace;
+  color: #0ff;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.8rem;
+  padding: 20px;
+  text-align: center;
 }
 
 .controls {
@@ -103,6 +106,26 @@ h1 {
   box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
 }
 
+.boost-button {
+  background-color: #4a0 !important;
+  border-color: #590 !important;
+}
+
+.boost-button:hover {
+  background-color: #5b0 !important;
+  border-color: #7c0 !important;
+}
+
+.retry-button {
+  background-color: #a44 !important;
+  border-color: #c55 !important;
+}
+
+.retry-button:hover {
+  background-color: #b55 !important;
+  border-color: #d66 !important;
+}
+
 .scoreboard {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -116,4 +139,101 @@ h1 {
   font-family: 'Press Start 2P', cursive;
   font-size: 0.7rem;
   color: #0ff;
+}
+
+.scoreboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scoreboard-label {
+  margin-right: 10px;
+}
+
+.scoreboard-value {
+  color: #ff0;
+  text-shadow: 0 0 5px #aa0;
+}
+
+.message-box {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.message-content {
+  background-color: #111;
+  padding: 30px;
+  border-radius: 10px;
+  border: 4px solid #444;
+  text-align: center;
+  max-width: 400px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.message-content h2 {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 1.5rem;
+  color: #0ff;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.message-content button {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.8rem;
+  padding: 15px 30px;
+  background-color: #333;
+  color: #fff;
+  border: 3px solid #0ff;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: all 0.2s;
+}
+
+.message-content button:hover {
+  background-color: #444;
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+}
+
+.level-message {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.level-message-content {
+  text-align: center;
+}
+
+.level-message h2 {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 2rem;
+  color: #0f0;
+  margin-bottom: 20px;
+  text-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+}
+
+.level-message p {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 1rem;
+  color: #0ff;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
 }
