@@ -13,61 +13,88 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   const containerRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const gameManagerRef = useRef<GameManager | null>(null);
+  const resizeListenerRef = useRef<(() => void) | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Initialize Pixi app
   useEffect(() => {
-    if (!containerRef.current) return;
-
-    // Create Pixi Application if it doesn't exist
-    if (!appRef.current) {
-      const app = new PIXI.Application({
-        background: '#000000',
-        antialias: true,
-        resolution: window.devicePixelRatio || 1,
-      });
+    const setupApp = async () => {
+      if (containerRef.current && !appRef.current) {
+        try {
+          // Create a new application with modern API
+          const app = new PIXI.Application();
+          
+          // Initialize the application
+          await app.init({
+            background: '#000000',
+            antialias: true,
+            resolution: window.devicePixelRatio || 1,
+          });
+          
+          // Store the app reference
+          appRef.current = app;
+          
+          // Clear the container and add the canvas
+          containerRef.current.innerHTML = '';
+          containerRef.current.appendChild(app.canvas);
+          
+          // Make canvas responsive
+          const resizeCanvas = () => {
+            if (!containerRef.current || !app.renderer) return;
+            
+            const container = containerRef.current;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            app.renderer.resize(width, height);
+            
+            // Scale the stage to maintain aspect ratio
+            const scale = Math.min(width / GAME_WIDTH, height / GAME_HEIGHT);
+            app.stage.scale.set(scale);
+            
+            // Center the stage
+            app.stage.position.x = (width - GAME_WIDTH * scale) / 2;
+            app.stage.position.y = (height - GAME_HEIGHT * scale) / 2;
+          };
+          
+          // Store resize listener for cleanup
+          resizeListenerRef.current = resizeCanvas;
+          
+          // Initial resize
+          resizeCanvas();
+          
+          // Add window resize listener
+          window.addEventListener('resize', resizeCanvas);
+          
+          // Load assets
+          await PIXI.Assets.load('/assets/astro-sprite.png');
+          setIsLoaded(true);
+          
+        } catch (error) {
+          console.error('Error initializing Pixi application:', error);
+        }
+      }
+    };
+    
+    setupApp();
+    
+    // Cleanup function
+    return () => {
+      // Remove resize listener
+      if (resizeListenerRef.current) {
+        window.removeEventListener('resize', resizeListenerRef.current);
+        resizeListenerRef.current = null;
+      }
       
-      appRef.current = app;
-      containerRef.current.innerHTML = '';
-      containerRef.current.appendChild(app.view as HTMLCanvasElement);
-      
-      // Make canvas responsive
-      const resizeCanvas = () => {
-        if (!containerRef.current || !app.renderer) return;
-        
-        const container = containerRef.current;
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        
-        app.renderer.resize(width, height);
-        
-        // Scale the stage to maintain aspect ratio
-        const scale = Math.min(width / GAME_WIDTH, height / GAME_HEIGHT);
-        app.stage.scale.set(scale);
-        
-        // Center the stage
-        app.stage.position.x = (width - GAME_WIDTH * scale) / 2;
-        app.stage.position.y = (height - GAME_HEIGHT * scale) / 2;
-      };
-      
-      // Initial resize
-      resizeCanvas();
-      
-      // Add window resize listener
-      window.addEventListener('resize', resizeCanvas);
-      
-      // Load assets
-      PIXI.Assets.load('/assets/astro-sprite.png').then(texture => {
-        setIsLoaded(true);
-      });
-      
-      return () => {
-        window.removeEventListener('resize', resizeCanvas);
-        app.destroy(true, true);
+      // Destroy Pixi app
+      if (appRef.current) {
+        appRef.current.destroy();
         appRef.current = null;
-        gameManagerRef.current = null;
-      };
-    }
+      }
+      
+      // Clear game manager reference
+      gameManagerRef.current = null;
+    };
   }, []);
   
   // Initialize game manager once assets are loaded

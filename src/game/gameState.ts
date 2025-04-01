@@ -13,6 +13,13 @@ export interface GameState {
   isLevelComplete: boolean;
 }
 
+// Define a type for the ticker time parameter
+interface TickerTime {
+  deltaTime: number;
+  deltaMS: number;
+  elapsedMS: number;
+}
+
 export class GameManager {
   app: PIXI.Application;
   astronaut: Astronaut | null;
@@ -40,9 +47,9 @@ export class GameManager {
       isLevelComplete: false
     };
     
-    // Setup game ticker with the correct callback signature
-    this.app.ticker.add(() => {
-      this.gameLoop();
+    // Setup game ticker with modern time parameter
+    this.app.ticker.add((time) => {
+      this.gameLoop(time);
     });
   }
   
@@ -141,11 +148,11 @@ export class GameManager {
     audioManager.play('jump');
   }
   
-  private gameLoop() {
+  private gameLoop(time: TickerTime) {
     if (!this.state.isStarted || this.state.isGameOver) return;
     
-    // Update time
-    this.state.time += this.app.ticker.deltaMS;
+    // Update time using deltaMS for consistent time tracking
+    this.state.time += time.deltaMS;
     
     // Update astronaut
     if (this.astronaut) {
