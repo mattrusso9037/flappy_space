@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { LEVELS, GAME_WIDTH, GAME_HEIGHT, ASTRONAUT, OBSTACLE } from './config';
-import { Astronaut, Obstacle, Star } from './entities';
+import { Astronaut, Obstacle, Planet, Star } from './entities';
 import { createGameLoop, TickerTime } from './gameLoop';
 import audioManager from './audio';
 import assetManager from './assetManager';
@@ -131,8 +131,15 @@ export class GameManager {
     
     // Clear obstacles
     this.obstacles.forEach(obstacle => {
-      this.app.stage.removeChild(obstacle.topPipe);
-      this.app.stage.removeChild(obstacle.bottomPipe);
+      // Check what type of obstacle it is and remove its display objects
+      if ('graphics' in obstacle) {
+        // For Planet and other single-graphics obstacles
+        this.app.stage.removeChild((obstacle as any).graphics);
+      } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
+        // For PipeObstacle with top and bottom pipes
+        this.app.stage.removeChild((obstacle as any).topPipe);
+        this.app.stage.removeChild((obstacle as any).bottomPipe);
+      }
     });
     this.obstacles = [];
     
@@ -161,20 +168,59 @@ export class GameManager {
   }
   
   spawnObstacle(speed: number) {
-    // Calculate random gap position
-    const gapY = Math.random() * (GAME_HEIGHT - OBSTACLE.gap - OBSTACLE.minHeight * 2) + OBSTACLE.minHeight;
+    // Get current level settings
+    const currentLevel = LEVELS[this.state.level - 1];
     
-    const obstacle = new Obstacle(
-      GAME_WIDTH,      // x position (right edge of screen)
-      gapY,            // gap start y position
-      OBSTACLE.gap,    // gap height
-      OBSTACLE.width,  // obstacle width
-      speed            // movement speed
+    // Generate random parameters for planets
+    const minRadius = 20;
+    const maxRadius = 40 + (this.state.level * 5); // Planets get bigger with level
+    const radius = minRadius + Math.random() * (maxRadius - minRadius);
+    
+    // Calculate a random position that leaves enough space for the player to pass through
+    const safeZoneSize = GAME_HEIGHT * 0.4; // 40% of the screen height is safe
+    const safeZoneY = GAME_HEIGHT * 0.2 + Math.random() * (GAME_HEIGHT * 0.6); // Position the safe zone randomly
+    
+    // 50% chance to place a planet above or below the safe zone
+    const positionAbove = Math.random() > 0.5;
+    
+    let planetY;
+    if (positionAbove) {
+      // Position above safe zone (from top of screen to top of safe zone)
+      planetY = Math.random() * (safeZoneY - radius * 2) + radius;
+    } else {
+      // Position below safe zone (from bottom of safe zone to bottom of screen)
+      planetY = safeZoneY + safeZoneSize + Math.random() * (GAME_HEIGHT - (safeZoneY + safeZoneSize) - radius * 2) + radius;
+    }
+    
+    // Create the planet
+    const planet = new Planet(
+      GAME_WIDTH + radius,  // Start off-screen to the right
+      planetY,              // Random Y position
+      radius,               // Random size
+      speed                 // Movement speed
     );
     
-    this.app.stage.addChild(obstacle.topPipe);
-    this.app.stage.addChild(obstacle.bottomPipe);
-    this.obstacles.push(obstacle);
+    // 30% chance to spawn a second planet (if the level is high enough)
+    if (Math.random() < 0.3 && this.state.level > 1) {
+      // Make sure the second planet is in the opposite area (if first is above, second is below)
+      const secondPlanetY = positionAbove 
+        ? safeZoneY + safeZoneSize + Math.random() * (GAME_HEIGHT - (safeZoneY + safeZoneSize) - radius * 2) + radius
+        : Math.random() * (safeZoneY - radius * 2) + radius;
+      
+      const secondPlanet = new Planet(
+        GAME_WIDTH + radius + Math.random() * 100,  // Slight horizontal offset
+        secondPlanetY,
+        radius * (0.7 + Math.random() * 0.6),      // Slightly smaller or larger
+        speed
+      );
+      
+      this.app.stage.addChild(secondPlanet.graphics);
+      this.obstacles.push(secondPlanet);
+    }
+    
+    // Add the planet to the stage and obstacles array
+    this.app.stage.addChild(planet.graphics);
+    this.obstacles.push(planet);
   }
   
   private clearStage() {

@@ -1,36 +1,68 @@
 import * as PIXI from 'pixi.js';
-import { GAME_HEIGHT, COLORS } from '../config';
 import { Astronaut } from './Astronaut';
 import { rectanglesIntersect } from './utils';
 
-export class Obstacle {
-  topPipe: PIXI.Graphics;
-  bottomPipe: PIXI.Graphics;
+// Abstract base class for all obstacles
+export abstract class Obstacle {
   passed: boolean;
   speed: number;
+  x: number;
+  y: number;
+
+  constructor(x: number, speed: number) {
+    this.x = x;
+    this.y = 0; // Will be set by subclasses
+    this.passed = false;
+    this.speed = speed;
+  }
+
+  abstract update(): void;
+  abstract isOffScreen(): boolean;
+  abstract checkCollision(astronaut: Astronaut): boolean;
+
+  isPassed(astronautX: number): boolean {
+    if (this.passed) return false;
+    
+    if (this.x < astronautX) {
+      this.passed = true;
+      return true;
+    }
+    
+    return false;
+  }
+}
+
+// Legacy pipe-style obstacle, kept for reference
+export class PipeObstacle extends Obstacle {
+  topPipe: PIXI.Graphics;
+  bottomPipe: PIXI.Graphics;
 
   constructor(x: number, gapY: number, gapHeight: number, width: number, speed: number) {
+    super(x, speed);
+
+    // Import GAME_HEIGHT and COLORS here to avoid circular dependencies
+    const GAME_HEIGHT = import.meta.env.VITE_GAME_HEIGHT || 600;
+    const OBSTACLE_COLOR = 0x4444FF;
+    
     // Top pipe
     this.topPipe = new PIXI.Graphics();
     this.topPipe.rect(0, 0, width, gapY);
-    this.topPipe.fill({ color: COLORS.obstacle });
+    this.topPipe.fill({ color: OBSTACLE_COLOR });
     this.topPipe.x = x;
     this.topPipe.y = 0;
 
     // Bottom pipe
     this.bottomPipe = new PIXI.Graphics();
     this.bottomPipe.rect(0, 0, width, GAME_HEIGHT - gapY - gapHeight);
-    this.bottomPipe.fill({ color: COLORS.obstacle });
+    this.bottomPipe.fill({ color: OBSTACLE_COLOR });
     this.bottomPipe.x = x;
     this.bottomPipe.y = gapY + gapHeight;
-
-    this.passed = false;
-    this.speed = speed;
   }
 
   update() {
-    this.topPipe.x -= this.speed;
-    this.bottomPipe.x -= this.speed;
+    this.x -= this.speed;
+    this.topPipe.x = this.x;
+    this.bottomPipe.x = this.x;
   }
 
   isOffScreen(): boolean {
@@ -48,16 +80,5 @@ export class Obstacle {
       rectanglesIntersect(astronautBounds, topPipeBounds) || 
       rectanglesIntersect(astronautBounds, bottomPipeBounds)
     );
-  }
-
-  isPassed(astronautX: number): boolean {
-    if (this.passed) return false;
-    
-    if (this.topPipe.x + this.topPipe.width < astronautX) {
-      this.passed = true;
-      return true;
-    }
-    
-    return false;
   }
 } 

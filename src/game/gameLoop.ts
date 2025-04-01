@@ -84,8 +84,15 @@ export function createGameLoop(gameManager: GameManager) {
       
       // Remove off-screen obstacles
       if (obstacle.isOffScreen()) {
-        gameManager.app.stage.removeChild(obstacle.topPipe);
-        gameManager.app.stage.removeChild(obstacle.bottomPipe);
+        // Check what type of obstacle it is and remove its display objects
+        if ('graphics' in obstacle) {
+          // For Planet and other single-graphics obstacles
+          gameManager.app.stage.removeChild((obstacle as any).graphics);
+        } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
+          // For PipeObstacle with top and bottom pipes
+          gameManager.app.stage.removeChild((obstacle as any).topPipe);
+          gameManager.app.stage.removeChild((obstacle as any).bottomPipe);
+        }
         gameManager.obstacles.splice(i, 1);
       }
     }
