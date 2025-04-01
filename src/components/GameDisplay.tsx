@@ -63,7 +63,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         
         // Initialize the application
         await app.init({
-          background: '#000033',
+          background: '#1A1A1A',
           antialias: true,
           resolution: window.devicePixelRatio || 1,
         });
