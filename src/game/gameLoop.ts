@@ -27,7 +27,8 @@ export function createGameLoop(gameManager: GameManager) {
     
     // Update UI frequently to ensure React components stay in sync
     if (gameManager.state.time - lastUIUpdateTime > UI_UPDATE_INTERVAL) {
-      gameManager.updateCallback(gameManager.state);
+      // Pass a *copy* of the state object to trigger React update
+      gameManager.updateCallback({ ...gameManager.state });
       lastUIUpdateTime = gameManager.state.time;
     }
     
@@ -144,7 +145,8 @@ export function createGameLoop(gameManager: GameManager) {
         audioManager.play('score'); // Reuse the score sound for now
         
         // Update UI immediately when an orb is collected
-        gameManager.updateCallback(gameManager.state);
+        // Pass a *copy* of the state object to trigger React update
+        gameManager.updateCallback({ ...gameManager.state });
         
         // Check if enough orbs have been collected
         if (gameManager.state.orbsCollected >= gameManager.state.orbsRequired) {
