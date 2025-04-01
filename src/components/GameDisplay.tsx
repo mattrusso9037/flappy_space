@@ -25,35 +25,6 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   // Component state
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [orbsCollected, setOrbsCollected] = useState(0);
-  const [orbsRequired, setOrbsRequired] = useState(5);
-  const [timeRemaining, setTimeRemaining] = useState(60000);
-  const [score, setScore] = useState(0);
-  const [level, setLevel] = useState(1);
-  
-  // Track the last update time to detect stalls
-  const lastUpdateRef = useRef(Date.now());
-  
-  // Update component state based on game state
-  const handleGameStateUpdate = useCallback((state: GameState) => {
-    if (!isMountedRef.current) return;
-    
-    // Log update time to detect issues
-    const now = Date.now();
-    const timeSinceLastUpdate = now - lastUpdateRef.current;
-    console.log(`Component update after ${timeSinceLastUpdate}ms`);
-    lastUpdateRef.current = now;
-    
-    // Update local state
-    setOrbsCollected(state.orbsCollected);
-    setOrbsRequired(state.orbsRequired);
-    setTimeRemaining(state.timeRemaining);
-    setScore(state.score);
-    setLevel(state.level);
-    
-    // Pass to parent
-    onGameStateChange(state);
-  }, [onGameStateChange]);
 
   // Clean up function that can be called both in effects and event handlers
   const cleanupPixi = useCallback(() => {
@@ -150,7 +121,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
             console.log('Initializing game manager...');
             const gameManager = new GameManager(appRef.current, (state: GameState) => {
               if (isMountedRef.current) {
-                handleGameStateUpdate(state);
+                onGameStateChange(state);
               }
             });
             
@@ -185,7 +156,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       isMountedRef.current = false;
       cleanupPixi();
     };
-  }, [cleanupPixi, handleGameStateUpdate]);
+  }, [cleanupPixi]);
   
   // Handle game state changes from props
   useEffect(() => {
@@ -230,25 +201,6 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         onClick={handleGameClick}
       />
       
-      {/* In-game HUD overlay */}
-      {isLoaded && gameStarted && !loadError && (
-        <div className="game-hud">
-          <div className="hud-item hud-time">
-            <span>TIME: </span>
-            <span style={{ 
-              color: timeRemaining <= 10000 ? '#FF0000' : 
-                     timeRemaining <= 30000 ? '#FFAA00' : '#00FF00' 
-            }}>
-              {Math.ceil(timeRemaining/1000)}s
-            </span>
-          </div>
-          <div className="hud-item hud-orbs">
-            <span>ORBS: </span>
-            <span>{orbsCollected}/{orbsRequired}</span>
-          </div>
-        </div>
-      )}
-      
       {/* Show loading error if there is one */}
       {loadError && (
         <div className="error-overlay">
@@ -272,10 +224,10 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
           <h2>{gameManagerRef.current?.state.isGameOver ? 'Game Over!' : 'Flappy Spaceman'}</h2>
           {gameManagerRef.current?.state.isGameOver && (
             <>
-              <p>Score: {score}</p>
-              <p>Orbs: {orbsCollected}/{orbsRequired}</p>
-              <p>Level: {level}</p>
-              {timeRemaining <= 0 && (
+              <p>Score: {gameManagerRef.current?.state.score}</p>
+              <p>Orbs: {gameManagerRef.current?.state.orbsCollected}/{gameManagerRef.current?.state.orbsRequired}</p>
+              <p>Level: {gameManagerRef.current?.state.level}</p>
+              {gameManagerRef.current?.state.timeRemaining <= 0 && (
                 <p className="game-over-reason">Time ran out!</p>
               )}
             </>

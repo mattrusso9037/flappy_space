@@ -27,10 +27,7 @@ function App() {
   
   // Handle state updates from the game manager
   const handleGameStateChange = (newState: GameState) => {
-    console.log(`App received state update: orbs=${newState.orbsCollected}/${newState.orbsRequired}, time=${Math.floor(newState.timeRemaining/1000)}s`);
-    
-    // Create a new state object to ensure React detects the change
-    setGameState({...newState});
+    setGameState(newState)
     
     // Update UI state based on game state
     if (newState.isGameOver) {

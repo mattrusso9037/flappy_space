@@ -440,38 +440,3 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
-.game-hud {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background-color: rgba(0, 0, 0, 0.6);
-  padding: 10px;
-  border-radius: 8px;
-  border: 2px solid rgba(0, 255, 255, 0.5);
-  pointer-events: none;
-  z-index: 5;
-}
-
-.hud-item {
-  font-family: 'Press Start 2P', cursive;
-  font-size: 0.8rem;
-  color: #FFFFFF;
-  text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: space-between;
-  min-width: 150px;
-}
-
-.hud-time span:last-child {
-  color: #00FF00;
-  font-weight: bold;
-}
-
-.hud-orbs span:last-child {
-  color: #66AAFF;
-  font-weight: bold;
-}

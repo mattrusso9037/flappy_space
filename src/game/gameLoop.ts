@@ -14,7 +14,7 @@ export function createGameLoop(gameManager: GameManager) {
   // For tracking if obstacles have been spawned yet
   let hasSpawnedFirstObstacle = false;
   let lastUIUpdateTime = 0;
-  const UI_UPDATE_INTERVAL = 33; // Update UI more frequently (approximately 30fps)
+  const UI_UPDATE_INTERVAL = 100; // Update UI every 100ms
   
   return (time: TickerTime) => {
     if (!gameManager.state.isStarted || gameManager.state.isGameOver) return;
@@ -25,12 +25,10 @@ export function createGameLoop(gameManager: GameManager) {
     // Update timer for level completion
     gameManager.state.timeRemaining -= time.deltaMS;
     
-    // Force UI updates every frame for critical data like timer
-    const currentTime = gameManager.state.time;
-    if (currentTime - lastUIUpdateTime > UI_UPDATE_INTERVAL) {
-      console.log('Updating UI: time=' + Math.floor(gameManager.state.timeRemaining/1000) + 's, orbs=' + gameManager.state.orbsCollected);
+    // Update UI frequently to ensure React components stay in sync
+    if (gameManager.state.time - lastUIUpdateTime > UI_UPDATE_INTERVAL) {
       gameManager.updateCallback(gameManager.state);
-      lastUIUpdateTime = currentTime;
+      lastUIUpdateTime = gameManager.state.time;
     }
     
     // Check if level timer has run out or if enough orbs have been collected
