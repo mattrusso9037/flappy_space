@@ -186,9 +186,8 @@ export class GameManager {
   private createBackground() {
     // Create background
     const background = new PIXI.Graphics();
-    background.beginFill(0x000033);
-    background.drawRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    background.endFill();
+    background.fill({ color: 0x000033 });
+    background.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
     this.app.stage.addChild(background);
     
     // Create stars

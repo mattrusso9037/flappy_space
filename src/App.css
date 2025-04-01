@@ -53,11 +53,14 @@
 .App-header {
   padding: 1rem;
   background-color: #1a1d22;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 10;
 }
 
 .App-header h1 {
   margin: 0;
   font-size: 2rem;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
 }
 
 .App-main {
@@ -67,24 +70,39 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  overflow: hidden;
 }
 
 .App-footer {
   padding: 1rem;
   background-color: #1a1d22;
   font-size: 0.8rem;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .game-container {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1200px;
+  max-width: 800px;
   height: 80vh;
+  max-height: 600px;
   margin: 0 auto;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  background-color: #000022;
+}
+
+.game-display-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 400px;
+  border-bottom: 2px solid #00aaff;
 }
 
 .game-display {
@@ -98,6 +116,7 @@
   flex-direction: column;
   padding: 1rem;
   background-color: #1a1d22;
+  min-height: 120px;
 }
 
 @media (min-width: 768px) {
@@ -111,6 +130,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  padding: 0.5rem;
 }
 
 .game-stats {
@@ -123,6 +143,9 @@
 .game-stats p {
   margin: 0.5rem 1rem;
   font-size: 1.2rem;
+  font-weight: bold;
+  color: #00ffff;
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
 }
 
 .game-buttons {
@@ -135,16 +158,25 @@
 .game-instructions {
   flex: 1;
   text-align: left;
-  padding: 0 1rem;
+  padding: 0.5rem 1rem;
+  border-left: 1px solid #333;
+  min-width: 200px;
 }
 
 .game-instructions h3 {
   margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #00ffff;
 }
 
 .game-instructions ul {
   padding-left: 1.5rem;
   line-height: 1.6;
+  margin: 0.5rem 0;
+}
+
+.game-instructions li {
+  margin-bottom: 0.5rem;
 }
 
 @keyframes fadeIn {

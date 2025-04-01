@@ -11,6 +11,9 @@ export interface TickerTime {
 }
 
 export function createGameLoop(gameManager: GameManager) {
+  // For tracking if obstacles have been spawned yet
+  let hasSpawnedFirstObstacle = false;
+  
   return (time: TickerTime) => {
     if (!gameManager.state.isStarted || gameManager.state.isGameOver) return;
     
@@ -22,6 +25,7 @@ export function createGameLoop(gameManager: GameManager) {
       gameManager.astronaut.update(time.deltaMS);
       
       if (gameManager.astronaut.dead) {
+        console.log('Astronaut died');
         gameManager.gameOver();
         return;
       }
@@ -32,7 +36,17 @@ export function createGameLoop(gameManager: GameManager) {
     
     // Spawn new obstacles
     const currentTime = gameManager.state.time;
-    if (currentTime - gameManager.lastObstacleTime > currentLevel.spawnInterval) {
+    
+    // Ensure first obstacle is spawned with a delay
+    if (!hasSpawnedFirstObstacle && currentTime > 1500) {
+      console.log('Spawning first obstacle');
+      gameManager.spawnObstacle(currentLevel.speed);
+      gameManager.lastObstacleTime = currentTime;
+      hasSpawnedFirstObstacle = true;
+    }
+    // Then spawn regular obstacles
+    else if (hasSpawnedFirstObstacle && currentTime - gameManager.lastObstacleTime > currentLevel.spawnInterval) {
+      console.log('Spawning obstacle');
       gameManager.spawnObstacle(currentLevel.speed);
       gameManager.lastObstacleTime = currentTime;
     }
@@ -45,12 +59,14 @@ export function createGameLoop(gameManager: GameManager) {
       // Check if astronaut passed the obstacle
       if (gameManager.astronaut && obstacle.isPassed(gameManager.astronaut.sprite.x)) {
         gameManager.state.score += SCORE_PER_OBSTACLE;
+        console.log('Scored! New score:', gameManager.state.score);
         
         // Play score sound
         audioManager.play('score');
         
         // Check for level up
         if (gameManager.state.score % POINTS_TO_NEXT_LEVEL === 0) {
+          console.log('Level up!');
           gameManager.levelComplete();
         }
         
@@ -60,6 +76,7 @@ export function createGameLoop(gameManager: GameManager) {
       
       // Check for collision
       if (gameManager.astronaut && obstacle.checkCollision(gameManager.astronaut)) {
+        console.log('Collision detected');
         gameManager.astronaut.die();
         gameManager.gameOver();
         return;

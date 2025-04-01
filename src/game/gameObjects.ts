@@ -36,33 +36,34 @@ export class Astronaut {
   update(deltaMS: number = 16.667) {
     if (this.dead) return;
 
-    // Apply gravity
-    this.velocity += GRAVITY;
+    // Scale delta time to make physics consistent
+    const delta = deltaMS / 16.667; // Normalize to a 60 FPS time step
+
+    // Apply gravity with deltaTime scaling
+    this.velocity += GRAVITY * delta;
     if (this.velocity > MAX_VELOCITY) {
       this.velocity = MAX_VELOCITY;
     }
 
-    // Update position
-    this.sprite.y += this.velocity;
+    // Update position, scaled by delta time
+    this.sprite.y += this.velocity * delta;
 
     // Update rotation based on velocity
-    const targetRotation = (this.velocity / MAX_VELOCITY) * Math.PI / 4; // 45 degrees max
+    const targetRotation = (this.velocity / MAX_VELOCITY) * Math.PI / 6; // 30 degrees max
     this.rotation = this.rotation * 0.9 + targetRotation * 0.1;
     this.sprite.rotation = this.rotation;
 
-    // Check boundaries
-    if (this.sprite.y < 0) {
-      this.sprite.y = 0;
+    // Check boundaries - don't let the astronaut go off screen
+    if (this.sprite.y - this.sprite.height/2 < 0) {
+      this.sprite.y = this.sprite.height/2;
       this.velocity = 0;
     }
     
-    if (this.sprite.y > GAME_HEIGHT) {
-      this.sprite.y = GAME_HEIGHT;
+    if (this.sprite.y + this.sprite.height/2 > GAME_HEIGHT) {
+      this.sprite.y = GAME_HEIGHT - this.sprite.height/2;
       this.velocity = 0;
       this.die();
     }
-    
-    // Animation can be added here in future updates
   }
 
   flap() {
@@ -94,17 +95,15 @@ export class Obstacle {
   constructor(x: number, gapY: number, gapHeight: number, width: number, speed: number) {
     // Top pipe
     this.topPipe = new PIXI.Graphics();
-    this.topPipe.beginFill(COLORS.obstacle);
-    this.topPipe.drawRect(0, 0, width, gapY);
-    this.topPipe.endFill();
+    this.topPipe.fill({ color: COLORS.obstacle });
+    this.topPipe.rect(0, 0, width, gapY);
     this.topPipe.x = x;
     this.topPipe.y = 0;
 
     // Bottom pipe
     this.bottomPipe = new PIXI.Graphics();
-    this.bottomPipe.beginFill(COLORS.obstacle);
-    this.bottomPipe.drawRect(0, 0, width, GAME_HEIGHT - gapY - gapHeight);
-    this.bottomPipe.endFill();
+    this.bottomPipe.fill({ color: COLORS.obstacle });
+    this.bottomPipe.rect(0, 0, width, GAME_HEIGHT - gapY - gapHeight);
     this.bottomPipe.x = x;
     this.bottomPipe.y = gapY + gapHeight;
 
@@ -154,9 +153,8 @@ export class Star {
 
   constructor(x: number, y: number, size: number, alpha: number, blinkSpeed: number = 0.01) {
     this.graphics = new PIXI.Graphics();
-    this.graphics.beginFill(COLORS.stars, alpha);
-    this.graphics.drawCircle(0, 0, size);
-    this.graphics.endFill();
+    this.graphics.fill({ color: COLORS.stars, alpha: alpha });
+    this.graphics.circle(0, 0, size);
     this.graphics.x = x;
     this.graphics.y = y;
     
