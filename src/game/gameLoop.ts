@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { GameManager } from './gameState';
-import { LEVELS, SCORE_PER_OBSTACLE, POINTS_TO_NEXT_LEVEL } from './config';
+import { LEVELS, SCORE_PER_OBSTACLE, POINTS_TO_NEXT_LEVEL, ORB_POINTS, ORB_SPAWN_CHANCE } from './config';
 import audioManager from './audio';
 
 // Define a type for the ticker time parameter
@@ -13,12 +13,30 @@ export interface TickerTime {
 export function createGameLoop(gameManager: GameManager) {
   // For tracking if obstacles have been spawned yet
   let hasSpawnedFirstObstacle = false;
+  let lastUIUpdateTime = 0;
+  const UI_UPDATE_INTERVAL = 33; // Update UI more frequently (approximately 30fps)
   
   return (time: TickerTime) => {
     if (!gameManager.state.isStarted || gameManager.state.isGameOver) return;
     
     // Update time using deltaMS for consistent time tracking
     gameManager.state.time += time.deltaMS;
+    
+    // Update timer for level completion
+    gameManager.state.timeRemaining -= time.deltaMS;
+    
+    // Force UI updates every frame for critical data like timer
+    const currentTime = gameManager.state.time;
+    if (currentTime - lastUIUpdateTime > UI_UPDATE_INTERVAL) {
+      console.log('Updating UI: time=' + Math.floor(gameManager.state.timeRemaining/1000) + 's, orbs=' + gameManager.state.orbsCollected);
+      gameManager.updateCallback(gameManager.state);
+      lastUIUpdateTime = currentTime;
+    }
+    
+    // Check if level timer has run out or if enough orbs have been collected
+    if (gameManager.checkLevelTimer()) {
+      return; // Level complete or game over
+    }
     
     // Update astronaut with deltaMS for smooth animation
     if (gameManager.astronaut) {
@@ -49,6 +67,16 @@ export function createGameLoop(gameManager: GameManager) {
       console.log('Spawning obstacle');
       gameManager.spawnObstacle(currentLevel.speed);
       gameManager.lastObstacleTime = currentTime;
+      
+      // Chance to spawn an orb alongside the obstacle (but not at the same position)
+      if (Math.random() < ORB_SPAWN_CHANCE) {
+        setTimeout(() => {
+          if (gameManager.state.isStarted && !gameManager.state.isGameOver) {
+            console.log('Spawning orb');
+            gameManager.spawnOrb(currentLevel.speed);
+          }
+        }, currentLevel.spawnInterval * 0.4); // Stagger the orb spawn time
+      }
     }
     
     // Update obstacles
@@ -63,12 +91,6 @@ export function createGameLoop(gameManager: GameManager) {
         
         // Play score sound
         audioManager.play('score');
-        
-        // Check for level up
-        if (gameManager.state.score % POINTS_TO_NEXT_LEVEL === 0) {
-          console.log('Level up!');
-          gameManager.levelComplete();
-        }
         
         // Update UI
         gameManager.updateCallback(gameManager.state);
@@ -98,6 +120,48 @@ export function createGameLoop(gameManager: GameManager) {
           gameManager.app.stage.removeChild((obstacle as any).bottomPipe);
         }
         gameManager.obstacles.splice(i, 1);
+      }
+    }
+    
+    // Update orbs
+    for (let i = gameManager.orbs.length - 1; i >= 0; i--) {
+      const orb = gameManager.orbs[i];
+      orb.update();
+      
+      // Check for collision with orb
+      if (gameManager.astronaut && orb.checkCollision(gameManager.astronaut) && !orb.collected) {
+        console.log('Orb collected!');
+        
+        // Give points for collecting orb
+        gameManager.state.score += ORB_POINTS;
+        gameManager.state.orbsCollected++;
+        
+        // Mark orb as collected
+        orb.collect();
+        
+        // Create collection animation effect
+        // TODO: Add a flash or particle effect when collecting orbs
+        
+        // Play collection sound
+        audioManager.play('score'); // Reuse the score sound for now
+        
+        // Update UI immediately when an orb is collected
+        gameManager.updateCallback(gameManager.state);
+        
+        // Check if enough orbs have been collected
+        if (gameManager.state.orbsCollected >= gameManager.state.orbsRequired) {
+          console.log('Collected all required orbs!');
+          gameManager.levelComplete();
+          return;
+        }
+      }
+      
+      // Remove off-screen or collected orbs
+      if (orb.isOffScreen() || orb.collected) {
+        // Remove the orb graphics and glow
+        gameManager.app.stage.removeChild(orb.graphics);
+        gameManager.app.stage.removeChild(orb.glowGraphics);
+        gameManager.orbs.splice(i, 1);
       }
     }
     

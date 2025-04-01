@@ -16,6 +16,10 @@ function App() {
     level: 1,
     warps: 0,
     time: 0,
+    orbsCollected: 0,
+    orbsRequired: 5,
+    timeLimit: 60000,
+    timeRemaining: 60000,
     isStarted: false,
     isGameOver: false,
     isLevelComplete: false
@@ -23,7 +27,10 @@ function App() {
   
   // Handle state updates from the game manager
   const handleGameStateChange = (newState: GameState) => {
-    setGameState(newState)
+    console.log(`App received state update: orbs=${newState.orbsCollected}/${newState.orbsRequired}, time=${Math.floor(newState.timeRemaining/1000)}s`);
+    
+    // Create a new state object to ensure React detects the change
+    setGameState({...newState});
     
     // Update UI state based on game state
     if (newState.isGameOver) {
@@ -62,12 +69,19 @@ function App() {
           />
           
           <div className="game-ui">
+            <div className="game-info">
+              <Scoreboard 
+                score={gameState.score}
+                level={gameState.level}
+                warps={gameState.warps}
+                time={gameState.time}
+                orbsCollected={gameState.orbsCollected}
+                orbsRequired={gameState.orbsRequired}
+                timeRemaining={gameState.timeRemaining}
+              />
+            </div>
+            
             <div className="game-controls">
-              <div className="game-stats">
-                <p>Score: {gameState.score}</p>
-                <p>Level: {gameState.level}</p>
-              </div>
-              
               {!gameStarted && (
                 <div className="game-buttons">
                   <Button onClick={handleStartGame}>
@@ -88,12 +102,20 @@ function App() {
               <ul>
                 <li>Press <strong>Space</strong>, <strong>↑</strong>, or <strong>W</strong> key to fly</li>
                 <li>Click or tap the screen to fly</li>
-                <li>Avoid obstacles and collect points</li>
+                <li>Avoid obstacles and collect blue orbs</li>
+                <li>Collect {gameState.orbsRequired} orbs before time runs out!</li>
               </ul>
             </div>
           </div>
         </div>
       </main>
+      
+      {gameState.isLevelComplete && (
+        <LevelMessage 
+          level={gameState.level} 
+          isVisible={gameState.isLevelComplete}
+        />
+      )}
       
       <footer className="App-footer">
         <p>Made with React, TypeScript, and Pixi.js</p>

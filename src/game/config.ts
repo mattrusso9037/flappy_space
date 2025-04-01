@@ -25,16 +25,18 @@ export const OBSTACLE = {
 
 // Game difficulty levels
 export const LEVELS = [
-  { speed: 2.5, spawnInterval: 2500, label: "Level 1" },
-  { speed: 3, spawnInterval: 2200, label: "Level 2" },
-  { speed: 3.5, spawnInterval: 2000, label: "Level 3" },
-  { speed: 4, spawnInterval: 1800, label: "Level 4" },
-  { speed: 4.5, spawnInterval: 1600, label: "Level 5" },
+  { speed: 2.5, spawnInterval: 2500, label: "Level 1", orbsRequired: 5, timeLimit: 60000 },
+  { speed: 3, spawnInterval: 2200, label: "Level 2", orbsRequired: 8, timeLimit: 60000 },
+  { speed: 3.5, spawnInterval: 2000, label: "Level 3", orbsRequired: 12, timeLimit: 70000 },
+  { speed: 4, spawnInterval: 1800, label: "Level 4", orbsRequired: 15, timeLimit: 70000 },
+  { speed: 4.5, spawnInterval: 1600, label: "Level 5", orbsRequired: 20, timeLimit: 80000 },
 ];
 
 // Score settings
 export const SCORE_PER_OBSTACLE = 10;
 export const POINTS_TO_NEXT_LEVEL = 100;
+export const ORB_POINTS = 50;
+export const ORB_SPAWN_CHANCE = 0.3; // 30% chance to spawn an orb
 
 // Colors
 export const COLORS = {

@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { LEVELS, GAME_WIDTH, GAME_HEIGHT, ASTRONAUT, OBSTACLE } from './config';
-import { Astronaut, Obstacle, Planet, Star } from './entities';
+import { Astronaut, Obstacle, Planet, Star, Orb } from './entities';
 import { createGameLoop, TickerTime } from './gameLoop';
 import audioManager from './audio';
 import assetManager from './assetManager';
@@ -11,6 +11,10 @@ export interface GameState {
   level: number;
   warps: number;
   time: number;
+  orbsCollected: number;
+  orbsRequired: number;
+  timeLimit: number;
+  timeRemaining: number;
   isStarted: boolean;
   isGameOver: boolean;
   isLevelComplete: boolean;
@@ -20,9 +24,11 @@ export class GameManager {
   app: PIXI.Application;
   astronaut: Astronaut | null;
   obstacles: Obstacle[];
+  orbs: Orb[];
   stars: Star[];
   state: GameState;
   lastObstacleTime: number;
+  lastOrbTime: number;
   updateCallback: (state: GameState) => void;
   private jumpHandler: () => void;
   
@@ -30,15 +36,23 @@ export class GameManager {
     this.app = app;
     this.astronaut = null;
     this.obstacles = [];
+    this.orbs = [];
     this.stars = [];
     this.lastObstacleTime = 0;
+    this.lastOrbTime = 0;
     this.updateCallback = updateCallback;
+    
+    const currentLevel = LEVELS[0]; // Start with level 1
     
     this.state = {
       score: 0,
       level: 1,
       warps: 0,
       time: 0,
+      orbsCollected: 0,
+      orbsRequired: currentLevel.orbsRequired,
+      timeLimit: currentLevel.timeLimit,
+      timeRemaining: currentLevel.timeLimit,
       isStarted: false,
       isGameOver: false,
       isLevelComplete: false
@@ -66,19 +80,27 @@ export class GameManager {
     );
     this.app.stage.addChild(this.astronaut.sprite);
     
+    const currentLevel = LEVELS[0]; // Start with level 1
+    
     // Reset state
     this.state = {
       score: 0,
       level: 1,
       warps: 0,
       time: 0,
+      orbsCollected: 0,
+      orbsRequired: currentLevel.orbsRequired,
+      timeLimit: currentLevel.timeLimit,
+      timeRemaining: currentLevel.timeLimit,
       isStarted: false,
       isGameOver: false,
       isLevelComplete: false
     };
     
     this.obstacles = [];
+    this.orbs = [];
     this.lastObstacleTime = 0;
+    this.lastOrbTime = 0;
     
     // Update UI
     this.updateCallback(this.state);
@@ -126,26 +148,18 @@ export class GameManager {
     this.state.level++;
     this.state.warps++;
     
+    // Update level requirements
+    const currentLevel = LEVELS[this.state.level - 1];
+    this.state.orbsRequired = currentLevel.orbsRequired;
+    this.state.orbsCollected = 0; // Reset orbs collected
+    this.state.timeLimit = currentLevel.timeLimit;
+    this.state.timeRemaining = currentLevel.timeLimit;
+    
     // Play level up sound
     audioManager.play('levelUp');
     
-    // Clear obstacles
-    this.obstacles.forEach(obstacle => {
-      // Check what type of obstacle it is and remove its display objects
-      if ('graphics' in obstacle) {
-        // For Planet and other single-graphics obstacles
-        this.app.stage.removeChild((obstacle as any).graphics);
-        // Also remove the glow graphics if present
-        if ('glowGraphics' in obstacle) {
-          this.app.stage.removeChild((obstacle as any).glowGraphics);
-        }
-      } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
-        // For PipeObstacle with top and bottom pipes
-        this.app.stage.removeChild((obstacle as any).topPipe);
-        this.app.stage.removeChild((obstacle as any).bottomPipe);
-      }
-    });
-    this.obstacles = [];
+    // Clear obstacles and orbs
+    this.clearEntities();
     
     // Update UI
     this.updateCallback(this.state);
@@ -166,9 +180,20 @@ export class GameManager {
   }
   
   dispose() {
-    // Clean up resources and event listeners
+    // Remove event listeners and clean up resources when component unmounts
     inputManager.off(InputEvent.JUMP, this.jumpHandler);
-    inputManager.disable();
+    
+    // Clean up any other resources to prevent memory leaks
+    this.clearEntities();
+    this.stars.forEach(star => {
+      this.app.stage.removeChild(star.graphics);
+    });
+    this.stars = [];
+    
+    if (this.astronaut) {
+      this.app.stage.removeChild(this.astronaut.sprite);
+      this.astronaut = null;
+    }
   }
   
   spawnObstacle(speed: number) {
@@ -280,5 +305,75 @@ export class GameManager {
       this.stars.push(star);
       this.app.stage.addChild(star.graphics);
     }
+  }
+  
+  clearEntities() {
+    // Clear obstacles
+    this.obstacles.forEach(obstacle => {
+      // Check what type of obstacle it is and remove its display objects
+      if ('graphics' in obstacle) {
+        // For Planet, Orb and other single-graphics obstacles
+        this.app.stage.removeChild((obstacle as any).graphics);
+        // Also remove the glow graphics if present
+        if ('glowGraphics' in obstacle) {
+          this.app.stage.removeChild((obstacle as any).glowGraphics);
+        }
+      } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
+        // For PipeObstacle with top and bottom pipes
+        this.app.stage.removeChild((obstacle as any).topPipe);
+        this.app.stage.removeChild((obstacle as any).bottomPipe);
+      }
+    });
+    this.obstacles = [];
+    
+    // Clear orbs
+    this.orbs.forEach(orb => {
+      this.app.stage.removeChild(orb.graphics);
+      this.app.stage.removeChild(orb.glowGraphics);
+    });
+    this.orbs = [];
+  }
+  
+  spawnOrb(speed: number) {
+    // Generate random parameters for orbs
+    const radius = 12 + Math.random() * 6; // Smaller than planets
+    
+    // Calculate a random position that's easier to reach
+    const minY = GAME_HEIGHT * 0.2;
+    const maxY = GAME_HEIGHT * 0.8;
+    const orbY = minY + Math.random() * (maxY - minY);
+    
+    // Create the orb
+    const orb = new Orb(
+      GAME_WIDTH + radius,  // Start off-screen to the right
+      orbY,                 // Random Y position
+      radius,               // Size
+      speed                 // Movement speed (same as obstacles)
+    );
+    
+    // Add the glow first (so it's behind the orb)
+    this.app.stage.addChild(orb.glowGraphics);
+    // Then add the orb itself
+    this.app.stage.addChild(orb.graphics);
+    this.orbs.push(orb);
+  }
+  
+  checkLevelTimer() {
+    // Check if time has run out
+    if (this.state.timeRemaining <= 0) {
+      console.log('Time ran out!');
+      this.astronaut?.die();
+      this.gameOver();
+      return true;
+    }
+    
+    // Check if player collected enough orbs
+    if (this.state.orbsCollected >= this.state.orbsRequired) {
+      console.log('Level complete! Collected all required orbs.');
+      this.levelComplete();
+      return true;
+    }
+    
+    return false;
   }
 } 
