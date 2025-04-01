@@ -184,20 +184,43 @@ export class GameManager {
   }
   
   private createBackground() {
-    // Create background
-    const background = new PIXI.Graphics();
-    background.fill({ color: 0x000033 });
-    background.rect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    this.app.stage.addChild(background);
-    
-    // Create stars
+    // Create stars in multiple layers for parallax effect
     this.stars = [];
-    for (let i = 0; i < 100; i++) {
+    
+    // Layer 0: Background distant stars (many small ones)
+    for (let i = 0; i < 80; i++) {
       const star = new Star(
         Math.random() * GAME_WIDTH,
         Math.random() * GAME_HEIGHT,
-        Math.random() * 2 + 1,
-        Math.random() * 0.8 + 0.2
+        Math.random() * 1 + 0.5, // Smaller size
+        Math.random() * 0.5 + 0.2, // Lower alpha
+        0 // Background layer
+      );
+      this.stars.push(star);
+      this.app.stage.addChild(star.graphics);
+    }
+    
+    // Layer 1: Middle distance stars
+    for (let i = 0; i < 40; i++) {
+      const star = new Star(
+        Math.random() * GAME_WIDTH,
+        Math.random() * GAME_HEIGHT,
+        Math.random() * 1.5 + 1, // Medium size
+        Math.random() * 0.6 + 0.3, // Medium alpha
+        1 // Middle layer
+      );
+      this.stars.push(star);
+      this.app.stage.addChild(star.graphics);
+    }
+    
+    // Layer 2: Foreground stars (fewer, brighter, faster)
+    for (let i = 0; i < 20; i++) {
+      const star = new Star(
+        Math.random() * GAME_WIDTH,
+        Math.random() * GAME_HEIGHT,
+        Math.random() * 2 + 1.5, // Larger size
+        Math.random() * 0.7 + 0.4, // Higher alpha
+        2 // Foreground layer
       );
       this.stars.push(star);
       this.app.stage.addChild(star.graphics);
