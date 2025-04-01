@@ -135,6 +135,10 @@ export class GameManager {
       if ('graphics' in obstacle) {
         // For Planet and other single-graphics obstacles
         this.app.stage.removeChild((obstacle as any).graphics);
+        // Also remove the glow graphics if present
+        if ('glowGraphics' in obstacle) {
+          this.app.stage.removeChild((obstacle as any).glowGraphics);
+        }
       } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
         // For PipeObstacle with top and bottom pipes
         this.app.stage.removeChild((obstacle as any).topPipe);
@@ -214,11 +218,16 @@ export class GameManager {
         speed
       );
       
+      // Add the glow first (so it's behind the planet)
+      this.app.stage.addChild(secondPlanet.glowGraphics);
+      // Then add the planet itself
       this.app.stage.addChild(secondPlanet.graphics);
       this.obstacles.push(secondPlanet);
     }
     
-    // Add the planet to the stage and obstacles array
+    // Add the glow first (so it's behind the planet)
+    this.app.stage.addChild(planet.glowGraphics);
+    // Then add the planet itself
     this.app.stage.addChild(planet.graphics);
     this.obstacles.push(planet);
   }

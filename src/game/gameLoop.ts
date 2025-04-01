@@ -88,6 +88,10 @@ export function createGameLoop(gameManager: GameManager) {
         if ('graphics' in obstacle) {
           // For Planet and other single-graphics obstacles
           gameManager.app.stage.removeChild((obstacle as any).graphics);
+          // Also remove the glow graphics if present
+          if ('glowGraphics' in obstacle) {
+            gameManager.app.stage.removeChild((obstacle as any).glowGraphics);
+          }
         } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
           // For PipeObstacle with top and bottom pipes
           gameManager.app.stage.removeChild((obstacle as any).topPipe);
