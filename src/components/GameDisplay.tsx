@@ -164,7 +164,13 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
     
     const gameManager = gameManagerRef.current;
     
-    if (gameStarted && !gameManager.state.isStarted && !gameManager.state.isGameOver) {
+    if (gameStarted && !gameManager.state.isStarted) {
+      // If coming from game over state, we need to fully reset the game first
+      if (gameManager.state.isGameOver) {
+        console.log('Resetting game after game over');
+        gameManager.setupGame(); // Reset the entire game state
+      }
+      
       // Add a small delay before starting the game
       setTimeout(() => {
         if (gameManagerRef.current && isMountedRef.current) {

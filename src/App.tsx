@@ -22,7 +22,8 @@ function App() {
     timeRemaining: 60000,
     isStarted: false,
     isGameOver: false,
-    isLevelComplete: false
+    isLevelComplete: false,
+    debugMode: false
   })
   
   // Handle state updates from the game manager
@@ -39,7 +40,19 @@ function App() {
   
   // Game actions
   const handleStartGame = () => {
-    setGameStarted(true)
+    // If the game is over, we need to trigger a full reset before starting
+    if (gameState.isGameOver) {
+      // First set gameStarted to false to fully reset
+      setGameStarted(false);
+      
+      // Then use setTimeout to give the GameDisplay component time to reset
+      setTimeout(() => {
+        setGameStarted(true);
+      }, 100);
+    } else {
+      // Normal game start
+      setGameStarted(true);
+    }
   }
   
   const handleResetGame = () => {

@@ -136,7 +136,8 @@ export class Orb extends Obstacle {
     checkCollision(astronaut: Astronaut): boolean {
         if (astronaut.dead || this.collected) return false;
         
-        const astronautBounds = astronaut.sprite.getBounds();
+        // Use the astronaut's custom hitbox instead of the sprite bounds
+        const astronautBounds = astronaut.getHitbox();
         
         // For collision, we only use the main orb body, not the glow
         const orbBounds = new PIXI.Bounds();

@@ -167,5 +167,8 @@ export function createGameLoop(gameManager: GameManager) {
     
     // Update stars
     gameManager.stars.forEach(star => star.update());
+    
+    // Render debug information if debug mode is enabled
+    gameManager.renderDebugInfo();
   };
 } 

@@ -56,6 +56,26 @@ export class Astronaut {
     }
   }
 
+  // Get a more accurate hitbox for collision detection
+  // The hitbox is smaller than the sprite to match the visual appearance better
+  getHitbox(): PIXI.Bounds {
+    // Create a custom bounds object
+    const bounds = new PIXI.Bounds();
+    
+    // Make the hitbox 70% of the sprite size for better collision accuracy
+    const hitboxScale = 0.7;
+    const width = this.sprite.width * hitboxScale;
+    const height = this.sprite.height * hitboxScale;
+    
+    // Calculate bounds based on the sprite's center position
+    bounds.minX = this.sprite.x - width / 2;
+    bounds.maxX = this.sprite.x + width / 2;
+    bounds.minY = this.sprite.y - height / 2;
+    bounds.maxY = this.sprite.y + height / 2;
+    
+    return bounds;
+  }
+
   flap() {
     if (this.dead) return;
     this.velocity = JUMP_VELOCITY;

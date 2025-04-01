@@ -297,7 +297,8 @@ export class Planet extends Obstacle {
     checkCollision(astronaut: Astronaut): boolean {
         if (astronaut.dead) return false;
         
-        const astronautBounds = astronaut.sprite.getBounds();
+        // Use the astronaut's custom hitbox instead of the sprite bounds
+        const astronautBounds = astronaut.getHitbox();
         
         // For collision, we only use the main planet body, not the glow or rings
         // Make a temporary bounds object that's the same size as the planet
