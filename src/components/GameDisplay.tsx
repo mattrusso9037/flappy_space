@@ -102,7 +102,9 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         await app.init({
           background: '#1A1A1A',
           antialias: true,
-          resolution: window.devicePixelRatio || 1,
+          resolution: 1, // Use fixed resolution
+          width: GAME_WIDTH,
+          height: GAME_HEIGHT,
         });
         
         // Store app reference
@@ -126,27 +128,24 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
             return;
           }
           
-          console.log('GameDisplay: Handling resize');
-          const container = pixiContainerRef.current;
-          const width = container.clientWidth;
-          const height = container.clientHeight;
+          console.log('GameDisplay: Setting fixed dimensions');
           
-          app.renderer.resize(width, height);
+          // Use fixed dimensions matching Electron window
+          app.renderer.resize(GAME_WIDTH, GAME_HEIGHT);
           
-          // Scale the stage to maintain aspect ratio but fill the container
-          const scale = Math.min(width / GAME_WIDTH, height / GAME_HEIGHT);
-          app.stage.scale.set(scale);
+          // No scaling needed, use 1:1 mapping
+          app.stage.scale.set(1);
           
-          // Center the game stage within the container
-          app.stage.position.x = (width - GAME_WIDTH * scale) / 2;
-          app.stage.position.y = (height - GAME_HEIGHT * scale) / 2;
+          // Center the game stage
+          app.stage.position.x = 0;
+          app.stage.position.y = 0;
 
-          // Ensure the canvas fills the container
+          // Ensure the canvas has the exact dimensions
           if (app.canvas) {
-            app.canvas.style.width = '100%';
-            app.canvas.style.height = '100%';
+            app.canvas.style.width = `${GAME_WIDTH}px`;
+            app.canvas.style.height = `${GAME_HEIGHT}px`;
           }
-          console.log(`GameDisplay: Resize complete - width: ${width}, height: ${height}, scale: ${scale}`);
+          console.log(`GameDisplay: Fixed dimensions set - width: ${GAME_WIDTH}, height: ${GAME_HEIGHT}`);
         };
         
         // Initial resize
@@ -305,7 +304,25 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         const state = gameStateService.getState();
         console.log('GameDisplay: State on spacebar press - isStarted:', state.isStarted, 'isGameOver:', state.isGameOver);
         
-        if (!state.isStarted && !state.isGameOver) {
+        // If game is over, reset everything
+        if (state.isGameOver) {
+          console.log('GameDisplay: Game was over - resetting game via setupGame');
+          try {
+            gameControllerRef.current.setupGame(); // Reset the entire game including astronaut position
+            
+            // Wait a short time before starting
+            setTimeout(() => {
+              if (gameControllerRef.current && isMountedRef.current) {
+                console.log('GameDisplay: Starting game after reset');
+                gameControllerRef.current.startGame();
+              }
+            }, 200);
+          } catch (error) {
+            console.error('GameDisplay: Error resetting game via spacebar:', error);
+          }
+        }
+        // If game is not started and not in game over state, just start it
+        else if (!state.isStarted) {
           console.log('GameDisplay: Starting game via global spacebar listener');
           try {
             gameControllerRef.current.startGame();
@@ -329,11 +346,30 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   const handleGameClick = useCallback(() => {
     console.log('GameDisplay: Game area clicked');
     
-    // Also try to start the game on click if not already started
+    // Handle game state based on click
     if (gameControllerRef.current) {
       const state = gameStateService.getState();
       console.log('GameDisplay: Current game state - isStarted:', state.isStarted, 'isGameOver:', state.isGameOver);
-      if (!state.isStarted && !state.isGameOver) {
+      
+      // If game is over, reset everything
+      if (state.isGameOver) {
+        console.log('GameDisplay: Game was over - resetting game via setupGame');
+        try {
+          gameControllerRef.current.setupGame(); // Reset the entire game including astronaut position
+          
+          // Wait a short time before starting
+          setTimeout(() => {
+            if (gameControllerRef.current && isMountedRef.current) {
+              console.log('GameDisplay: Starting game after reset');
+              gameControllerRef.current.startGame();
+            }
+          }, 200);
+        } catch (error) {
+          console.error('GameDisplay: Error resetting game via click:', error);
+        }
+      }
+      // If game is not started and not in game over state, just start it
+      else if (!state.isStarted) {
         console.log('GameDisplay: Starting game via click');
         try {
           gameControllerRef.current.startGame();

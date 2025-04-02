@@ -1,10 +1,10 @@
 // Game canvas dimensions
 export const GAME_WIDTH = 800;
-export const GAME_HEIGHT = 450;
+export const GAME_HEIGHT = 600;
 
 // Physics constants
-export const GRAVITY = 0.4;
-export const JUMP_VELOCITY = -9;
+export const GRAVITY = 0.1;
+export const JUMP_VELOCITY = -5;
 export const MAX_VELOCITY = 12;
 
 // Game objects

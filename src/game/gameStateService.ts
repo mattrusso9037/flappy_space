@@ -141,7 +141,14 @@ export class GameStateService {
   }
   
   public resetGame(): void {
-    this.state$.next(this.getInitialState());
+    console.log('GameStateService: Resetting game state to initial values');
+    const initialState = this.getInitialState();
+    console.log('GameStateService: Initial state:', initialState);
+    this.state$.next(initialState);
+    console.log('GameStateService: State reset complete - time:', this.getState().time);
+    
+    // Emit state reset event
+    eventBus.emit(GameEvent.GAME_RESET, null);
   }
   
   public incrementScore(amount: number): void {

@@ -128,6 +128,11 @@ export class InputSystem {
     console.log('InputSystem: Emitting JUMP_ACTION event');
     eventBus.emit(GameEvent.JUMP_ACTION, null);
   }
+
+  private handleRestartGame = (): void => {
+    console.log('InputSystem: Emitting RESTART_GAME event');
+    eventBus.emit(GameEvent.RESTART_GAME, null);
+  }
   
   /**
    * Handle start game action from input manager
@@ -165,6 +170,9 @@ export class InputSystem {
     else if (e.key === 'd' || e.key === 'D') {
       console.log('InputSystem: Debug mode toggle');
       gameStateService.toggleDebugMode();
+    } else if (e.key === 'r' || e.key === 'R') {
+      console.log('InputSystem: Restart game');
+      eventBus.emit(GameEvent.RESTART_GAME, null);
     }
   }
 }

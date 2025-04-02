@@ -1,25 +1,28 @@
 .game-display-wrapper {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 800px;
+  height: 600px;
   display: flex;
   flex-direction: column;
+  margin: 0 auto;
 }
 
 .game-display {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 800px;
+  height: 600px;
   background-color: #000033;
   overflow: hidden;
   flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .game-display canvas {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
+  width: 800px;
+  height: 600px;
 }
 
 /* Overlay base styles - all overlays share these */

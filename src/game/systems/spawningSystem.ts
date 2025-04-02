@@ -70,7 +70,18 @@ export class SpawningSystem {
    * Update the spawning system
    */
   public update(deltaTime: number, gameState: GameState): void {
-    if (!this.initialized || !gameState.isStarted || gameState.isGameOver) {
+    if (!this.initialized) {
+      console.log('SpawningSystem: Not initialized, skipping update');
+      return;
+    }
+    
+    if (!gameState.isStarted) {
+      if (Math.random() < 0.01) console.log('SpawningSystem: Game not started, skipping update');
+      return;
+    }
+    
+    if (gameState.isGameOver) {
+      if (Math.random() < 0.01) console.log('SpawningSystem: Game over, skipping update');
       return;
     }
     
@@ -79,6 +90,7 @@ export class SpawningSystem {
     // Occasionally log spawning status to avoid console spam
     if (Math.random() < 0.05) {
       console.log(`SpawningSystem: time=${currentTime.toFixed(2)}, lastObstacleTime=${this.lastObstacleTime.toFixed(2)}, interval=${this.levelConfig.spawnInterval}, speed=${this.levelConfig.speed}`);
+      console.log(`SpawningSystem: hasSpawnedFirstObstacle=${this.hasSpawnedFirstObstacle}, obstacles=${entityManager.getObstacles().length}, orbs=${entityManager.getOrbs().length}`);
     }
     
     // Ensure first obstacle is spawned with a delay
@@ -101,6 +113,8 @@ export class SpawningSystem {
           if (gameState.isStarted && !gameState.isGameOver) {
             console.log('SpawningSystem: Spawning orb after delay');
             this.spawnOrb(this.levelConfig.speed);
+          } else {
+            console.log('SpawningSystem: Cancelled orb spawn - game state changed');
           }
         }, this.levelConfig.spawnInterval * 0.4); // Stagger the orb spawn time
       }

@@ -52,10 +52,16 @@ export class EntityManager {
   public clearAll(): void {
     if (!this.app) return;
     
+    console.log('EntityManager: Clearing all entities');
+    
     // Clear astronaut
     if (this.astronaut) {
+      console.log('EntityManager: Removing astronaut from stage');
       this.app.stage.removeChild(this.astronaut.sprite);
       this.astronaut = null;
+      console.log('EntityManager: Astronaut reference cleared');
+    } else {
+      console.log('EntityManager: No astronaut to clear');
     }
     
     // Clear obstacles
@@ -67,24 +73,46 @@ export class EntityManager {
     // Clear stars
     this.clearStars();
     
-    console.log('All entities cleared');
+    console.log('EntityManager: All entities cleared');
   }
   
   /**
    * Create the astronaut entity
    */
   public createAstronaut(): Astronaut | null {
-    if (!this.app) return null;
+    if (!this.app) {
+      console.error('EntityManager: Cannot create astronaut - app is null');
+      return null;
+    }
     
-    console.log('EntityManager: Creating astronaut entity');
+    // First check if astronaut already exists and remove it if it does
+    if (this.astronaut && this.astronaut.sprite) {
+      console.log('EntityManager: Astronaut already exists, removing old instance');
+      this.app.stage.removeChild(this.astronaut.sprite);
+      this.astronaut = null;
+    }
+    
+    console.log('EntityManager: Creating new astronaut entity');
     
     const astronautTexture = assetManager.getTexture('astronaut');
+    if (!astronautTexture) {
+      console.error('EntityManager: Failed to get astronaut texture');
+      return null;
+    }
+    
+    // Create new astronaut at the starting position
     this.astronaut = new Astronaut(
       astronautTexture,
       ASTRONAUT.startX,
       ASTRONAUT.startY
     );
     
+    if (!this.astronaut || !this.astronaut.sprite) {
+      console.error('EntityManager: Failed to create astronaut');
+      return null;
+    }
+    
+    // Add to stage
     this.app.stage.addChild(this.astronaut.sprite);
     
     console.log(`EntityManager: Astronaut created at position (${ASTRONAUT.startX}, ${ASTRONAUT.startY})`);
