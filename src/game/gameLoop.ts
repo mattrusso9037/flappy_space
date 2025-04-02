@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import { GameManager } from './gameState';
 import { LEVELS, SCORE_PER_OBSTACLE, POINTS_TO_NEXT_LEVEL, ORB_POINTS, ORB_SPAWN_CHANCE } from './config';
 import audioManager from './audio';
+import { eventBus, GameEvent } from './eventBus';
 
 // Define a type for the ticker time parameter
 export interface TickerTime {
@@ -21,6 +22,7 @@ export function createGameLoop(gameManager: GameManager) {
     
     // Update time using deltaMS for consistent time tracking
     gameManager.state.time += time.deltaMS;
+
     
     // Update timer for level completion
     gameManager.state.timeRemaining -= time.deltaMS;
@@ -180,4 +182,14 @@ export function createGameLoop(gameManager: GameManager) {
     // Render debug information if debug mode is enabled
     gameManager.renderDebugInfo();
   };
-} 
+}
+
+eventBus.on(GameEvent.GAME_STARTED).subscribe(score => {
+  console.log('Game started:', score);
+});
+
+eventBus.on(GameEvent.GAME_OVER).subscribe(score => {
+  console.log('Game over:', score);
+});
+
+

@@ -32,6 +32,8 @@ export class InputSystem {
     
     // Add jump event listener
     inputManager.on(InputEvent.JUMP, this.handleJumpAction);
+
+    inputManager.on(InputEvent.START_GAME, this.handleStartGame);
     
     // Add keyboard event listener for game start and debug mode
     document.addEventListener('keydown', this.handleKeyDown);
@@ -109,9 +111,10 @@ export class InputSystem {
    * Handle keyboard events
    */
   private handleKeyDown = (e: KeyboardEvent): void => {
+    console.log('service', gameStateService.getState().isStarted);
     // Handle spacebar for game start
     if (e.key === ' ' && !gameStateService.getState().isStarted) {
-      gameStateService.startGame();
+      eventBus.emit(GameEvent.START_GAME, null);
     } 
     // Handle debug mode toggle
     else if (e.key === 'd' || e.key === 'D') {

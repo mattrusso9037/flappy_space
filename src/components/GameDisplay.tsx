@@ -4,6 +4,12 @@ import { GameManager, GameState } from '../game/gameState';
 import { GAME_WIDTH, GAME_HEIGHT } from '../game/config';
 import assetManager from '../game/assetManager';
 import inputManager from '../game/inputManager';
+import { gameStateService, GameStateService } from '../game/gameStateService';
+import { GameController } from '../controllers/GameController';
+import { eventBus } from '../game/eventBus';
+import { inputSystem } from '../game/systems/inputSystem';
+import { audioSystem } from '../game/systems/audioSystem';
+
 
 interface GameDisplayProps {
   gameStarted: boolean;
@@ -18,6 +24,8 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   // Store PIXI and game references in refs
   const appRef = useRef<PIXI.Application | null>(null);
   const gameManagerRef = useRef<GameManager | null>(null);
+  const gameStateServiceRef = useRef<GameStateService | null>(null);
+  const gameControllerRef = useRef<GameController | null>(null);
   
   // Track component mounted state to prevent state updates after unmounting
   const isMountedRef = useRef(true);
@@ -67,6 +75,18 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
           antialias: true,
           resolution: window.devicePixelRatio || 1,
         });
+        if (!gameControllerRef.current) {
+        const gameController = new GameController(
+          app,
+          eventBus,
+          gameStateService,
+          inputSystem,
+          audioSystem,
+        );
+      
+          gameController.initialize();
+          gameControllerRef.current = gameController;
+        }
         
         // Store app reference
         appRef.current = app;
@@ -102,6 +122,8 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
             app.canvas.style.width = '100%';
             app.canvas.style.height = '100%';
           }
+         
+        
         };
         
         // Initial resize
@@ -124,15 +146,15 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
           
           // Initialize game manager
           if (isMountedRef.current && appRef.current) {
-            console.log('Initializing game manager...');
-            const gameManager = new GameManager(appRef.current, (state: GameState) => {
-              if (isMountedRef.current) {
-                onGameStateChange(state);
-              }
-            });
+            // const gameManager = new GameManager(appRef.current, (state: GameState) => {
+            //   if (isMountedRef.current) {
+            //     onGameStateChange(state);
+            //   }
+            // });
             
-            gameManagerRef.current = gameManager;
-            gameManager.setupGame();
+            // gameManagerRef.current = gameManager;       console.log('Initializing game manager...');
+     
+            // gameManager.setupGame();
             console.log('Game manager initialized successfully');
           }
         } catch (assetError) {

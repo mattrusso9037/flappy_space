@@ -15,7 +15,8 @@ export enum GameEvent {
   DEBUG_TOGGLED = 'DEBUG_TOGGLED',
   ENTITY_CREATED = 'ENTITY_CREATED',
   ENTITY_DESTROYED = 'ENTITY_DESTROYED',
-  TIME_UPDATED = 'TIME_UPDATED'
+  TIME_UPDATED = 'TIME_UPDATED',
+  START_GAME = 'START_GAME'
 }
 
 // Type for event payloads
@@ -45,11 +46,14 @@ export class EventBus {
   
   // Publish an event to the bus
   public emit<T>(type: GameEvent, data: T): void {
+    // console log event in green
+    console.log(`%c${type}`, 'color: green', data);
     this.eventSubject.next({ type, data });
   }
   
   // Subscribe to a specific event type
   public on<T>(eventType: GameEvent): Observable<T> {
+    console.log(`%cSubscribing to ${eventType}`, 'color: orange');
     return this.eventSubject.pipe(
       filter(event => event.type === eventType),
       map(event => event.data as T)

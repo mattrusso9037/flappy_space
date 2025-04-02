@@ -8,6 +8,7 @@ export enum InputKey {
 // Input events
 export enum InputEvent {
   JUMP = 'jump',
+  START_GAME = 'start_game',
 }
 
 // Event handler type

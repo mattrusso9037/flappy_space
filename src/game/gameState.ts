@@ -81,14 +81,14 @@ export class GameManager {
     inputManager.on(InputEvent.JUMP, this.jumpHandler);
     
     // Add spacebar handler for game start
-    document.addEventListener('keydown', (e) => {
-      console.log('keydown', e.key, this.state.isStarted, this.state.isGameOver);
-      if (e.key === ' ' && !this.state.isStarted) {
-        this.startGame();
-      } else if (e.key === 'd' || e.key === 'D') {
-        this.toggleDebugMode();
-      }
-    });
+    // document.addEventListener('keydown', (e) => {
+    //   console.log('keydown', e.key, this.state.isStarted, this.state.isGameOver);
+    //   if (e.key === ' ' && !this.state.isStarted) {
+    //     this.startGame();
+    //   } else if (e.key === 'd' || e.key === 'D') {
+    //     this.toggleDebugMode();
+    //   }
+    // });
   }
   
   toggleDebugMode() {

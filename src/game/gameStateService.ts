@@ -2,7 +2,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import { map, distinctUntilChanged } from 'rxjs/operators';
 import { LEVELS } from './config';
 import { eventBus, GameEvent } from './eventBus';
-
+import inputManager from './inputManager';
 // The core game state interface
 export interface GameState {
   score: number;
@@ -48,7 +48,8 @@ export class GameStateService {
     this.state$ = new BehaviorSubject<GameState>(this.getInitialState());
     
     // Setup subscribers to publish state changes to the event bus
-    this.setupEventPublishers();
+      this.setupEventPublishers();
+
   }
   
   private setupEventPublishers(): void {
@@ -115,6 +116,8 @@ export class GameStateService {
   // --- Public API methods ---
   
   public startGame(): void {
+    console.log('startGame', this.getState().isStarted);
+
     this.setState(state => ({
       ...state,
       isStarted: true,
