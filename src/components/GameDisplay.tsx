@@ -1,15 +1,19 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
-import { GameManager, GameState } from '../game/gameState';
+import { GameState } from '../game/gameState';
 import { GAME_WIDTH, GAME_HEIGHT } from '../game/config';
 import assetManager from '../game/assetManager';
 import inputManager from '../game/inputManager';
-import { gameStateService, GameStateService } from '../game/gameStateService';
+import { gameStateService } from '../game/gameStateService';
 import { GameController } from '../controllers/GameController';
 import { eventBus } from '../game/eventBus';
 import { inputSystem } from '../game/systems/inputSystem';
 import { audioSystem } from '../game/systems/audioSystem';
-
+import { entityManager } from '../game/systems/entityManager';
+import { renderSystem } from '../game/systems/renderSystem';
+import { physicsSystem } from '../game/systems/physicsSystem';
+import { spawningSystem } from '../game/systems/spawningSystem';
+import { uiSystem } from '../game/systems/uiSystem';
 
 interface GameDisplayProps {
   gameStarted: boolean;
@@ -23,8 +27,6 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   
   // Store PIXI and game references in refs
   const appRef = useRef<PIXI.Application | null>(null);
-  const gameManagerRef = useRef<GameManager | null>(null);
-  const gameStateServiceRef = useRef<GameStateService | null>(null);
   const gameControllerRef = useRef<GameController | null>(null);
   
   // Track component mounted state to prevent state updates after unmounting
@@ -34,19 +36,40 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Set up state subscription
+  useEffect(() => {
+    console.log('GameDisplay: Setting up game state subscription');
+    const subscription = gameStateService.getState$().subscribe(state => {
+      if (isMountedRef.current) {
+        console.log(`GameDisplay: Game state changed - isStarted: ${state.isStarted}, isGameOver: ${state.isGameOver}, isLevelComplete: ${state.isLevelComplete}`);
+        onGameStateChange(state);
+      }
+    });
+    
+    return () => {
+      console.log('GameDisplay: Cleaning up game state subscription');
+      subscription.unsubscribe();
+    };
+  }, [onGameStateChange]);
+
   // Clean up function that can be called both in effects and event handlers
   const cleanupPixi = useCallback(() => {
-    // Clean up game manager
-    if (gameManagerRef.current) {
-      gameManagerRef.current.dispose();
-      gameManagerRef.current = null;
+    console.log('GameDisplay: Cleaning up PIXI and game controller');
+    
+    // Clean up game controller
+    if (gameControllerRef.current) {
+      console.log('GameDisplay: Disposing game controller');
+      gameControllerRef.current.dispose();
+      gameControllerRef.current = null;
     }
 
     // Clean up input manager
+    console.log('GameDisplay: Disabling input manager');
     inputManager.disable();
 
     // Clean up PIXI app
     if (appRef.current) {
+      console.log('GameDisplay: Destroying PIXI application');
       appRef.current.destroy(true, { children: true, texture: true });
       appRef.current = null;
     }
@@ -54,55 +77,56 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
 
   // Initialize Pixi app
   useEffect(() => {
+    console.log('GameDisplay: Component mounted, initializing PIXI');
     isMountedRef.current = true;
     
     const setupApp = async () => {
       // Guard against multiple initializations
-      if (!pixiContainerRef.current || appRef.current) return;
+      if (!pixiContainerRef.current || appRef.current) {
+        console.log('GameDisplay: Setup skipped - container ref missing or app already exists');
+        return;
+      }
 
       try {
-        console.log('Setting up Pixi application...');
+        console.log('GameDisplay: Setting up Pixi application...');
         
         // Clean up any existing PIXI instance
         cleanupPixi();
         
         // Create a new application with modern API
+        console.log('GameDisplay: Creating new PIXI Application');
         const app = new PIXI.Application();
         
         // Initialize the application
+        console.log('GameDisplay: Initializing PIXI Application');
         await app.init({
           background: '#1A1A1A',
           antialias: true,
           resolution: window.devicePixelRatio || 1,
         });
-        if (!gameControllerRef.current) {
-        const gameController = new GameController(
-          app,
-          eventBus,
-          gameStateService,
-          inputSystem,
-          audioSystem,
-        );
-      
-          gameController.initialize();
-          gameControllerRef.current = gameController;
-        }
         
         // Store app reference
+        console.log('GameDisplay: PIXI Application created successfully');
         appRef.current = app;
         
         // Ensure container is empty first
         if (pixiContainerRef.current.firstChild) {
+          console.log('GameDisplay: Clearing container');
           pixiContainerRef.current.innerHTML = '';
         }
         
         // Add the canvas to the DOM manually to avoid React's reconciliation
+        console.log('GameDisplay: Adding canvas to DOM');
         pixiContainerRef.current.appendChild(app.canvas);
         
         // Setup responsive behavior
         const handleResize = () => {
-          if (!pixiContainerRef.current || !app.renderer) return;
+          if (!pixiContainerRef.current || !app.renderer) {
+            console.log('GameDisplay: Resize handler skipped - missing container or renderer');
+            return;
+          }
           
+          console.log('GameDisplay: Handling resize');
           const container = pixiContainerRef.current;
           const width = container.clientWidth;
           const height = container.clientHeight;
@@ -122,43 +146,80 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
             app.canvas.style.width = '100%';
             app.canvas.style.height = '100%';
           }
-         
-        
+          console.log(`GameDisplay: Resize complete - width: ${width}, height: ${height}, scale: ${scale}`);
         };
         
         // Initial resize
+        console.log('GameDisplay: Performing initial resize');
         handleResize();
         
         // Add resize listener
+        console.log('GameDisplay: Adding window resize listener');
         window.addEventListener('resize', handleResize);
         
         // Load assets
-        console.log('Starting to load assets...');
+        console.log('GameDisplay: Starting to load assets...');
         try {
           await assetManager.loadAssets();
-          console.log('Assets loaded successfully');
+          console.log('GameDisplay: Assets loaded successfully');
           
           // Guard against state updates after unmounting
-          if (isMountedRef.current) {
-            setIsLoaded(true);
-            setLoadError(null);
+          if (!isMountedRef.current) {
+            console.log('GameDisplay: Component unmounted during asset loading, aborting setup');
+            return;
           }
           
-          // Initialize game manager
+          setIsLoaded(true);
+          setLoadError(null);
+          
+          // Initialize game controller and systems
           if (isMountedRef.current && appRef.current) {
-            // const gameManager = new GameManager(appRef.current, (state: GameState) => {
-            //   if (isMountedRef.current) {
-            //     onGameStateChange(state);
-            //   }
-            // });
+            console.log('GameDisplay: Initializing game controller and systems...');
             
-            // gameManagerRef.current = gameManager;       console.log('Initializing game manager...');
-     
-            // gameManager.setupGame();
-            console.log('Game manager initialized successfully');
+            // Create the GameController with all necessary systems
+            console.log('GameDisplay: Creating GameController instance');
+            
+            // Enable event debugging to help diagnose issues
+            eventBus.enableDebug();
+            
+            try {
+              const gameController = new GameController(
+                app,
+                eventBus,
+                gameStateService,
+                inputSystem,
+                audioSystem,
+                entityManager,
+                renderSystem,
+                physicsSystem,
+                spawningSystem,
+                uiSystem
+              );
+              
+              // Initialize the controller (which will initialize all systems)
+              console.log('GameDisplay: Calling GameController.initialize()');
+              gameController.initialize();
+              
+              // Store controller reference
+              console.log('GameDisplay: Storing GameController reference');
+              gameControllerRef.current = gameController;
+              
+              // Set up the initial game state
+              console.log('GameDisplay: Calling GameController.setupGame()');
+              gameController.setupGame();
+              
+              console.log('GameDisplay: Game controller initialized successfully');
+            } catch (controllerError) {
+              console.error('GameDisplay: Failed to initialize game controller:', controllerError);
+              if (isMountedRef.current) {
+                setLoadError(`Failed to initialize game controller: ${controllerError instanceof Error ? controllerError.message : String(controllerError)}`);
+              }
+            }
+          } else {
+            console.log('GameDisplay: Cannot initialize GameController - component unmounted or app destroyed');
           }
         } catch (assetError) {
-          console.error('Failed to load assets:', assetError);
+          console.error('GameDisplay: Failed to load assets:', assetError);
           if (isMountedRef.current) {
             setLoadError(`Failed to load game assets: ${assetError instanceof Error ? assetError.message : String(assetError)}`);
           }
@@ -166,10 +227,11 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         
         // Return cleanup function for resize listener
         return () => {
+          console.log('GameDisplay: Removing window resize listener');
           window.removeEventListener('resize', handleResize);
         };
       } catch (error) {
-        console.error('Error initializing Pixi application:', error);
+        console.error('GameDisplay: Error initializing Pixi application:', error);
         if (isMountedRef.current) {
           setLoadError(`Error initializing game: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -177,10 +239,12 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       }
     };
     
+    console.log('GameDisplay: Calling setupApp');
     setupApp();
     
     // Cleanup function
     return () => {
+      console.log('GameDisplay: Component unmounting, cleaning up');
       isMountedRef.current = false;
       cleanupPixi();
     };
@@ -188,37 +252,74 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   
   // Handle game state changes from props
   useEffect(() => {
-    if (!gameManagerRef.current) return;
+    if (!gameControllerRef.current) {
+      console.log('GameDisplay: gameStarted effect skipped - no gameController');
+      return;
+    }
     
-    const gameManager = gameManagerRef.current;
+    console.log(`GameDisplay: gameStarted prop changed to ${gameStarted}`);
+    const gameController = gameControllerRef.current;
+    const state = gameStateService.getState();
     
-    if (gameStarted && !gameManager.state.isStarted) {
+    if (gameStarted && !state.isStarted) {
       // If coming from game over state, we need to fully reset the game first
-      if (gameManager.state.isGameOver) {
-        console.log('Resetting game after game over');
-        gameManager.setupGame(); // Reset the entire game state
+      if (state.isGameOver) {
+        console.log('GameDisplay: Resetting game after game over');
+        gameController.setupGame(); // Reset the entire game state
       }
       
       // Add a small delay before starting the game
+      console.log('GameDisplay: Setting timeout to start game');
       setTimeout(() => {
-        if (gameManagerRef.current && isMountedRef.current) {
-          gameManagerRef.current.startGame();
-          console.log('Game started');
+        if (gameControllerRef.current && isMountedRef.current) {
+          console.log('GameDisplay: Starting game via timeout');
+          gameControllerRef.current.startGame();
+          console.log('GameDisplay: Game started');
         }
       }, 200);
-    } else if (!gameStarted && gameManager.state.isStarted) {
-      gameManager.gameOver();
     }
   }, [gameStarted]);
   
+  // Add global spacebar listener as a fallback for starting the game
+  useEffect(() => {
+    console.log('GameDisplay: Setting up global spacebar listener for game start');
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && gameControllerRef.current) {
+        console.log('GameDisplay: Spacebar pressed (global listener)');
+        const state = gameStateService.getState();
+        
+        if (!state.isStarted && !state.isGameOver) {
+          console.log('GameDisplay: Starting game via global spacebar listener');
+          gameControllerRef.current.startGame();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      console.log('GameDisplay: Removing global spacebar listener');
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+  
   // Handle game click/tap
   const handleGameClick = useCallback(() => {
-    if (gameManagerRef.current && gameStarted && gameManagerRef.current.state.isStarted) {
-      gameManagerRef.current.flap();
-      console.log('Flap');
-      if (onGameClick) onGameClick();
+    console.log('GameDisplay: Game area clicked');
+    
+    // Also try to start the game on click if not already started
+    if (gameControllerRef.current) {
+      const state = gameStateService.getState();
+      if (!state.isStarted && !state.isGameOver) {
+        console.log('GameDisplay: Starting game via click');
+        gameControllerRef.current.startGame();
+      }
     }
-  }, [gameStarted, onGameClick]);
+    
+    // Call the parent's click handler if provided
+    if (onGameClick) onGameClick();
+  }, [onGameClick]);
   
   return (
     <div className="game-display-wrapper">
@@ -253,22 +354,22 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       )}
       
       {/* Show game start or game over messages */}
-      {(!gameStarted || gameManagerRef.current?.state.isGameOver) && (
+      {isLoaded && (!gameStarted || gameStateService.getState().isGameOver) && (
         <div className="start-overlay">
-          <h2>{gameManagerRef.current?.state.isGameOver ? 'Game Over!' : 'Flappy Spaceman'}</h2>
-          {gameManagerRef.current?.state.isGameOver && (
+          <h2>{gameStateService.getState().isGameOver ? 'Game Over!' : 'Flappy Spaceman'}</h2>
+          {gameStateService.getState().isGameOver && (
             <>
-              <p>Score: {gameManagerRef.current?.state.score}</p>
-              <p>Orbs: {gameManagerRef.current?.state.orbsCollected}/{gameManagerRef.current?.state.orbsRequired}</p>
-              <p>Level: {gameManagerRef.current?.state.level}</p>
-              {gameManagerRef.current?.state.timeRemaining <= 0 && (
+              <p>Score: {gameStateService.getState().score}</p>
+              <p>Orbs: {gameStateService.getState().orbsCollected}/{gameStateService.getState().orbsRequired}</p>
+              <p>Level: {gameStateService.getState().level}</p>
+              {gameStateService.getState().timeRemaining <= 0 && (
                 <p className="game-over-reason">Time ran out!</p>
               )}
             </>
           )}
-          <p>{gameManagerRef.current?.state.isGameOver ? 'Press SPACE to try again' : 'Press SPACE to start'}</p>
+          <p>{gameStateService.getState().isGameOver ? 'Press SPACE to try again' : 'Press SPACE to start'}</p>
           <p>Use SPACE, Up Arrow, or W to fly!</p>
-          {!gameManagerRef.current?.state.isGameOver && (
+          {!gameStateService.getState().isGameOver && (
             <p className="mission-goal">Collect all orbs before time runs out!</p>
           )}
         </div>

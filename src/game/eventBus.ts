@@ -16,7 +16,9 @@ export enum GameEvent {
   ENTITY_CREATED = 'ENTITY_CREATED',
   ENTITY_DESTROYED = 'ENTITY_DESTROYED',
   TIME_UPDATED = 'TIME_UPDATED',
-  START_GAME = 'START_GAME'
+  START_GAME = 'START_GAME',
+  SHOW_START_PROMPT = 'SHOW_START_PROMPT',
+  HIDE_START_PROMPT = 'HIDE_START_PROMPT'
 }
 
 // Type for event payloads
@@ -32,6 +34,9 @@ export class EventBus {
   // The main subject that all events flow through
   private eventSubject: Subject<EventPayload>;
   
+  // Debug flag to control verbose logging
+  private debug: boolean = false;
+  
   private constructor() {
     this.eventSubject = new Subject<EventPayload>();
   }
@@ -44,16 +49,37 @@ export class EventBus {
     return EventBus.instance;
   }
   
+  // Enable debug logging
+  public enableDebug(): void {
+    this.debug = true;
+    console.log('EventBus: Debug mode enabled - all events will be logged');
+  }
+  
+  // Disable debug logging
+  public disableDebug(): void {
+    this.debug = false;
+    console.log('EventBus: Debug mode disabled');
+  }
+  
   // Publish an event to the bus
   public emit<T>(type: GameEvent, data: T): void {
-    // console log event in green
-    console.log(`%c${type}`, 'color: green', data);
+    // More detailed logging in debug mode
+    if (this.debug) {
+      console.log(`%cEventBus EMIT: ${type}`, 'color: green; font-weight: bold', data);
+    } else {
+      // Basic logging otherwise
+      console.log(`%c${type}`, 'color: green', data);
+    }
     this.eventSubject.next({ type, data });
   }
   
   // Subscribe to a specific event type
   public on<T>(eventType: GameEvent): Observable<T> {
-    console.log(`%cSubscribing to ${eventType}`, 'color: orange');
+    if (this.debug) {
+      console.log(`%cEventBus SUBSCRIBE: ${eventType}`, 'color: orange; font-weight: bold');
+    } else {
+      console.log(`%cSubscribing to ${eventType}`, 'color: orange');
+    }
     return this.eventSubject.pipe(
       filter(event => event.type === eventType),
       map(event => event.data as T)

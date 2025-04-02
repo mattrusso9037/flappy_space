@@ -3,9 +3,9 @@ export const GAME_WIDTH = 800;
 export const GAME_HEIGHT = 450;
 
 // Physics constants
-export const GRAVITY = 0.25;
-export const JUMP_VELOCITY = -7;
-export const MAX_VELOCITY = 10;
+export const GRAVITY = 0.4;
+export const JUMP_VELOCITY = -9;
+export const MAX_VELOCITY = 12;
 
 // Game objects
 export const ASTRONAUT = {

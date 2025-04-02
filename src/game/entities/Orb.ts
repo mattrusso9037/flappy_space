@@ -1,7 +1,8 @@
 import * as PIXI from 'pixi.js';
 import { Obstacle } from './Obstacle';
 import { Astronaut } from './Astronaut';
-import { rectanglesIntersect } from './utils';
+import { rectanglesIntersect, circleRectIntersect } from './utils';
+import { eventBus, GameEvent } from '../eventBus';
 
 export class Orb extends Obstacle {
     graphics: PIXI.Graphics;
@@ -124,8 +125,48 @@ export class Orb extends Obstacle {
     }
     
     collect() {
+        if (this.collected) return 0;
+        
         this.collected = true;
-        // Add a quick animation for collection effect
+        console.log('Orb collected at', this.x, this.y);
+        
+        // Emit event for audio/visual feedback and scoring
+        eventBus.emit(GameEvent.ORB_COLLECTED, { x: this.x, y: this.y });
+        
+        // Start collection animation
+        // Scale up and fade out
+        const duration = 0.5; // seconds
+        const scaleTarget = 2;
+        
+        // Create a PIXI tween animation
+        const startScale = this.graphics.scale.x;
+        
+        // Animate using PIXI Ticker instead of Tween
+        const ticker = PIXI.Ticker.shared;
+        const startTime = ticker.lastTime;
+        
+        const animationTick = (time: number) => {
+            const elapsed = (ticker.lastTime - startTime) / 1000;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Scale up
+            const newScale = startScale + (scaleTarget - startScale) * progress;
+            this.graphics.scale.set(newScale);
+            this.glowGraphics.scale.set(newScale * 1.2);
+            
+            // Fade out
+            this.graphics.alpha = 1 - progress;
+            this.glowGraphics.alpha = (1 - progress) * 0.5;
+            
+            if (progress >= 1) {
+                ticker.remove(animationTick);
+                this.graphics.visible = false;
+                this.glowGraphics.visible = false;
+            }
+        };
+        
+        ticker.add(animationTick);
+        
         return 50; // Points awarded for collecting this orb
     }
     

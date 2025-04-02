@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { Obstacle } from './Obstacle';
 import { Astronaut } from './Astronaut';
-import { rectanglesIntersect } from './utils';
+import { rectanglesIntersect, circleRectIntersect } from './utils';
 
 // Define planet types with their colors
 const PLANET_TYPES = [
@@ -301,13 +301,12 @@ export class Planet extends Obstacle {
         const astronautBounds = astronaut.getHitbox();
         
         // For collision, we only use the main planet body, not the glow or rings
-        // Make a temporary bounds object that's the same size as the planet
-        const planetBounds = new PIXI.Bounds();
-        planetBounds.minX = this.x - this.radius;
-        planetBounds.maxX = this.x + this.radius;
-        planetBounds.minY = this.y - this.radius;
-        planetBounds.maxY = this.y + this.radius;
-        
-        return rectanglesIntersect(astronautBounds, planetBounds);
+        // Use the more accurate circle-rectangle intersection check
+        return circleRectIntersect(
+            this.x,  // Planet center X
+            this.y,  // Planet center Y
+            this.radius * 0.9,  // Use 90% of radius for a more forgiving collision
+            astronautBounds
+        );
     }
 } 

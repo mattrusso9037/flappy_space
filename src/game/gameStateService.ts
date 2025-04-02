@@ -116,7 +116,8 @@ export class GameStateService {
   // --- Public API methods ---
   
   public startGame(): void {
-    console.log('startGame', this.getState().isStarted);
+    console.log('GameStateService: startGame() called');
+    console.log(`GameStateService: Current state before starting - isStarted: ${this.getState().isStarted}, isGameOver: ${this.getState().isGameOver}, isLevelComplete: ${this.getState().isLevelComplete}`);
 
     this.setState(state => ({
       ...state,
@@ -125,7 +126,10 @@ export class GameStateService {
       isLevelComplete: false
     }));
     
+    console.log(`GameStateService: State updated - isStarted: ${this.getState().isStarted}, isGameOver: ${this.getState().isGameOver}, isLevelComplete: ${this.getState().isLevelComplete}`);
+    console.log('GameStateService: Emitting GAME_STARTED event');
     eventBus.emit(GameEvent.GAME_STARTED, null);
+    console.log('GameStateService: startGame() complete');
   }
   
   public gameOver(): void {

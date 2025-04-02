@@ -28,6 +28,8 @@ class InputManager {
     Object.values(InputEvent).forEach(event => {
       this.eventHandlers.set(event, []);
     });
+    
+    console.log('InputManager: Created');
   }
 
   /**
@@ -41,6 +43,7 @@ class InputManager {
     window.addEventListener('keyup', this.handleKeyUp);
     
     this.enabled = true;
+    console.log('InputManager: Enabled');
   }
 
   /**
@@ -54,6 +57,7 @@ class InputManager {
     window.removeEventListener('keyup', this.handleKeyUp);
     
     this.enabled = false;
+    console.log('InputManager: Disabled');
   }
 
   /**
@@ -63,6 +67,7 @@ class InputManager {
     const handlers = this.eventHandlers.get(event) || [];
     handlers.push(handler);
     this.eventHandlers.set(event, handlers);
+    console.log(`InputManager: Registered handler for ${event}, total handlers: ${handlers.length}`);
   }
 
   /**
@@ -74,6 +79,7 @@ class InputManager {
     if (index !== -1) {
       handlers.splice(index, 1);
       this.eventHandlers.set(event, handlers);
+      console.log(`InputManager: Unregistered handler for ${event}, remaining handlers: ${handlers.length}`);
     }
   }
 
@@ -89,6 +95,7 @@ class InputManager {
    */
   private handleKeyDown = (event: KeyboardEvent): void => {
     const key = event.code as InputKey;
+    console.log(`InputManager: KeyDown event - ${key}, enabled: ${this.enabled}`);
     
     // If key wasn't already down, trigger events
     if (!this.keyMap.get(key)) {
@@ -96,7 +103,15 @@ class InputManager {
       
       // Trigger jump event on relevant keys
       if (key === InputKey.SPACE || key === InputKey.ARROW_UP || key === InputKey.W) {
+        console.log(`InputManager: Triggering JUMP event from key ${key}`);
         this.triggerEvent(InputEvent.JUMP);
+        
+        // Also trigger start game if space is pressed
+        // Note: The problem might be that we're only triggering JUMP and not START_GAME
+        if (key === InputKey.SPACE) {
+          console.log('InputManager: Triggering START_GAME event from spacebar');
+          this.triggerEvent(InputEvent.START_GAME);
+        }
       }
     }
   };
@@ -107,6 +122,7 @@ class InputManager {
   private handleKeyUp = (event: KeyboardEvent): void => {
     const key = event.code as InputKey;
     this.keyMap.set(key, false);
+    console.log(`InputManager: KeyUp event - ${key}`);
   };
 
   /**
@@ -114,6 +130,7 @@ class InputManager {
    */
   private triggerEvent(event: InputEvent): void {
     const handlers = this.eventHandlers.get(event) || [];
+    console.log(`InputManager: Triggering ${event} event, handlers: ${handlers.length}`);
     handlers.forEach(handler => handler());
   }
 }
