@@ -65,6 +65,27 @@ export class RenderSystem {
   }
   
   /**
+   * Update background elements like stars even when game isn't officially started
+   */
+  public updateBackground(deltaTime: number): void {
+    if (!this.initialized) return;
+    
+    // Get all stars and update their positions
+    const stars = entityManager.getStars();
+    if (stars.length > 0) {
+      // Occasionally log star updates
+      if (Math.random() < 0.01) {
+        console.log(`RenderSystem: Animating ${stars.length} background stars`);
+      }
+      
+      // Update star positions
+      for (const star of stars) {
+        star.update();
+      }
+    }
+  }
+  
+  /**
    * Render debug information
    */
   private renderDebugInfo(): void {

@@ -344,14 +344,20 @@ export class EntityManager {
   }
   
   /**
-   * Get all entities of all types
+   * Get all game entities as a single array
    */
   public getAllEntities(): any[] {
-    const entities = [...this.obstacles, ...this.orbs];
-    if (this.astronaut) {
-      entities.push(this.astronaut);
+    // Debug this method occasionally
+    if (Math.random() < 0.01) {
+      console.log(`EntityManager.getAllEntities: Astronaut: ${this.astronaut ? 'present' : 'null'}, Obstacles: ${this.obstacles.length}, Orbs: ${this.orbs.length}, Stars: ${this.stars.length}`); 
     }
-    return entities;
+    
+    const allEntities = [...this.obstacles, ...this.orbs, ...this.stars];
+    if (this.astronaut) {
+      allEntities.unshift(this.astronaut); // Place astronaut first in array
+    }
+    
+    return allEntities;
   }
   
   /**

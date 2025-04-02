@@ -197,6 +197,7 @@ export class GameStateService {
   }
   
   public updateTime(deltaMS: number): void {
+    console.log('GameStateService: updateTime() called with deltaMS:', deltaMS);
     this.setState(state => {
       // Update global time counter and time remaining for level
       const time = state.time + deltaMS;

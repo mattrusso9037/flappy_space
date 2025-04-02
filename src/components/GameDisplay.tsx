@@ -40,8 +40,8 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   useEffect(() => {
     console.log('GameDisplay: Setting up game state subscription');
     const subscription = gameStateService.getState$().subscribe(state => {
+      console.log(`GameDisplay: Game state changed - isStarted: ${state.isStarted}, isGameOver: ${state.isGameOver}, isLevelComplete: ${state.isLevelComplete}`);
       if (isMountedRef.current) {
-        console.log(`GameDisplay: Game state changed - isStarted: ${state.isStarted}, isGameOver: ${state.isGameOver}, isLevelComplete: ${state.isLevelComplete}`);
         onGameStateChange(state);
       }
     });
@@ -176,6 +176,15 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
           if (isMountedRef.current && appRef.current) {
             console.log('GameDisplay: Initializing game controller and systems...');
             
+            const app = appRef.current;
+            
+            // Ensure the app is fully initialized
+            if (!app || !app.ticker) {
+              console.error('GameDisplay: PIXI application or ticker not properly initialized');
+              setLoadError('Game engine failed to initialize properly');
+              return;
+            }
+            
             // Create the GameController with all necessary systems
             console.log('GameDisplay: Creating GameController instance');
             
@@ -183,6 +192,10 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
             eventBus.enableDebug();
             
             try {
+              // Log PIXI app state before controller creation
+              console.log('GameDisplay: PIXI app state before controller creation:', 
+                { hasApp: !!app, hasTicker: !!(app && app.ticker) });
+                
               const gameController = new GameController(
                 app,
                 eventBus,
@@ -285,13 +298,21 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
     console.log('GameDisplay: Setting up global spacebar listener for game start');
     
     const handleKeyDown = (e: KeyboardEvent) => {
+      console.log('GameDisplay: Key pressed:', e.code);
+      
       if (e.code === 'Space' && gameControllerRef.current) {
         console.log('GameDisplay: Spacebar pressed (global listener)');
         const state = gameStateService.getState();
+        console.log('GameDisplay: State on spacebar press - isStarted:', state.isStarted, 'isGameOver:', state.isGameOver);
         
         if (!state.isStarted && !state.isGameOver) {
           console.log('GameDisplay: Starting game via global spacebar listener');
-          gameControllerRef.current.startGame();
+          try {
+            gameControllerRef.current.startGame();
+            console.log('GameDisplay: startGame called successfully via spacebar');
+          } catch (error) {
+            console.error('GameDisplay: Error starting game via spacebar:', error);
+          }
         }
       }
     };
@@ -311,10 +332,18 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
     // Also try to start the game on click if not already started
     if (gameControllerRef.current) {
       const state = gameStateService.getState();
+      console.log('GameDisplay: Current game state - isStarted:', state.isStarted, 'isGameOver:', state.isGameOver);
       if (!state.isStarted && !state.isGameOver) {
         console.log('GameDisplay: Starting game via click');
-        gameControllerRef.current.startGame();
+        try {
+          gameControllerRef.current.startGame();
+          console.log('GameDisplay: startGame called successfully via click');
+        } catch (error) {
+          console.error('GameDisplay: Error starting game via click:', error);
+        }
       }
+    } else {
+      console.warn('GameDisplay: Game controller reference not available on click');
     }
     
     // Call the parent's click handler if provided

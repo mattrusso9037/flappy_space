@@ -51,7 +51,7 @@ export class Scoreboard {
       console.log('Scoreboard: Orbs text added');
 
       // Create time text
-      this.timeText = new PIXI.Text('Time: 0:00', this.style);
+      this.timeText = new PIXI.Text('Time: 0:0', this.style);
       this.timeText.y = 60;
       this.container.addChild(this.timeText);
       console.log('Scoreboard: Time text added');
