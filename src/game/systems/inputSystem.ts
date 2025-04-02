@@ -102,7 +102,7 @@ export class InputSystem {
     if (!this.enabled) return;
     
     // Dispatch jump event to the event bus
-    eventBus.publish(GameEvent.JUMP_ACTION, null);
+    eventBus.emit(GameEvent.JUMP_ACTION, null);
   }
   
   /**

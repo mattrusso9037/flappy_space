@@ -44,7 +44,7 @@ export class EventBus {
   }
   
   // Publish an event to the bus
-  public publish<T>(type: GameEvent, data: T): void {
+  public emit<T>(type: GameEvent, data: T): void {
     this.eventSubject.next({ type, data });
   }
   

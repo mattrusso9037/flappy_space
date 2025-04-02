@@ -55,20 +55,20 @@ export class GameStateService {
     // Track score changes and publish events
     this.select(state => state.score)
       .subscribe(score => {
-        eventBus.publish(GameEvent.SCORE_CHANGED, score);
+        eventBus.emit(GameEvent.SCORE_CHANGED, score);
       });
       
     // Track level changes and publish events  
     this.select(state => state.level)
       .subscribe(level => {
-        eventBus.publish(GameEvent.LEVEL_CHANGED, level);
+        eventBus.emit(GameEvent.LEVEL_CHANGED, level);
       });
       
     // Track game over state
     this.select(state => state.isGameOver)
       .subscribe(isGameOver => {
         if (isGameOver) {
-          eventBus.publish(GameEvent.GAME_OVER, null);
+          eventBus.emit(GameEvent.GAME_OVER, null);
         }
       });
       
@@ -76,7 +76,7 @@ export class GameStateService {
     this.select(state => state.isLevelComplete)
       .subscribe(isLevelComplete => {
         if (isLevelComplete) {
-          eventBus.publish(GameEvent.LEVEL_COMPLETE, this.getState().level);
+          eventBus.emit(GameEvent.LEVEL_COMPLETE, this.getState().level);
         }
       });
   }
@@ -122,7 +122,7 @@ export class GameStateService {
       isLevelComplete: false
     }));
     
-    eventBus.publish(GameEvent.GAME_STARTED, null);
+    eventBus.emit(GameEvent.GAME_STARTED, null);
   }
   
   public gameOver(): void {
@@ -150,7 +150,7 @@ export class GameStateService {
       const isLevelComplete = newOrbsCollected >= state.orbsRequired;
       
       // Publish the orb collected event with the new count
-      eventBus.publish(GameEvent.ORB_COLLECTED, newOrbsCollected);
+      eventBus.emit(GameEvent.ORB_COLLECTED, newOrbsCollected);
       
       return {
         ...state,
@@ -198,7 +198,7 @@ export class GameStateService {
       // Check if time ran out
       const timeRanOut = state.timeRemaining > 0 && timeRemaining <= 0;
       if (timeRanOut) {
-        eventBus.publish(GameEvent.TIME_UPDATED, { time, timeRemaining, timeRanOut });
+        eventBus.emit(GameEvent.TIME_UPDATED, { time, timeRemaining, timeRanOut });
       }
       
       return {
@@ -214,7 +214,7 @@ export class GameStateService {
   public toggleDebugMode(): void {
     this.setState(state => {
       const newDebugMode = !state.debugMode;
-      eventBus.publish(GameEvent.DEBUG_TOGGLED, newDebugMode);
+      eventBus.emit(GameEvent.DEBUG_TOGGLED, newDebugMode);
       
       return {
         ...state,
