@@ -303,13 +303,13 @@ export class EntityManager {
     
     this.obstacles.forEach(obstacle => {
       if ('graphics' in obstacle) {
-        this.app.stage.removeChild((obstacle as any).graphics);
+        this.app?.stage.removeChild((obstacle as any).graphics);
         if ('glowGraphics' in obstacle) {
-          this.app.stage.removeChild((obstacle as any).glowGraphics);
+          this.app?.stage.removeChild((obstacle as any).glowGraphics);
         }
       } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
-        this.app.stage.removeChild((obstacle as any).topPipe);
-        this.app.stage.removeChild((obstacle as any).bottomPipe);
+        this.app?.stage.removeChild((obstacle as any).topPipe);
+        this.app?.stage.removeChild((obstacle as any).bottomPipe);
       }
     });
     
@@ -323,8 +323,8 @@ export class EntityManager {
     if (!this.app) return;
     
     this.orbs.forEach(orb => {
-      this.app.stage.removeChild(orb.graphics);
-      this.app.stage.removeChild(orb.glowGraphics);
+      this.app?.stage.removeChild(orb.graphics);
+      this.app?.stage.removeChild(orb.glowGraphics);
     });
     
     this.orbs = [];
@@ -337,7 +337,7 @@ export class EntityManager {
     if (!this.app) return;
     
     this.stars.forEach(star => {
-      this.app.stage.removeChild(star.graphics);
+      this.app?.stage.removeChild(star.graphics);
     });
     
     this.stars = [];
@@ -380,7 +380,7 @@ export class EntityManager {
       console.log(`EntityManager.getAllEntities: Astronaut: ${this.astronaut ? 'present' : 'null'}, Obstacles: ${this.obstacles.length}, Orbs: ${this.orbs.length}, Stars: ${this.stars.length}`); 
     }
     
-    const allEntities = [...this.obstacles, ...this.orbs, ...this.stars];
+    const allEntities: (Obstacle | Star | Astronaut)[] = [...this.obstacles, ...this.orbs, ...this.stars];
     if (this.astronaut) {
       allEntities.unshift(this.astronaut); // Place astronaut first in array
     }

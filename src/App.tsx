@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react'
 import GameDisplay from './components/GameDisplay'
-import Controls from './components/Controls'
 import Scoreboard from './components/Scoreboard'
-import MessageBox from './components/MessageBox'
 import LevelMessage from './components/LevelMessage'
-import { GameState } from './game/gameState'
 import './App.css'
-import Button from './components/Button'
+import { GameState } from './game/gameStateService'
 
 function App() {
   // Game state
@@ -37,32 +34,7 @@ function App() {
       setGameStarted(true)
     }
   }
-  
-  // Game actions
-  const handleStartGame = () => {
-    // If the game is over, we need to trigger a full reset before starting
-    if (gameState.isGameOver) {
-      // First set gameStarted to false to fully reset
-      setGameStarted(false);
-      
-      // Then use setTimeout to give the GameDisplay component time to reset
-      setTimeout(() => {
-        setGameStarted(true);
-      }, 100);
-    } else {
-      // Normal game start
-      setGameStarted(true);
-    }
-  }
-  
-  const handleResetGame = () => {
-    setGameStarted(false)
-    // We'll trigger a reset in the game manager through the props
-  }
-  
-  const handleGameClick = () => {
-    // This is handled in the GameDisplay component
-  }
+
 
   return (
     <div className="App">
@@ -74,7 +46,6 @@ function App() {
         <div className="game-container">
           <GameDisplay
             gameStarted={gameStarted} 
-            onGameClick={handleGameClick}
             onGameStateChange={handleGameStateChange}
           />
           

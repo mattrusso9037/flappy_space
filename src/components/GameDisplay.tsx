@@ -1,10 +1,9 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
-import { GameState } from '../game/gameState';
 import { GAME_WIDTH, GAME_HEIGHT } from '../game/config';
 import assetManager from '../game/assetManager';
 import inputManager from '../game/inputManager';
-import { gameStateService } from '../game/gameStateService';
+import { GameState, gameStateService } from '../game/gameStateService';
 import { GameController } from '../controllers/GameController';
 import { eventBus } from '../game/eventBus';
 import { inputSystem } from '../game/systems/inputSystem';

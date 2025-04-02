@@ -159,13 +159,13 @@ export class Orb extends Obstacle {
             this.glowGraphics.alpha = (1 - progress) * 0.5;
             
             if (progress >= 1) {
-                ticker.remove(animationTick);
+                ticker.remove(animationTick as unknown as PIXI.TickerCallback<any>);
                 this.graphics.visible = false;
                 this.glowGraphics.visible = false;
             }
         };
         
-        ticker.add(animationTick);
+        ticker.add(animationTick as unknown as PIXI.TickerCallback<any>);
         
         return 50; // Points awarded for collecting this orb
     }
