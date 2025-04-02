@@ -101,9 +101,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         await app.init({
           background: '#1A1A1A',
           antialias: true,
-          resolution: 1, // Use fixed resolution
-          width: GAME_WIDTH,
-          height: GAME_HEIGHT,
+          resolution: window.devicePixelRatio || 1,
         });
         
         // Store app reference
@@ -127,24 +125,27 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
             return;
           }
           
-          console.log('GameDisplay: Setting fixed dimensions');
+          console.log('GameDisplay: Handling resize');
+          const container = pixiContainerRef.current;
+          const width = container.clientWidth;
+          const height = container.clientHeight;
           
-          // Use fixed dimensions matching Electron window
-          app.renderer.resize(GAME_WIDTH, GAME_HEIGHT);
+          app.renderer.resize(width, height);
           
-          // No scaling needed, use 1:1 mapping
-          app.stage.scale.set(1);
+          // Scale the stage to maintain aspect ratio but fill the container
+          const scale = Math.min(width / GAME_WIDTH, height / GAME_HEIGHT);
+          app.stage.scale.set(scale);
           
-          // Center the game stage
-          app.stage.position.x = 0;
-          app.stage.position.y = 0;
+          // Center the game stage within the container
+          app.stage.position.x = (width - GAME_WIDTH * scale) / 2;
+          app.stage.position.y = (height - GAME_HEIGHT * scale) / 2;
 
-          // Ensure the canvas has the exact dimensions
+          // Ensure the canvas fills the container
           if (app.canvas) {
-            app.canvas.style.width = `${GAME_WIDTH}px`;
-            app.canvas.style.height = `${GAME_HEIGHT}px`;
+            app.canvas.style.width = '100%';
+            app.canvas.style.height = '100%';
           }
-          console.log(`GameDisplay: Fixed dimensions set - width: ${GAME_WIDTH}, height: ${GAME_HEIGHT}`);
+          console.log(`GameDisplay: Resize complete - width: ${width}, height: ${height}, scale: ${scale}`);
         };
         
         // Initial resize
@@ -433,9 +434,19 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
           )}
           <p>{gameStateService.getState().isGameOver ? 'Press SPACE to try again' : 'Press SPACE to start'}</p>
           <p>Use SPACE, Up Arrow, or W to fly!</p>
+          <p className="mobile-instruction">On mobile, tap anywhere to jump!</p>
           {!gameStateService.getState().isGameOver && (
             <p className="mission-goal">Collect all orbs before time runs out!</p>
           )}
+        </div>
+      )}
+      
+      {/* Display a touch overlay during gameplay on mobile/touch devices */}
+      {isLoaded && gameStarted && !gameStateService.getState().isGameOver && (
+        <div className="touch-overlay" onClick={handleGameClick}>
+          <div className="touch-hint-container">
+            <div className="touch-hint">Tap to fly!</div>
+          </div>
         </div>
       )}
     </div>

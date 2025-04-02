@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { entityManager } from './entityManager';
 import { gameStateService } from '../gameStateService';
-import { COLORS } from '../config';
+import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 /**
  * RenderSystem manages all rendering operations for the game.
@@ -78,8 +78,20 @@ export class RenderSystem {
         console.log(`RenderSystem: Animating ${stars.length} background stars`);
       }
       
-      // Update star positions
+      // Update star positions with controlled deltaTime to prevent speed inconsistencies
+      // Limit deltaTime to ensure smooth and consistent star movement
+      const limitedDelta = Math.min(deltaTime, 0.05);
       for (const star of stars) {
+        // We manually update stars here to have tighter control over speed
+        star.graphics.x -= star.speed * limitedDelta * 60; // Normalize by frame rate
+        
+        // Reset position when star goes off screen
+        if (star.graphics.x + star.size < 0) {
+          star.graphics.x = GAME_WIDTH + star.size;
+          star.graphics.y = Math.random() * GAME_HEIGHT;
+        }
+        
+        // Handle blinking effect through the star's update method
         star.update();
       }
     }

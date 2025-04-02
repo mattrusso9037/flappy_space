@@ -15,8 +15,8 @@ export class Star {
     this.layer = layer;
     
     // Set speed based on the layer (parallax effect)
-    const layerSpeeds = [0.1, 0.3, 0.8]; // Background, middle, foreground speeds
-    this.speed = layerSpeeds[layer] || 0.1;
+    const layerSpeeds = [0.05, 0.15, 0.4]; // Reduced speeds for all layers (was [0.1, 0.3, 0.8])
+    this.speed = layerSpeeds[layer] || 0.05;
     
     this.graphics = new PIXI.Graphics();
     
@@ -43,14 +43,8 @@ export class Star {
   }
 
   update() {
-    // Move the star horizontally based on its speed (parallax)
-    this.graphics.x -= this.speed;
-    
-    // Reset position when star goes off screen
-    if (this.graphics.x + this.size < 0) {
-      this.graphics.x = GAME_WIDTH + this.size;
-      this.graphics.y = Math.random() * GAME_HEIGHT;
-    }
+    // Movement is now handled in renderSystem.updateBackground
+    // for more precise speed control
     
     // Handle blinking effect
     this.alpha += this.blinkSpeed * this.blinkDirection;

@@ -49,23 +49,7 @@ function App() {
             onGameStateChange={handleGameStateChange}
           />
           
-          <div className="game-ui">
-            <div className="game-info">
-              <Scoreboard 
-                score={gameState.score}
-                level={gameState.level}
-                warps={gameState.warps}
-                time={gameState.time}
-                orbsCollected={gameState.orbsCollected}
-                orbsRequired={gameState.orbsRequired}
-                timeRemaining={gameState.timeRemaining}
-              />
-            </div>
-            
-        
-            
-           
-          </div>
+    
         </div>
       </main>
       

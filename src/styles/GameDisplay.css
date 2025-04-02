@@ -1,35 +1,33 @@
 .game-display-wrapper {
   position: relative;
-  width: 800px;
-  height: 600px;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  margin: 0 auto;
 }
 
 .game-display {
   position: relative;
-  width: 800px;
-  height: 600px;
+  width: 100%;
+  height: 100%;
   background-color: #000033;
   overflow: hidden;
   flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .game-display canvas {
   display: block;
-  width: 800px;
-  height: 600px;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* Overlay base styles - all overlays share these */
 .loading-overlay, 
 .error-overlay,
 .start-overlay, 
-.game-over-overlay {
+.game-over-overlay,
+.touch-overlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -48,6 +46,7 @@
 .loading-overlay { z-index: 30; }
 .error-overlay { z-index: 40; }
 .start-overlay, .game-over-overlay { z-index: 20; }
+.touch-overlay { z-index: 10; pointer-events: none; }
 
 /* Loading overlay styles */
 .loading-overlay {
@@ -127,4 +126,49 @@
   0% { transform: scale(1); }
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
+}
+
+/* Mobile specific styles */
+.mobile-instruction {
+  color: #00FFFF;
+  font-size: 1.2rem;
+  margin-top: 1rem;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Touch overlay styling */
+.touch-hint-container {
+  position: absolute;
+  bottom: 50px;
+  right: 20px;
+  pointer-events: auto;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.touch-hint {
+  background-color: rgba(0, 150, 255, 0.3);
+  border: 2px solid rgba(0, 200, 255, 0.6);
+  border-radius: 50%;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+  animation: pulse 1.5s infinite ease-in-out;
+  opacity: 0.8;
+}
+
+/* Media query for desktop - hide mobile elements */
+@media (pointer: fine) {
+  .mobile-instruction,
+  .touch-overlay {
+    display: none;
+  }
 } 

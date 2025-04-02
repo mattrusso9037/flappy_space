@@ -162,7 +162,7 @@ export class InputSystem {
     console.log(`InputSystem: KeyDown event - ${e.key}, isStarted: ${gameStateService.getState().isStarted}`);
     
     // Handle spacebar for game start
-    if (e.key === ' ' && !gameStateService.getState().isStarted) {
+    if (e.key === ' ' && !gameStateService.getState().isStarted && !gameStateService.getState().isGameOver) {
       console.log('InputSystem: Spacebar pressed while game not started, emitting START_GAME event directly');
       eventBus.emit(GameEvent.START_GAME, null);
     } 

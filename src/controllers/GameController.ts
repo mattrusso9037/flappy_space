@@ -312,7 +312,7 @@ export class GameController {
       // Level configuration would come from some config service
       obstacleFrequency: 2000 - (level * 200),
       orbFrequency: 3000,
-      scrollSpeed: .1 + (level * 0.5),
+      scrollSpeed: .05 + (level * 0.03),
       // etc.
     };
     console.log(`GameController: Level config - obstacleFrequency: ${levelConfig.obstacleFrequency}, orbFrequency: ${levelConfig.orbFrequency}, scrollSpeed: ${levelConfig.scrollSpeed}`);

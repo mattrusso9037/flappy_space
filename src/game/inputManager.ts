@@ -18,6 +18,7 @@ class InputManager {
   private keyMap: Map<InputKey, boolean>;
   private eventHandlers: Map<InputEvent, EventHandler[]>;
   private enabled: boolean;
+  private touchActive: boolean = false;
 
   constructor() {
     this.keyMap = new Map();
@@ -42,8 +43,14 @@ class InputManager {
     window.addEventListener('keydown', this.handleKeyDown);
     window.addEventListener('keyup', this.handleKeyUp);
     
+    // Set up touch listeners
+    window.addEventListener('touchstart', this.handleTouchStart);
+    window.addEventListener('touchend', this.handleTouchEnd);
+    // Prevent default touch behavior to avoid scrolling, zooming, etc.
+    window.addEventListener('touchmove', this.handleTouchMove, { passive: false });
+    
     this.enabled = true;
-    console.log('InputManager: Enabled');
+    console.log('InputManager: Enabled with keyboard and touch support');
   }
 
   /**
@@ -55,6 +62,11 @@ class InputManager {
     // Remove keyboard listeners
     window.removeEventListener('keydown', this.handleKeyDown);
     window.removeEventListener('keyup', this.handleKeyUp);
+    
+    // Remove touch listeners
+    window.removeEventListener('touchstart', this.handleTouchStart);
+    window.removeEventListener('touchend', this.handleTouchEnd);
+    window.removeEventListener('touchmove', this.handleTouchMove);
     
     this.enabled = false;
     console.log('InputManager: Disabled');
@@ -91,6 +103,13 @@ class InputManager {
   }
 
   /**
+   * Check if touch is currently active
+   */
+  isTouchActive(): boolean {
+    return this.touchActive;
+  }
+
+  /**
    * Handle keydown events
    */
   private handleKeyDown = (event: KeyboardEvent): void => {
@@ -123,6 +142,48 @@ class InputManager {
     const key = event.code as InputKey;
     this.keyMap.set(key, false);
     console.log(`InputManager: KeyUp event - ${key}`);
+  };
+
+  /**
+   * Handle touch start events (equivalent to keydown)
+   */
+  private handleTouchStart = (event: TouchEvent): void => {
+    if (!this.enabled) return;
+    
+    console.log('InputManager: TouchStart event detected');
+    
+    // Mark touch as active
+    this.touchActive = true;
+    
+    // Trigger the jump event
+    console.log('InputManager: Triggering JUMP event from touch');
+    this.triggerEvent(InputEvent.JUMP);
+    
+    // Also trigger start game event
+    console.log('InputManager: Triggering START_GAME event from touch');
+    this.triggerEvent(InputEvent.START_GAME);
+    
+    // Prevent default behavior to avoid scrolling
+    event.preventDefault();
+  };
+
+  /**
+   * Handle touch end events (equivalent to keyup)
+   */
+  private handleTouchEnd = (event: TouchEvent): void => {
+    console.log('InputManager: TouchEnd event detected');
+    this.touchActive = false;
+    
+    // Prevent default behavior
+    event.preventDefault();
+  };
+
+  /**
+   * Handle touch move events to prevent scrolling
+   */
+  private handleTouchMove = (event: TouchEvent): void => {
+    // Prevent scrolling while touching the game
+    event.preventDefault();
   };
 
   /**
