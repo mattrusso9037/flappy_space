@@ -144,6 +144,10 @@ export class GameController {
     logger.info('Resetting spawning system');
     this.spawningSystem.resetSpawning();
     
+    // Enable speed diagnostics for tracking speed issues
+    logger.info('Enabling speed diagnostics');
+    this.physicsSystem.setSpeedDiagnostics(true, 3000); // Check speeds every 3 seconds
+    
     // Initialize level
     const currentLevel = this.gameStateService.getState().level;
     logger.info(`Initializing level ${currentLevel}`);

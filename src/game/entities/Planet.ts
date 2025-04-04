@@ -260,9 +260,13 @@ export class Planet extends Obstacle {
         }
     }
     
-    update() {
+    update(deltaTime: number = 1/60) {
+        // Track speed for diagnostics
+        this.trackSpeed();
+        
         // Update position
-        this.x -= this.speed;
+        const moveDistance = this.speed * deltaTime * 60; // Normalize for 60fps
+        this.x -= moveDistance;
         this.graphics.x = this.x;
         this.glowGraphics.x = this.x;
         

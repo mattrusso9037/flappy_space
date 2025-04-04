@@ -102,11 +102,15 @@ export class Orb extends Obstacle {
         glow.drawCircle(0, 0, outerGlowRadius);
     }
     
-    update() {
+    update(deltaTime: number = 1/60) {
         if (this.collected) return;
         
+        // Track speed for diagnostics
+        this.trackSpeed();
+        
         // Update position
-        this.x -= this.speed;
+        const moveDistance = this.speed * deltaTime * 60; // Normalize for 60fps
+        this.x -= moveDistance;
         this.graphics.x = this.x;
         this.glowGraphics.x = this.x;
         
