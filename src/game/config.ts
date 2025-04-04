@@ -25,11 +25,11 @@ export const OBSTACLE = {
 
 // Game difficulty levels
 export const LEVELS = [
-  { speed: 1.0, spawnInterval: 2500, label: "Level 1", orbsRequired: 5, timeLimit: 60000 },
-  { speed: 1.2, spawnInterval: 2200, label: "Level 2", orbsRequired: 8, timeLimit: 60000 },
-  { speed: 1.5, spawnInterval: 2000, label: "Level 3", orbsRequired: 12, timeLimit: 70000 },
-  { speed: 1.8, spawnInterval: 1800, label: "Level 4", orbsRequired: 15, timeLimit: 70000 },
-  { speed: 2.0, spawnInterval: 1600, label: "Level 5", orbsRequired: 20, timeLimit: 80000 },
+  { speed: 1.0, spawnInterval: 2500, label: "Level 1", orbsRequired: 5, timeLimit: 60000, orbFrequency: 3000 },
+  { speed: 1.2, spawnInterval: 2200, label: "Level 2", orbsRequired: 8, timeLimit: 60000, orbFrequency: 3000  },
+  { speed: 1.5, spawnInterval: 2000, label: "Level 3", orbsRequired: 12, timeLimit: 70000, orbFrequency: 3000 },
+  { speed: 1.8, spawnInterval: 1800, label: "Level 4", orbsRequired: 15, timeLimit: 70000, orbFrequency: 3000 },
+  { speed: 2.0, spawnInterval: 1600, label: "Level 5", orbsRequired: 20, timeLimit: 80000, orbFrequency: 3000 },
 ];
 
 // Score settings

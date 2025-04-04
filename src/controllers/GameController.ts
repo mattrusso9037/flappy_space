@@ -4,6 +4,7 @@ import { EventBus, GameEvent } from '../game/eventBus';
 import { AudioSystem } from '../game/systems/audioSystem';
 import { InputSystem } from '../game/systems/inputSystem';
 import { GameStateService, GameState } from '../game/gameStateService';
+import { LEVELS } from '../game/config';
 
 /**
  * GameController orchestrates all game systems and manages the game flow
@@ -143,6 +144,12 @@ export class GameController {
     const currentLevel = this.gameStateService.getState().level;
     console.log(`GameController: Initializing level ${currentLevel}`);
     this.initializeLevel(currentLevel);
+
+    // Reset ticker speed to 1
+    if (this.app?.ticker) {
+        console.log('GameController: Resetting ticker speed to 1');
+        this.app.ticker.speed = 1;
+      }
     
     // Double-check that the astronaut was created
     const astronaut = this.entityManager.getAstronaut();
@@ -305,25 +312,30 @@ export class GameController {
    */
   private initializeLevel(level: number): void {
     console.log(`GameController: Initializing level ${level}`);
-    
-    // Initialize level-specific settings
-    // (obstacles, orbs, speed, etc.)
-    const levelConfig = {
-      // Level configuration would come from some config service
-      obstacleFrequency: 2000 - (level * 200),
-      orbFrequency: 3000,
-      scrollSpeed: .05 + (level * 0.03),
-      // etc.
+
+    // Get the full configuration for the current level from config.ts
+    // Note: Adjust index since level numbers are 1-based, array is 0-based
+    let currentLevelConfig = LEVELS[level - 1];
+    if (!currentLevelConfig) {
+      console.error(`GameController: Invalid level number ${level}. Cannot find config. Falling back to level 1.`);
+      currentLevelConfig = LEVELS[0]; // Fallback to level 1 config
+    }
+
+    // Prepare the config object specifically for the spawning system
+    // Ensure it includes the 'speed' property from the LEVELS config
+    const spawningConfig = {
+      speed: currentLevelConfig.speed, // <-- Use speed from LEVELS
+      spawnInterval: currentLevelConfig.spawnInterval,
+      // Include orbFrequency if defined in LEVELS, otherwise use a default or omit
+      orbFrequency: currentLevelConfig.orbFrequency || 3000
     };
-    console.log(`GameController: Level config - obstacleFrequency: ${levelConfig.obstacleFrequency}, orbFrequency: ${levelConfig.orbFrequency}, scrollSpeed: ${levelConfig.scrollSpeed}`);
-    
-    // Set level config
+
+    console.log(`GameController: Level config for SpawningSystem:`, spawningConfig);
+
+    // Set level config in SpawningSystem
     console.log('GameController: Setting level config in SpawningSystem');
-    this.spawningSystem.setLevelConfig(levelConfig);
-    
-    console.log('GameController: Setting scroll speed in PhysicsSystem');
-    this.physicsSystem.setScrollSpeed(levelConfig.scrollSpeed);
-    
+    this.spawningSystem.setLevelConfig(spawningConfig);
+
     // Create astronaut
     console.log('GameController: Creating astronaut entity');
     const astronaut = this.entityManager.createAstronaut();
@@ -332,17 +344,17 @@ export class GameController {
     } else {
       console.error('GameController: Failed to create astronaut');
     }
-    
+
     // Create initial background elements
     console.log('GameController: Creating background');
     this.renderSystem.createBackground();
-    
+
     // Set up ticker for background animation
     // First remove to avoid duplicates
     console.log('GameController: Updating ticker for background animation');
     this.app.ticker.remove(this.gameLoopFunc);
     this.app.ticker.add(this.gameLoopFunc);
-    
+
     // Ensure the ticker is running
     if (!this.app.ticker.started) {
       console.log('GameController: Starting ticker for background animation');
@@ -350,7 +362,7 @@ export class GameController {
     } else {
       console.log('GameController: Ticker already running for background animation');
     }
-    
+
     console.log(`GameController: Level ${level} initialization complete`);
   }
   
