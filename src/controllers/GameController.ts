@@ -5,6 +5,10 @@ import { AudioSystem } from '../game/systems/audioSystem';
 import { InputSystem } from '../game/systems/inputSystem';
 import { GameStateService, GameState } from '../game/gameStateService';
 import { LEVELS } from '../game/config';
+import { getLogger } from '../utils/logger';
+
+// Create a contextualized logger for GameController
+const logger = getLogger('GameController');
 
 /**
  * GameController orchestrates all game systems and manages the game flow
@@ -39,7 +43,7 @@ export class GameController {
     spawningSystem: any,
     uiSystem: any
   ) {
-    console.log('GameController: Constructor called');
+    logger.info('Constructor called');
     this.app = app;
     this.eventBus = eventBus;
     this.gameStateService = gameStateService;
@@ -54,11 +58,11 @@ export class GameController {
     this.uiSystem = uiSystem;
     
     // Create game loop
-    console.log('GameController: Creating game loop function');
+    logger.info('Creating game loop function');
     this.gameLoopFunc = this.createGameLoop();
     
-    console.log('GameController: Is app.ticker available?', !!this.app.ticker);
-    console.log('GameController: Constructor completed');
+    logger.debug('Is app.ticker available?', !!this.app.ticker);
+    logger.info('Constructor completed');
   }
   
   /**
@@ -66,37 +70,37 @@ export class GameController {
    */
   public initialize(): void {
     if (this.initialized) {
-      console.log('GameController already initialized');
+      logger.warn('Already initialized, skipping');
       return;
     }
     
-    console.log('GameController: Initializing...');
+    logger.info('Initializing...');
     this.app = this.app;
     
     // Initialize all systems
-    console.log('GameController: Initializing InputSystem');
+    logger.debug('Initializing InputSystem');
     this.inputSystem.initialize();
     
-    console.log('GameController: Initializing AudioSystem');
+    logger.debug('Initializing AudioSystem');
     this.audioSystem.initialize();
     
-    console.log('GameController: Initializing EntityManager');
+    logger.debug('Initializing EntityManager');
     this.entityManager.initialize(this.app);
     
-    console.log('GameController: Initializing RenderSystem');
+    logger.debug('Initializing RenderSystem');
     this.renderSystem.initialize(this.app);
     
-    console.log('GameController: Initializing PhysicsSystem');
+    logger.debug('Initializing PhysicsSystem');
     this.physicsSystem.initialize();
     
-    console.log('GameController: Initializing SpawningSystem');
+    logger.debug('Initializing SpawningSystem');
     this.spawningSystem.initialize();
     
-    console.log('GameController: Initializing UISystem');
+    logger.debug('Initializing UISystem');
     try {
       this.uiSystem.initialize(this.app);
     } catch (uiError) {
-      console.error('GameController: Failed to initialize UISystem:', uiError);
+      logger.error('Failed to initialize UISystem:', uiError);
       // Continue initialization despite UI error - game can function without UI
     }
     
@@ -108,15 +112,15 @@ export class GameController {
     
     // Start the ticker immediately just for background animation
     if (this.app.ticker) {
-      console.log('GameController: Starting ticker for background animation');
+      logger.info('Starting ticker for background animation');
       this.app.ticker.add(this.gameLoopFunc);
       this.app.ticker.start();
     } else {
-      console.error('GameController: Ticker not available');
+      logger.error('Ticker not available');
     }
     
     this.initialized = true;
-    console.log('GameController: Initialization complete');
+    logger.info('Initialization complete');
     
     // Initialize loading events
     this.setupEventListeners();
@@ -126,128 +130,128 @@ export class GameController {
    * Set up game for first play
    */
   public setupGame(): void {
-    console.log('GameController: Setting up game...');
+    logger.info('Setting up game...');
     
     // Reset game state to initial values
-    console.log('GameController: Resetting game state');
+    logger.info('Resetting game state');
     this.gameStateService.resetGame();
     
     // Clear all entities
-    console.log('GameController: Clearing all entities');
+    logger.info('Clearing all entities');
     this.entityManager.clearAll();
     
     // Explicitly reset spawning system
-    console.log('GameController: Resetting spawning system');
+    logger.info('Resetting spawning system');
     this.spawningSystem.resetSpawning();
     
     // Initialize level
     const currentLevel = this.gameStateService.getState().level;
-    console.log(`GameController: Initializing level ${currentLevel}`);
+    logger.info(`Initializing level ${currentLevel}`);
     this.initializeLevel(currentLevel);
 
     // Reset ticker speed to 1
     if (this.app?.ticker) {
-        console.log('GameController: Resetting ticker speed to 1');
+        logger.info('Resetting ticker speed to 1');
         this.app.ticker.speed = 1;
       }
     
     // Double-check that the astronaut was created
     const astronaut = this.entityManager.getAstronaut();
     if (!astronaut) {
-      console.log('GameController: Astronaut not created during initialization. Creating it now.');
+      logger.info('Astronaut not created during initialization. Creating it now.');
       this.entityManager.createAstronaut();
     } else {
-      console.log('GameController: Astronaut position verified - x:', astronaut.sprite.x, 'y:', astronaut.sprite.y);
+      logger.info('Astronaut position verified - x:', astronaut.sprite.x, 'y:', astronaut.sprite.y);
     }
     
     // Make sure ticker has the background update function added
     // First remove to avoid duplicates
-    console.log('GameController: Updating background ticker function');
+    logger.info('Updating background ticker function');
     this.app.ticker.remove(this.gameLoopFunc);
     this.app.ticker.add(this.gameLoopFunc);
     
     // Ensure ticker is running for background animation
     if (!this.app.ticker.started) {
-      console.log('GameController: Starting ticker for background animation');
+      logger.info('Starting ticker for background animation');
       this.app.ticker.start();
     }
     
     // Show "Press Space to Start" UI
-    console.log('GameController: Showing start prompt');
+    logger.info('Showing start prompt');
     this.eventBus.emit(GameEvent.SHOW_START_PROMPT, null);
     
-    console.log('GameController: Setup complete. Waiting for START_GAME.');
+    logger.info('Setup complete. Waiting for START_GAME.');
   }
   
   /**
    * Start the game
    */
   public startGame(): void {
-    console.log('GameController: startGame() called');
+    logger.info('startGame() called');
     
     // Prevent starting if already playing
     if (this.gameStateService.getState().isStarted) {
-      console.log('GameController: Game already in progress, ignoring start request');
+      logger.info('Game already in progress, ignoring start request');
       return;
     }
     
     // Log diagnostic info
-    console.log('GameController: DIAGNOSTIC INFO:');
-    console.log('- Game state:', this.gameStateService.getState());
-    console.log('- Astronaut exists:', !!this.entityManager.getAstronaut());
-    console.log('- Obstacles count:', this.entityManager.getObstacles().length);
-    console.log('- Orbs count:', this.entityManager.getOrbs().length);
-    console.log('- Stars count:', this.entityManager.getStars().length);
+    logger.info('DIAGNOSTIC INFO:');
+    logger.info('- Game state:', this.gameStateService.getState());
+    logger.info('- Astronaut exists:', !!this.entityManager.getAstronaut());
+    logger.info('- Obstacles count:', this.entityManager.getObstacles().length);
+    logger.info('- Orbs count:', this.entityManager.getOrbs().length);
+    logger.info('- Stars count:', this.entityManager.getStars().length);
     
     // Update game state
-    console.log('GameController: Calling gameStateService.startGame()');
+    logger.info('Calling gameStateService.startGame()');
     this.gameStateService.startGame();
     
     // Debugging ticker state
-    console.log('GameController: app =', this.app);
-    console.log('GameController: app.ticker =', this.app.ticker);
-    console.log('GameController: app.ticker.started =', this.app.ticker ? this.app.ticker.started : 'ticker undefined');
-    console.log('GameController: gameLoopFunc =', typeof this.gameLoopFunc === 'function' ? 'function defined' : this.gameLoopFunc);
+    logger.info('app =', this.app);
+    logger.info('app.ticker =', this.app.ticker);
+    logger.info('app.ticker.started =', this.app.ticker ? this.app.ticker.started : 'ticker undefined');
+    logger.info('gameLoopFunc =', typeof this.gameLoopFunc === 'function' ? 'function defined' : this.gameLoopFunc);
     
     // Ensure the game loop is added to ticker (it might have been removed on game over)
     // First remove it to avoid duplicate handlers
-    console.log('GameController: Removing any existing game loop from ticker');
+    logger.info('Removing any existing game loop from ticker');
     this.app.ticker.remove(this.gameLoopFunc);
     
     // Then add it back
-    console.log('GameController: Adding game loop to ticker');
+    logger.info('Adding game loop to ticker');
     this.app.ticker.add(this.gameLoopFunc);
     
     // Start the ticker if it's not already running
     if (!this.app.ticker.started) {
-      console.log('GameController: Ticker not started, starting it now');
+      logger.info('Ticker not started, starting it now');
       try {
         this.app.ticker.start();
-        console.log('GameController: Ticker started successfully');
+        logger.info('Ticker started successfully');
         
         // Verify game state after ticker start
         const stateAfterStart = this.gameStateService.getState();
-        console.log(`GameController: Game state after start - isStarted: ${stateAfterStart.isStarted}, tickerStarted: ${this.app.ticker.started}`);
+        logger.info(`GameController: Game state after start - isStarted: ${stateAfterStart.isStarted}, tickerStarted: ${this.app.ticker.started}`);
         
         // Force a full update cycle immediately to verify systems are working
-        console.log('GameController: Forcing initial update cycle...');
+        logger.info('Forcing initial update cycle...');
         this.gameLoopFunc({deltaTime: 1/60, deltaMS: 16.667, elapsedMS: 16.667} as Ticker);
       } catch (error) {
-        console.error('GameController: Error starting ticker:', error);
+        logger.error('Error starting ticker:', error);
       }
     } else {
-      console.log('GameController: Ticker already started');
+      logger.info('Ticker already started');
       
       // Force an update cycle anyway to ensure systems start working immediately
-      console.log('GameController: Forcing initial update cycle on already running ticker...');
+      logger.info('Forcing initial update cycle on already running ticker...');
       this.gameLoopFunc({deltaTime: 1/60, deltaMS: 16.667, elapsedMS: 16.667} as Ticker);
     }
     
     // Hide start prompt
-    console.log('GameController: Hiding start prompt');
+    logger.info('Hiding start prompt');
     this.eventBus.emit(GameEvent.HIDE_START_PROMPT, null);
     
-    console.log('GameController: Game started');
+    logger.info('Game started');
   }
   
   /**
@@ -256,11 +260,11 @@ export class GameController {
   public pauseGame(): void {
     if (!this.gameStateService.getState().isStarted) return;
     
-    console.log('GameController: Pausing game');
+    logger.info('Pausing game');
     // Stop the ticker
     this.app.ticker.stop();
     
-    console.log('GameController: Game paused');
+    logger.info('Game paused');
     // Since there is no pauseGame method in GameStateService, we need to update state manually
     // For now, this is handled by stopping the ticker
     
@@ -273,11 +277,11 @@ export class GameController {
   public resumeGame(): void {
     if (this.gameStateService.getState().isGameOver) return;
     
-    console.log('GameController: Resuming game');
+    logger.info('Resuming game');
     // Start the ticker again
     this.app.ticker.start();
     
-    console.log('GameController: Game resumed');
+    logger.info('Game resumed');
     // In a future update, GameStateService should have a resumeGame method
   }
   
@@ -285,39 +289,39 @@ export class GameController {
    * Handle game over
    */
   public gameOver(): void {
-    console.log('GameController: Game over');
+    logger.info('Game over');
     
     // Update game state
-    console.log('GameController: Calling gameStateService.gameOver()');
+    logger.info('Calling gameStateService.gameOver()');
     this.gameStateService.gameOver();
     
     // Remove the game loop from ticker but don't stop the ticker
     // This allows background animations to continue
-    console.log('GameController: Removing game loop from ticker');
+    logger.info('Removing game loop from ticker');
     this.app.ticker.remove(this.gameLoopFunc);
     
     // Ensure the astronaut is visibly in a "dead" state
     const astronaut = this.entityManager.getAstronaut();
     if (astronaut && !astronaut.dead) {
-      console.log('GameController: Setting astronaut to dead state');
+      logger.info('Setting astronaut to dead state');
       astronaut.die();
     }
     
     // Game over UI will be shown via the GameStateService event publisher
-    console.log('GameController: Game over processing complete');
+    logger.info('Game over processing complete');
   }
   
   /**
    * Initialize a specific level
    */
   private initializeLevel(level: number): void {
-    console.log(`GameController: Initializing level ${level}`);
+    logger.info(`Initializing level ${level}`);
 
     // Get the full configuration for the current level from config.ts
     // Note: Adjust index since level numbers are 1-based, array is 0-based
     let currentLevelConfig = LEVELS[level - 1];
     if (!currentLevelConfig) {
-      console.error(`GameController: Invalid level number ${level}. Cannot find config. Falling back to level 1.`);
+      logger.error(`Invalid level number ${level}. Cannot find config. Falling back to level 1.`);
       currentLevelConfig = LEVELS[0]; // Fallback to level 1 config
     }
 
@@ -330,90 +334,90 @@ export class GameController {
       orbFrequency: currentLevelConfig.orbFrequency || 3000
     };
 
-    console.log(`GameController: Level config for SpawningSystem:`, spawningConfig);
+    logger.info(`GameController: Level config for SpawningSystem:`, spawningConfig);
 
     // Set level config in SpawningSystem
-    console.log('GameController: Setting level config in SpawningSystem');
+    logger.info('GameController: Setting level config in SpawningSystem');
     this.spawningSystem.setLevelConfig(spawningConfig);
 
     // Create astronaut
-    console.log('GameController: Creating astronaut entity');
+    logger.info('GameController: Creating astronaut entity');
     const astronaut = this.entityManager.createAstronaut();
     if (astronaut) {
-      console.log(`GameController: Astronaut created at position (${astronaut.sprite.x}, ${astronaut.sprite.y})`);
+      logger.info(`GameController: Astronaut created at position (${astronaut.sprite.x}, ${astronaut.sprite.y})`);
     } else {
-      console.error('GameController: Failed to create astronaut');
+      logger.error('GameController: Failed to create astronaut');
     }
 
     // Create initial background elements
-    console.log('GameController: Creating background');
+    logger.info('GameController: Creating background');
     this.renderSystem.createBackground();
 
     // Set up ticker for background animation
     // First remove to avoid duplicates
-    console.log('GameController: Updating ticker for background animation');
+    logger.info('Updating ticker for background animation');
     this.app.ticker.remove(this.gameLoopFunc);
     this.app.ticker.add(this.gameLoopFunc);
 
     // Ensure the ticker is running
     if (!this.app.ticker.started) {
-      console.log('GameController: Starting ticker for background animation');
+      logger.info('Starting ticker for background animation');
       this.app.ticker.start();
     } else {
-      console.log('GameController: Ticker already running for background animation');
+      logger.info('Ticker already running for background animation');
     }
 
-    console.log(`GameController: Level ${level} initialization complete`);
+    logger.info(`GameController: Level ${level} initialization complete`);
   }
   
   /**
    * Set up event listeners for game flow
    */
   private setupEventListeners(): void {
-    console.log('GameController: Setting up event listeners');
+    logger.info('Setting up event listeners');
     
     // Listen for game events
-    console.log('GameController: Subscribing to START_GAME event');
+    logger.info('Subscribing to START_GAME event');
     this.eventBus.on(GameEvent.START_GAME).subscribe(() => {
-      console.log('GameController: Received START_GAME event from EventBus');
+      logger.info('Received START_GAME event from EventBus');
       this.startGame();
     });
 
     this.eventBus.on(GameEvent.RESTART_GAME).subscribe(() => {
-      console.log('GameController: Received RESTART_GAME event from EventBus');
+      logger.info('Received RESTART_GAME event from EventBus');
       this.setupGame();
     });
     
-    console.log('GameController: Subscribing to COLLISION_DETECTED event');
+    logger.info('Subscribing to COLLISION_DETECTED event');
     this.eventBus.on(GameEvent.COLLISION_DETECTED).subscribe(() => {
-      console.log('GameController: Received COLLISION_DETECTED');
+      logger.info('Received COLLISION_DETECTED');
       this.gameOver();
     });
     
-    console.log('GameController: Subscribing to ORB_COLLECTED event');
+    logger.info('Subscribing to ORB_COLLECTED event');
     this.eventBus.on(GameEvent.ORB_COLLECTED).subscribe((data: any) => {
-      console.log(`GameController: Received ORB_COLLECTED, data:`, data);
+      logger.info(`GameController: Received ORB_COLLECTED, data:`, data);
       // Check if all orbs have been collected
       const state = this.gameStateService.getState();
-      console.log(`GameController: Current state - orbsCollected: ${state.orbsCollected}, orbsRequired: ${state.orbsRequired}, isGameOver: ${state.isGameOver}`);
+      logger.info(`GameController: Current state - orbsCollected: ${state.orbsCollected}, orbsRequired: ${state.orbsRequired}, isGameOver: ${state.isGameOver}`);
       
       if (state.orbsCollected >= state.orbsRequired && !state.isGameOver) {
-        console.log('GameController: Orb collection goal met');
+        logger.info('GameController: Orb collection goal met');
         this.levelComplete();
       }
     });
     
-    console.log('GameController: Subscribing to TIME_UPDATED event');
+    logger.info('Subscribing to TIME_UPDATED event');
     this.eventBus.on(GameEvent.TIME_UPDATED).subscribe((data: any) => {
-      console.log(`GameController: Received TIME_UPDATED, data:`, data);
+      logger.info(`GameController: Received TIME_UPDATED, data:`, data);
       // Check if time ran out
       if (data && data.timeRemaining <= 0) {
-        console.log('GameController: Time expired');
+        logger.info('GameController: Time expired');
         this.gameOver();
       }
     });
     
-    console.log('GameController: Event listeners setup complete');
+    logger.info('Event listeners setup complete');
     // ... other event listeners
   }
   
@@ -421,31 +425,31 @@ export class GameController {
    * Handle level completion
    */
   public levelComplete(): void {
-    console.log('GameController: Level complete');
+    logger.info('Level complete');
     
     // Pause game loop temporarily
-    console.log('GameController: Stopping ticker for level transition');
+    logger.info('Stopping ticker for level transition');
     this.app.ticker.stop();
     
     // Update game state
-    console.log('GameController: Calling gameStateService.levelComplete()');
+    logger.info('Calling gameStateService.levelComplete()');
     this.gameStateService.levelComplete();
     
     // Level complete UI will be shown via the GameStateService event publisher
-    console.log('GameController: Level complete UI should be shown');
+    logger.info('GameController: Level complete UI should be shown');
     
     // Setup for next level after a delay
-    console.log('GameController: Setting up timeout for next level');
+    logger.info('Setting up timeout for next level');
     setTimeout(() => {
       const nextLevel = this.gameStateService.getState().level;
-      console.log(`GameController: Initializing next level (${nextLevel})`);
+      logger.info(`GameController: Initializing next level (${nextLevel})`);
       this.initializeLevel(nextLevel);
       
       // Resume game loop
-      console.log('GameController: Restarting ticker');
+      logger.info('Restarting ticker');
       this.app.ticker.start();
       
-      console.log('GameController: Level transition complete');
+      logger.info('Level transition complete');
     }, 3000); // 3 second delay between levels
   }
   
@@ -453,12 +457,12 @@ export class GameController {
    * Create the main game loop
    */
   private createGameLoop(): (ticker: Ticker) => void {
-    console.log('GameController: Creating game loop function');
+    logger.info('Creating game loop function');
     
     return (ticker: Ticker) => {
       // Occasionally log ticker state for debugging
       if (Math.random() < 0.01) {
-        console.log(`GameController: Ticker running - deltaMS: ${ticker.deltaMS}, started: ${ticker.started}, minFPS: ${ticker.minFPS}, maxFPS: ${ticker.maxFPS}`);
+        logger.info(`GameController: Ticker running - deltaMS: ${ticker.deltaMS}, started: ${ticker.started}, minFPS: ${ticker.minFPS}, maxFPS: ${ticker.maxFPS}`);
       }
       
       const gameState = this.gameStateService.getState();
@@ -469,21 +473,21 @@ export class GameController {
         // Update star animations regardless of game state
         this.renderSystem.updateBackground(deltaTime);
       } catch (error) {
-        console.error('GameController: Error updating background:', error);
+        logger.error('GameController: Error updating background:', error);
       }
       
       // Skip the rest of the updates if game is not started or is game over
       if (!gameState.isStarted || gameState.isGameOver) {
         // Only log occasionally to avoid console spam
         if (Math.random() < 0.01) {
-          console.log(`GameController: Main game loop skipped - isStarted: ${gameState.isStarted}, isGameOver: ${gameState.isGameOver}`);
+          logger.info(`GameController: Main game loop skipped - isStarted: ${gameState.isStarted}, isGameOver: ${gameState.isGameOver}`);
         }
         return;
       }
       
       // Log occasionally to verify the loop is running
       if (Math.random() < 0.01) {
-        console.log(`GameController: Game loop running - delta: ${ticker.deltaMS}ms`);
+        logger.info(`GameController: Game loop running - delta: ${ticker.deltaMS}ms`);
       }
       
       // Update game state (decrement time, etc.)
@@ -494,34 +498,34 @@ export class GameController {
         // Debug the entities we're updating
         if (Math.random() < 0.01) {
           const entities = this.entityManager.getAllEntities();
-          console.log(`GameController: Updating ${entities.length} entities`);
+          logger.info(`GameController: Updating ${entities.length} entities`);
           
           // Check if astronaut exists
           const astronaut = this.entityManager.getAstronaut();
           if (astronaut) {
-            console.log(`GameController: Astronaut position: (${astronaut.sprite.x}, ${astronaut.sprite.y})`);
+            logger.info(`GameController: Astronaut position: (${astronaut.sprite.x}, ${astronaut.sprite.y})`);
           } else {
-            console.warn('GameController: No astronaut found!');
+            logger.warn('GameController: No astronaut found!');
           }
         }
         
         // Update physics
-        console.log('GameController: Updating physics...');
+        logger.info('GameController: Updating physics...');
         this.physicsSystem.update(deltaTime, this.entityManager.getAllEntities());
         
         // Update spawning
-        console.log('GameController: Updating spawning...');
+        logger.info('GameController: Updating spawning...');
         this.spawningSystem.update(deltaTime, this.gameStateService.getState());
         
         // Let render system update visuals based on current entity states
-        console.log('GameController: Updating rendering...');
+        logger.info('GameController: Updating rendering...');
         this.renderSystem.update(deltaTime, this.entityManager.getAllEntities());
         
         // Update UI
-        console.log('GameController: Updating UI...');
+        logger.info('GameController: Updating UI...');
         this.uiSystem.update();
       } catch (error) {
-        console.error('GameController: Error in game loop update:', error);
+        logger.error('GameController: Error in game loop update:', error);
       }
       
       // Check win/loss conditions
@@ -537,13 +541,13 @@ export class GameController {
     
     // Check if time has run out
     if (state.timeRemaining <= 0 && !state.isGameOver) {
-      console.log('GameController: Time has run out, emitting TIME_UPDATED event');
+      logger.info('GameController: Time has run out, emitting TIME_UPDATED event');
       this.eventBus.emit(GameEvent.TIME_UPDATED, { timeRemaining: 0, timeRanOut: true });
     }
     
     // Check if all orbs have been collected
     if (state.orbsCollected >= state.orbsRequired && !state.isGameOver) {
-      console.log('GameController: All orbs collected, emitting ORB_COLLECTED event');
+      logger.info('GameController: All orbs collected, emitting ORB_COLLECTED event');
       this.eventBus.emit(GameEvent.ORB_COLLECTED, state.orbsCollected);
     }
   }
@@ -552,34 +556,34 @@ export class GameController {
    * Clean up resources
    */
   public dispose(): void {
-    console.log('GameController: Disposing...');
+    logger.info('Disposing...');
     
     // Stop game loop
-    console.log('GameController: Removing game loop from ticker');
+    logger.info('Removing game loop from ticker');
     this.app.ticker.remove(this.gameLoopFunc);
     
     // Dispose all systems
-    console.log('GameController: Disposing InputSystem');
+    logger.info('Disposing InputSystem');
     this.inputSystem.dispose();
     
-    console.log('GameController: Disposing AudioSystem');
+    logger.info('Disposing AudioSystem');
     this.audioSystem.dispose();
     
-    console.log('GameController: Disposing EntityManager');
+    logger.info('Disposing EntityManager');
     this.entityManager.dispose();
     
-    console.log('GameController: Disposing RenderSystem');
+    logger.info('Disposing RenderSystem');
     this.renderSystem.dispose();
     
-    console.log('GameController: Disposing PhysicsSystem');
+    logger.info('Disposing PhysicsSystem');
     this.physicsSystem.dispose();
     
-    console.log('GameController: Disposing SpawningSystem');
+    logger.info('Disposing SpawningSystem');
     this.spawningSystem.dispose();
     
-    console.log('GameController: Disposing UISystem');
+    logger.info('Disposing UISystem');
     this.uiSystem.dispose();
     
-    console.log('GameController: Disposed');
+    logger.info('Disposed');
   }
 }

@@ -25,7 +25,7 @@ export class GameStateService {
   // The main state BehaviorSubject
   private state$: BehaviorSubject<GameState>;
   
-  // Get initial state from level config
+  // Get initial state from level config 
   private getInitialState(): GameState {
     const currentLevel = LEVELS[0];
     return {
