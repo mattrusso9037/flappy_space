@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import GameDisplay from './components/GameDisplay'
 import Scoreboard from './components/Scoreboard'
 import LevelMessage from './components/LevelMessage'

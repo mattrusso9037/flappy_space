@@ -44,12 +44,7 @@ export class RenderSystem {
    */
   public update(deltaTime: number, entities: any[]): void {
     if (!this.initialized || !this.app) return;
-    
-    // Occasionally log rendering info to avoid console spam
-    if (Math.random() < 0.01) {
-      console.log(`RenderSystem: Updating visuals, entities: ${entities.length}`);
-      console.log(`RenderSystem: Stage contains ${this.app.stage.children.length} display objects`);
-    }
+  
     
     // Render debug information if enabled
     this.renderDebugInfo();
@@ -73,11 +68,6 @@ export class RenderSystem {
     // Get all stars and update their positions
     const stars = entityManager.getStars();
     if (stars.length > 0) {
-      // Occasionally log star updates
-      if (Math.random() < 0.01) {
-        console.log(`RenderSystem: Animating ${stars.length} background stars`);
-      }
-      
       // Update star positions with controlled deltaTime to prevent speed inconsistencies
       // Limit deltaTime to ensure smooth and consistent star movement
       const limitedDelta = Math.min(deltaTime, 0.05);

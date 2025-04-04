@@ -7,7 +7,7 @@ import { initLogger, LogLevel, Logger } from './utils/logger'
 // Initialize logger with appropriate level
 const isDevelopment = import.meta.env.DEV;
 initLogger({
-  level: isDevelopment ? LogLevel.DEBUG : LogLevel.ERROR,
+  level: LogLevel.WARN,
   showTimestamp: true,
   showLogLevel: true
 });

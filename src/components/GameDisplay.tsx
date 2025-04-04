@@ -39,7 +39,6 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   useEffect(() => {
     console.log('GameDisplay: Setting up game state subscription');
     const subscription = gameStateService.getState$().subscribe(state => {
-      console.log(`GameDisplay: Game state changed - isStarted: ${state.isStarted}, isGameOver: ${state.isGameOver}, isLevelComplete: ${state.isLevelComplete}`);
       if (isMountedRef.current) {
         onGameStateChange(state);
       }
@@ -49,7 +48,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       console.log('GameDisplay: Cleaning up game state subscription');
       subscription.unsubscribe();
     };
-  }, [onGameStateChange]);
+  }, []);
 
   // Clean up function that can be called both in effects and event handlers
   const cleanupPixi = useCallback(() => {

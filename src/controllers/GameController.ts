@@ -6,9 +6,23 @@ import { InputSystem } from '../game/systems/inputSystem';
 import { GameStateService, GameState } from '../game/gameStateService';
 import { LEVELS } from '../game/config';
 import { getLogger } from '../utils/logger';
+import { frameRateMonitor } from '../utils/frameRateMonitor';
 
 // Create a contextualized logger for GameController
 const logger = getLogger('GameController');
+
+/**
+ * Interface for entity speed data
+ */
+interface EntitySpeedData {
+  id: string;
+  speed: number;
+  initialSpeed: number;
+  ratio: number;
+  x: number;
+  y: number;
+  type: string;
+}
 
 /**
  * GameController orchestrates all game systems and manages the game flow
@@ -77,6 +91,11 @@ export class GameController {
     logger.info('Initializing...');
     this.app = this.app;
     
+    // Initialize frame rate monitor
+    logger.info('Enabling frame rate monitor');
+    frameRateMonitor.enable();
+    frameRateMonitor.setLogInterval(2000); // Log every 2 seconds
+    
     // Initialize all systems
     logger.debug('Initializing InputSystem');
     this.inputSystem.initialize();
@@ -113,8 +132,13 @@ export class GameController {
     // Start the ticker immediately just for background animation
     if (this.app.ticker) {
       logger.info('Starting ticker for background animation');
+      logger.info(`Initial ticker configuration - speed: ${this.app.ticker.speed}, minFPS: ${this.app.ticker.minFPS}, maxFPS: ${this.app.ticker.maxFPS}`);
+      
       this.app.ticker.add(this.gameLoopFunc);
       this.app.ticker.start();
+      
+      // Record initial ticker state
+      frameRateMonitor.recordRestart(this.app.ticker.speed);
     } else {
       logger.error('Ticker not available');
     }
@@ -127,10 +151,107 @@ export class GameController {
   }
   
   /**
+   * Analyze all entity speeds to check for potential issues
+   */
+  private analyzeEntitySpeeds(): void {
+    logger.info('Running entity speed analysis...');
+    
+    // Get all obstacles and orbs
+    const obstacles = this.entityManager.getObstacles();
+    const orbs = this.entityManager.getOrbs();
+    
+    // Log summary of counts
+    logger.info(`Entity counts - obstacles: ${obstacles.length}, orbs: ${orbs.length}`);
+    
+    if (obstacles.length === 0 && orbs.length === 0) {
+      logger.info('No entities to analyze');
+      return;
+    }
+    
+    // Collect speed data from obstacles
+    if (obstacles.length > 0) {
+      const speedData: EntitySpeedData[] = obstacles.map((o: any) => ({
+        id: o.id || 'unknown',
+        speed: o.speed,
+        initialSpeed: o.initialSpeed,
+        ratio: o.speed / o.initialSpeed,
+        x: o.x,
+        y: o.y,
+        type: o.constructor.name
+      }));
+      
+      // Calculate stats
+      const avgSpeed = speedData.reduce((sum: number, o: EntitySpeedData) => sum + o.speed, 0) / speedData.length;
+      const minSpeed = Math.min(...speedData.map((o: EntitySpeedData) => o.speed));
+      const maxSpeed = Math.max(...speedData.map((o: EntitySpeedData) => o.speed));
+      
+      // Log overall stats
+      logger.info(`Obstacle speed stats - avg: ${avgSpeed.toFixed(2)}, min: ${minSpeed.toFixed(2)}, max: ${maxSpeed.toFixed(2)}`);
+      
+      // Identify any issues
+      const issueObstacles = speedData.filter((o: EntitySpeedData) => Math.abs(o.ratio - 1.0) > 0.1);
+      
+      if (issueObstacles.length > 0) {
+        logger.warn(`Found ${issueObstacles.length} obstacles with abnormal speed ratio!`);
+        
+        // Log the problem obstacles
+        issueObstacles.forEach((o: EntitySpeedData) => {
+          logger.warn(`Issue with ${o.type} ${o.id}: speed=${o.speed.toFixed(2)}, initialSpeed=${o.initialSpeed.toFixed(2)}, ratio=${o.ratio.toFixed(2)}`);
+        });
+      }
+    }
+    
+    // Collect speed data from orbs
+    if (orbs.length > 0) {
+      const speedData: EntitySpeedData[] = orbs.map((o: any) => ({
+        id: o.id || 'unknown',
+        speed: o.speed,
+        initialSpeed: o.initialSpeed,
+        ratio: o.speed / o.initialSpeed,
+        x: o.x,
+        y: o.y,
+        type: 'Orb'
+      }));
+      
+      // Calculate stats
+      const avgSpeed = speedData.reduce((sum: number, o: EntitySpeedData) => sum + o.speed, 0) / speedData.length;
+      const minSpeed = Math.min(...speedData.map((o: EntitySpeedData) => o.speed));
+      const maxSpeed = Math.max(...speedData.map((o: EntitySpeedData) => o.speed));
+      
+      // Log overall stats
+      logger.info(`Orb speed stats - avg: ${avgSpeed.toFixed(2)}, min: ${minSpeed.toFixed(2)}, max: ${maxSpeed.toFixed(2)}`);
+      
+      // Identify any issues
+      const issueOrbs = speedData.filter((o: EntitySpeedData) => Math.abs(o.ratio - 1.0) > 0.1);
+      
+      if (issueOrbs.length > 0) {
+        logger.warn(`Found ${issueOrbs.length} orbs with abnormal speed ratio!`);
+        
+        // Log the problem orbs
+        issueOrbs.forEach((o: EntitySpeedData) => {
+          logger.warn(`Issue with Orb ${o.id}: speed=${o.speed.toFixed(2)}, initialSpeed=${o.initialSpeed.toFixed(2)}, ratio=${o.ratio.toFixed(2)}`);
+        });
+      }
+    }
+  }
+  
+  /**
    * Set up game for first play
    */
   public setupGame(): void {
     logger.info('Setting up game...');
+    
+    // Log current ticker state before reset
+    if (this.app?.ticker) {
+      logger.info(`TICKER STATUS BEFORE RESET - speed: ${this.app.ticker.speed}, ` +
+                 `started: ${this.app.ticker.started}, ` +
+                 `deltaMS: ${this.app.ticker.deltaMS}, ` +
+                 `deltaTime: ${this.app.ticker.deltaTime}, ` +
+                 `lastTime: ${this.app.ticker.lastTime}`);
+    }
+    
+    // Run entity speed analysis before clearing
+    this.analyzeEntitySpeeds();
     
     // Reset game state to initial values
     logger.info('Resetting game state');
@@ -155,9 +276,17 @@ export class GameController {
 
     // Reset ticker speed to 1
     if (this.app?.ticker) {
-        logger.info('Resetting ticker speed to 1');
-        this.app.ticker.speed = 1;
-      }
+        // Store original ticker speed for debugging
+        const oldSpeed = this.app.ticker.speed;
+        
+        // Force ticker speed to exactly 1.0
+        this.app.ticker.speed = 1.0;
+        
+        logger.info(`Reset ticker speed from ${oldSpeed} to ${this.app.ticker.speed}`);
+        
+        // Record this reset in the monitor
+        frameRateMonitor.recordRestart(this.app.ticker.speed);
+    }
     
     // Double-check that the astronaut was created
     const astronaut = this.entityManager.getAstronaut();
@@ -185,6 +314,14 @@ export class GameController {
     this.eventBus.emit(GameEvent.SHOW_START_PROMPT, null);
     
     logger.info('Setup complete. Waiting for START_GAME.');
+    
+    // Log ticker state after reset
+    if (this.app?.ticker) {
+      logger.info(`TICKER STATUS AFTER RESET - speed: ${this.app.ticker.speed}, ` +
+                 `started: ${this.app.ticker.started}, ` +
+                 `deltaMS: ${this.app.ticker.deltaMS}, ` +
+                 `deltaTime: ${this.app.ticker.deltaTime}`);
+    }
   }
   
   /**
@@ -225,6 +362,15 @@ export class GameController {
     // Then add it back
     logger.info('Adding game loop to ticker');
     this.app.ticker.add(this.gameLoopFunc);
+    
+    // Log detailed ticker state before starting
+    if (this.app?.ticker) {
+      logger.info(`TICKER STATUS BEFORE START - speed: ${this.app.ticker.speed}, ` +
+                 `FPS: ${(1000 / this.app.ticker.deltaMS).toFixed(1)}, ` +
+                 `deltaMS: ${this.app.ticker.deltaMS}, ` +
+                 `minFPS: ${this.app.ticker.minFPS}, ` +
+                 `maxFPS: ${this.app.ticker.maxFPS}`);
+    }
     
     // Start the ticker if it's not already running
     if (!this.app.ticker.started) {
@@ -295,6 +441,13 @@ export class GameController {
   public gameOver(): void {
     logger.info('Game over');
     
+    // Log ticker state before game over processing
+    if (this.app?.ticker) {
+      logger.info(`TICKER STATUS AT GAME OVER - speed: ${this.app.ticker.speed}, ` +
+                 `FPS: ${(1000 / this.app.ticker.deltaMS).toFixed(1)}, ` +
+                 `deltaMS: ${this.app.ticker.deltaMS}`);
+    }
+    
     // Update game state
     logger.info('Calling gameStateService.gameOver()');
     this.gameStateService.gameOver();
@@ -320,6 +473,9 @@ export class GameController {
    */
   private initializeLevel(level: number): void {
     logger.info(`Initializing level ${level}`);
+
+    // Add ticker diagnostics
+    this.checkTickerHealth('Before level initialization');
 
     // Get the full configuration for the current level from config.ts
     // Note: Adjust index since level numbers are 1-based, array is 0-based
@@ -357,6 +513,9 @@ export class GameController {
     logger.info('GameController: Creating background');
     this.renderSystem.createBackground();
 
+    // Check ticker status before modifying it
+    this.checkTickerHealth('Before adding game loop to ticker during level init');
+
     // Set up ticker for background animation
     // First remove to avoid duplicates
     logger.info('Updating ticker for background animation');
@@ -371,7 +530,50 @@ export class GameController {
       logger.info('Ticker already running for background animation');
     }
 
+    // Check ticker status after modifications
+    this.checkTickerHealth('After level initialization');
+
     logger.info(`GameController: Level ${level} initialization complete`);
+  }
+  
+  /**
+   * Check ticker health and log diagnostics
+   */
+  private checkTickerHealth(context: string): void {
+    if (!this.app?.ticker) {
+      logger.error(`${context}: Ticker not available`);
+      return;
+    }
+
+    // Get basic ticker info
+    const ticker = this.app.ticker;
+    const fps = ticker.FPS;
+    const deltaMS = ticker.deltaMS;
+    const calculatedFPS = 1000 / deltaMS;
+    
+    logger.info(`TICKER HEALTH [${context}]:`);
+    logger.info(`- Speed: ${ticker.speed.toFixed(4)}`);
+    logger.info(`- Started: ${ticker.started}`);
+    logger.info(`- DeltaMS: ${deltaMS.toFixed(2)}ms`);
+    logger.info(`- FPS property: ${fps.toFixed(1)}`);
+    logger.info(`- Calculated FPS: ${calculatedFPS.toFixed(1)}`);
+    logger.info(`- Min FPS: ${ticker.minFPS}`);
+    logger.info(`- Max FPS: ${ticker.maxFPS}`);
+    
+    // Check for abnormal speed
+    if (ticker.speed !== 1.0) {
+      logger.warn(`TICKER ISSUE: Speed is not 1.0 (actual: ${ticker.speed.toFixed(4)})`);
+    }
+    
+    // Check for abnormal frame rate
+    if (calculatedFPS < 55 || calculatedFPS > 65) {
+      logger.warn(`TICKER ISSUE: Frame rate out of normal range: ${calculatedFPS.toFixed(1)} FPS`);
+    }
+    
+    // Check for excessive deltaMS
+    if (deltaMS > 20) {
+      logger.warn(`TICKER ISSUE: DeltaMS too high: ${deltaMS.toFixed(2)}ms (expected ~16.7ms at 60fps)`);
+    }
   }
   
   /**
@@ -458,15 +660,77 @@ export class GameController {
   }
   
   /**
+   * Check and potentially fix ticker issues during the game
+   * This will be called periodically from the game loop
+   */
+  private checkAndFixTickerIssues(): void {
+    if (!this.app?.ticker) return;
+    
+    const ticker = this.app.ticker;
+    
+    // Check if ticker speed has drifted
+    if (Math.abs(ticker.speed - 1.0) > 0.01) {
+      // Speed has drifted from 1.0
+      logger.warn(`Ticker speed has drifted to ${ticker.speed.toFixed(4)}, resetting to 1.0`);
+      
+      // Record the drift before fixing
+      frameRateMonitor.recordRestart(ticker.speed);
+      
+      // Reset to exactly 1.0
+      ticker.speed = 1.0;
+      
+      // Record after fixing
+      frameRateMonitor.recordRestart(ticker.speed);
+    }
+    
+    // Check if the deltaMS is significantly off (should be ~16.7ms at 60fps)
+    const expectedDeltaMS = 16.667;
+    const deltaMS = ticker.deltaMS;
+    
+    if (deltaMS > 25 || deltaMS < 10) {
+      logger.warn(`Abnormal deltaMS: ${deltaMS.toFixed(2)}ms (expected ~${expectedDeltaMS.toFixed(2)}ms)`);
+    }
+  }
+  
+  /**
    * Create the main game loop
    */
   private createGameLoop(): (ticker: Ticker) => void {
     logger.info('Creating game loop function');
     
+    // Counter for periodic checks
+    let tickCount = 0;
+    // Last time we did a full entity speed analysis
+    let lastEntitySpeedAnalysis = 0;
+    
     return (ticker: Ticker) => {
-      // Occasionally log ticker state for debugging
-      if (Math.random() < 0.01) {
-        logger.info(`GameController: Ticker running - deltaMS: ${ticker.deltaMS}, started: ${ticker.started}, minFPS: ${ticker.minFPS}, maxFPS: ${ticker.maxFPS}`);
+      // Count ticks for periodic operations
+      tickCount++;
+      
+      // Track frame in the monitor
+      frameRateMonitor.trackFrame(ticker.deltaMS);
+      
+      // Log ticker state more frequently during gameplay
+      if (Math.random() < 0.05) {
+        const gameState = this.gameStateService.getState();
+        logger.info(`TICKER STATUS - speed: ${ticker.speed.toFixed(4)}, ` +
+                   `deltaMS: ${ticker.deltaMS.toFixed(2)}, ` +
+                   `FPS est: ${(1000 / ticker.deltaMS).toFixed(1)}, ` +
+                   `isStarted: ${gameState.isStarted}, ` +
+                   `isGameOver: ${gameState.isGameOver}`);
+      }
+      
+      // Every 300 frames (about 5 seconds at 60fps), check ticker health
+      if (tickCount % 300 === 0) {
+        logger.info(`Performing periodic ticker health check (tick #${tickCount})`);
+        this.checkAndFixTickerIssues();
+      }
+      
+      // Every 900 frames (about 15 seconds at 60fps), perform full entity speed analysis
+      const now = performance.now();
+      if (now - lastEntitySpeedAnalysis > 15000) { // Every 15 seconds of real time
+        this.analyzeEntitySpeeds();
+        lastEntitySpeedAnalysis = now;
       }
       
       const gameState = this.gameStateService.getState();
@@ -482,16 +746,7 @@ export class GameController {
       
       // Skip the rest of the updates if game is not started or is game over
       if (!gameState.isStarted || gameState.isGameOver) {
-        // Only log occasionally to avoid console spam
-        if (Math.random() < 0.01) {
-          logger.info(`GameController: Main game loop skipped - isStarted: ${gameState.isStarted}, isGameOver: ${gameState.isGameOver}`);
-        }
         return;
-      }
-      
-      // Log occasionally to verify the loop is running
-      if (Math.random() < 0.01) {
-        logger.info(`GameController: Game loop running - delta: ${ticker.deltaMS}ms`);
       }
       
       // Update game state (decrement time, etc.)
@@ -534,6 +789,19 @@ export class GameController {
       
       // Check win/loss conditions
       this.checkGameConditions();
+      
+      // Check ticker drift (possibly accumulating over time)
+      if (Math.random() < 0.01) {
+        // Get original expected deltaTime at 60fps
+        const expectedDeltaMS = 16.667; // ~60fps
+        const drift = Math.abs(ticker.deltaMS - expectedDeltaMS);
+        const driftPercent = (drift / expectedDeltaMS) * 100;
+        
+        if (driftPercent > 10) { // More than 10% drift
+          logger.warn(`Significant ticker drift detected: ${driftPercent.toFixed(1)}% - ` +
+                     `current: ${ticker.deltaMS.toFixed(2)}ms, expected: ${expectedDeltaMS.toFixed(2)}ms`);
+        }
+      }
     };
   }
   

@@ -7,6 +7,7 @@ import { Star } from '../entities/Star';
 import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { eventBus, GameEvent } from '../eventBus';
 import assetManager from '../assetManager';
+import logger from '../../utils/logger';
 
 /**
  * EntityManager manages all game entities and their lifecycle.
@@ -56,10 +57,15 @@ export class EntityManager {
     
     // Clear astronaut
     if (this.astronaut) {
-      console.log('EntityManager: Removing astronaut from stage');
-      this.app.stage.removeChild(this.astronaut.sprite);
+      logger.info('Removing astronaut from stage');
+      // Ensure the sprite exists before removing/destroying
+      if (this.astronaut.sprite && this.app.stage.children.includes(this.astronaut.sprite)) {
+         this.app.stage.removeChild(this.astronaut.sprite);
+      }
+      // Ensure astronaut resources are freed
+      this.astronaut.sprite?.destroy(); // Destroy the sprite if it exists
       this.astronaut = null;
-      console.log('EntityManager: Astronaut reference cleared');
+      logger.info('Astronaut reference cleared');
     } else {
       console.log('EntityManager: No astronaut to clear');
     }
@@ -246,101 +252,145 @@ export class EntityManager {
    * Remove an obstacle from the stage and manager
    */
   public removeObstacle(obstacle: Obstacle): void {
-    if (!this.app) return;
-    
-    const index = this.obstacles.indexOf(obstacle);
-    if (index === -1) return;
-    
-    // Remove from display
-    if ('graphics' in obstacle) {
-      this.app.stage.removeChild((obstacle as any).graphics);
-      if ('glowGraphics' in obstacle) {
-        this.app.stage.removeChild((obstacle as any).glowGraphics);
-      }
-    } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
-      this.app.stage.removeChild((obstacle as any).topPipe);
-      this.app.stage.removeChild((obstacle as any).bottomPipe);
-    }
-    
-    // Remove from array
-    this.obstacles.splice(index, 1);
-    
-    // Emit entity destroyed event
-    eventBus.emit(GameEvent.ENTITY_DESTROYED, {
-      type: 'obstacle',
-      entity: obstacle
-    });
+    if (!this.app || !this.app.stage) return; // Added stage check
+
+        const index = this.obstacles.indexOf(obstacle);
+        if (index === -1) return;
+
+        // Remove from display and destroy
+        if ('graphics' in obstacle && (obstacle as any).graphics instanceof PIXI.Graphics) {
+           const graphics = (obstacle as any).graphics;
+           if (this.app.stage.children.includes(graphics)) {
+             this.app.stage.removeChild(graphics);
+           }
+           graphics.destroy(); // Destroy graphics
+          if ('glowGraphics' in obstacle && (obstacle as any).glowGraphics instanceof PIXI.Graphics) {
+             const glowGraphics = (obstacle as any).glowGraphics;
+            if (this.app.stage.children.includes(glowGraphics)) {
+              this.app.stage.removeChild(glowGraphics);
+            }
+            glowGraphics.destroy(); // Destroy glow graphics
+          }
+        }
+
+        // Remove from array
+        this.obstacles.splice(index, 1);
+
+        // Emit entity destroyed event
+        eventBus.emit(GameEvent.ENTITY_DESTROYED, {
+          type: 'obstacle',
+          entity: obstacle
+        });
   }
   
   /**
    * Remove an orb from the stage and manager
    */
   public removeOrb(orb: Orb): void {
-    if (!this.app) return;
-    
-    const index = this.orbs.indexOf(orb);
-    if (index === -1) return;
-    
-    // Remove from display
-    this.app.stage.removeChild(orb.graphics);
-    this.app.stage.removeChild(orb.glowGraphics);
-    
-    // Remove from array
-    this.orbs.splice(index, 1);
-    
-    // Emit entity destroyed event
-    eventBus.emit(GameEvent.ENTITY_DESTROYED, {
-      type: 'orb',
-      entity: orb
-    });
+    if (!this.app || !this.app.stage) return; // Added stage check
+
+        const index = this.orbs.indexOf(orb);
+        if (index === -1) return;
+
+        // Remove from display and destroy
+        if (orb.graphics instanceof PIXI.Graphics) {
+           if (this.app.stage.children.includes(orb.graphics)) {
+             this.app.stage.removeChild(orb.graphics);
+           }
+          orb.graphics.destroy(); // Destroy graphics
+        }
+         if (orb.glowGraphics instanceof PIXI.Graphics) {
+           if (this.app.stage.children.includes(orb.glowGraphics)) {
+             this.app.stage.removeChild(orb.glowGraphics);
+           }
+          orb.glowGraphics.destroy(); // Destroy glow graphics
+        }
+
+
+        // Remove from array
+        this.orbs.splice(index, 1);
+
+        // Emit entity destroyed event
+        eventBus.emit(GameEvent.ENTITY_DESTROYED, {
+          type: 'orb',
+          entity: orb
+        });
   }
   
   /**
    * Clear all obstacles
    */
   private clearObstacles(): void {
-    if (!this.app) return;
-    
+    if (!this.app || !this.app.stage) return; // Added stage check for safety
+
+    logger.debug(`Clearing ${this.obstacles.length} obstacles`);
     this.obstacles.forEach(obstacle => {
-      if ('graphics' in obstacle) {
-        this.app?.stage.removeChild((obstacle as any).graphics);
-        if ('glowGraphics' in obstacle) {
-          this.app?.stage.removeChild((obstacle as any).glowGraphics);
+      // Remove from stage and destroy graphics/sprites
+      if ('graphics' in obstacle && (obstacle as any).graphics instanceof PIXI.Graphics) {
+        const graphics = (obstacle as any).graphics;
+        if (this.app?.stage.children.includes(graphics)) {
+            this.app.stage.removeChild(graphics);
         }
-      } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
-        this.app?.stage.removeChild((obstacle as any).topPipe);
-        this.app?.stage.removeChild((obstacle as any).bottomPipe);
+        graphics.destroy(); // Destroy graphics
+
+        if ('glowGraphics' in obstacle && (obstacle as any).glowGraphics instanceof PIXI.Graphics) {
+          const glowGraphics = (obstacle as any).glowGraphics;
+           if (this.app?.stage.children.includes(glowGraphics)) {
+             this.app.stage.removeChild(glowGraphics);
+           }
+          glowGraphics.destroy(); // Destroy glow graphics
+        }
       }
     });
-    
+
     this.obstacles = [];
+    logger.debug('Obstacles cleared');
   }
   
   /**
    * Clear all orbs
    */
   private clearOrbs(): void {
-    if (!this.app) return;
-    
+    if (!this.app || !this.app.stage) return; // Added stage check
+
+    logger.debug(`Clearing ${this.orbs.length} orbs`);
     this.orbs.forEach(orb => {
-      this.app?.stage.removeChild(orb.graphics);
-      this.app?.stage.removeChild(orb.glowGraphics);
+      if (orb.graphics instanceof PIXI.Graphics) {
+        if (this.app?.stage.children.includes(orb.graphics)) {
+          this.app.stage.removeChild(orb.graphics);
+        }
+        orb.graphics.destroy(); // Destroy graphics
+      }
+      if (orb.glowGraphics instanceof PIXI.Graphics) {
+         if (this.app?.stage.children.includes(orb.glowGraphics)) {
+           this.app.stage.removeChild(orb.glowGraphics);
+         }
+        orb.glowGraphics.destroy(); // Destroy glow graphics
+      }
     });
-    
+
     this.orbs = [];
+    logger.debug('Orbs cleared');
   }
   
   /**
    * Clear all stars
    */
   private clearStars(): void {
-    if (!this.app) return;
-    
-    this.stars.forEach(star => {
-      this.app?.stage.removeChild(star.graphics);
-    });
-    
-    this.stars = [];
+    if (!this.app || !this.app.stage) return; // Added stage check
+
+        logger.debug(`Clearing ${this.stars.length} stars`);
+        this.stars.forEach(star => {
+          if (star.graphics instanceof PIXI.Graphics) {
+             if (this.app?.stage.children.includes(star.graphics)) {
+               this.app.stage.removeChild(star.graphics);
+             }
+            star.graphics.destroy(); // Destroy graphics
+          }
+        });
+
+        this.stars = [];
+        logger.debug('Stars cleared');
   }
   
   /**
