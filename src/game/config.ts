@@ -23,13 +23,84 @@ export const OBSTACLE = {
   spawnInterval: 2500,
 };
 
+// Base speeds for obstacles
+export const BASE_SPEEDS = {
+  planet: 3.0,
+  secondaryPlanet: 2.5,
+  orb: 2.0
+};
+
+// Level multipliers
+export const LEVEL_MULTIPLIERS = [
+  1.0,  // Level 1
+  1.25, // Level 2
+  1.5,  // Level 3
+  1.8,  // Level 4
+  2.0   // Level 5
+];
+
 // Game difficulty levels
 export const LEVELS = [
-  { speed: 1.0, spawnInterval: 2500, label: "Level 1", orbsRequired: 5, timeLimit: 60000, orbFrequency: 3000 },
-  { speed: 1.2, spawnInterval: 2200, label: "Level 2", orbsRequired: 8, timeLimit: 60000, orbFrequency: 3000  },
-  { speed: 1.5, spawnInterval: 2000, label: "Level 3", orbsRequired: 12, timeLimit: 70000, orbFrequency: 3000 },
-  { speed: 1.8, spawnInterval: 1800, label: "Level 4", orbsRequired: 15, timeLimit: 70000, orbFrequency: 3000 },
-  { speed: 2.0, spawnInterval: 1600, label: "Level 5", orbsRequired: 20, timeLimit: 80000, orbFrequency: 3000 },
+  { 
+    speeds: {
+      planet: BASE_SPEEDS.planet * LEVEL_MULTIPLIERS[0],
+      secondaryPlanet: BASE_SPEEDS.secondaryPlanet * LEVEL_MULTIPLIERS[0],
+      orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[0]
+    }, 
+    spawnInterval: 2500, 
+    label: "Level 1", 
+    orbsRequired: 5, 
+    timeLimit: 60000, 
+    orbFrequency: 3000 
+  },
+  { 
+    speeds: {
+      planet: BASE_SPEEDS.planet * LEVEL_MULTIPLIERS[1],
+      secondaryPlanet: BASE_SPEEDS.secondaryPlanet * LEVEL_MULTIPLIERS[1],
+      orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[1]
+    }, 
+    spawnInterval: 2200, 
+    label: "Level 2", 
+    orbsRequired: 8, 
+    timeLimit: 60000, 
+    orbFrequency: 3000 
+  },
+  { 
+    speeds: {
+      planet: BASE_SPEEDS.planet * LEVEL_MULTIPLIERS[2],
+      secondaryPlanet: BASE_SPEEDS.secondaryPlanet * LEVEL_MULTIPLIERS[2],
+      orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[2]
+    }, 
+    spawnInterval: 2000, 
+    label: "Level 3", 
+    orbsRequired: 12, 
+    timeLimit: 70000, 
+    orbFrequency: 3000 
+  },
+  { 
+    speeds: {
+      planet: BASE_SPEEDS.planet * LEVEL_MULTIPLIERS[3],
+      secondaryPlanet: BASE_SPEEDS.secondaryPlanet * LEVEL_MULTIPLIERS[3],
+      orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[3]
+    }, 
+    spawnInterval: 1800, 
+    label: "Level 4", 
+    orbsRequired: 15, 
+    timeLimit: 70000, 
+    orbFrequency: 3000 
+  },
+  { 
+    speeds: {
+      planet: BASE_SPEEDS.planet * LEVEL_MULTIPLIERS[4],
+      secondaryPlanet: BASE_SPEEDS.secondaryPlanet * LEVEL_MULTIPLIERS[4],
+      orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[4]
+    }, 
+    spawnInterval: 1600, 
+    label: "Level 5", 
+    orbsRequired: 20, 
+    timeLimit: 80000, 
+    orbFrequency: 3000 
+  },
 ];
 
 // Score settings

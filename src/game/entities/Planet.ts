@@ -2,6 +2,9 @@ import * as PIXI from 'pixi.js';
 import { Obstacle } from './Obstacle';
 import { Astronaut } from './Astronaut';
 import { rectanglesIntersect, circleRectIntersect } from './utils';
+import { getLogger } from '../../utils/logger';
+
+const logger = getLogger('Planet');
 
 // Define planet types with their colors
 const PLANET_TYPES = [

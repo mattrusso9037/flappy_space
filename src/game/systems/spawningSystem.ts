@@ -2,9 +2,16 @@ import { GameState } from '../gameStateService';
 import { entityManager } from './entityManager';
 import { LEVELS, ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { Planet } from '../entities/Planet';
+import { getLogger } from '../../utils/logger';
+
+const logger = getLogger('SpawningSystem');
 
 interface LevelConfig {
-  speed: number;
+  speeds: {
+    planet: number;
+    secondaryPlanet: number;
+    orb: number;
+  };
   spawnInterval: number;
   orbFrequency?: number; // Time between orb spawns
 }
@@ -20,7 +27,14 @@ export class SpawningSystem {
   // Spawning state
   private lastObstacleTime: number = 0;
   private lastOrbTime: number = 0;
-  private levelConfig: LevelConfig = { speed: 5, spawnInterval: 2500 };
+  private levelConfig: LevelConfig = { 
+    speeds: {
+      planet: 1.0,
+      secondaryPlanet: 1.1,
+      orb: 0.9
+    }, 
+    spawnInterval: 2500 
+  };
   private hasSpawnedFirstObstacle: boolean = false;
   
   private constructor() {
@@ -43,7 +57,7 @@ export class SpawningSystem {
     this.resetSpawning();
     
     this.initialized = true;
-    console.log('SpawningSystem initialized');
+    logger.info('SpawningSystem initialized');
   }
   
   /**
@@ -63,7 +77,7 @@ export class SpawningSystem {
       ...this.levelConfig,
       ...config
     };
-    console.log('SpawningSystem: Level config updated', this.levelConfig);
+    logger.info('SpawningSystem: Level config updated', this.levelConfig);
   }
   
   /**
@@ -71,17 +85,17 @@ export class SpawningSystem {
    */
   public update(deltaTime: number, gameState: GameState): void {
     if (!this.initialized) {
-      console.log('SpawningSystem: Not initialized, skipping update');
+      logger.info('SpawningSystem: Not initialized, skipping update');
       return;
     }
     
     if (!gameState.isStarted) {
-      if (Math.random() < 0.01) console.log('SpawningSystem: Game not started, skipping update');
+      if (Math.random() < 0.01) logger.debug('SpawningSystem: Game not started, skipping update');
       return;
     }
     
     if (gameState.isGameOver) {
-      if (Math.random() < 0.01) console.log('SpawningSystem: Game over, skipping update');
+      if (Math.random() < 0.01) logger.debug('SpawningSystem: Game over, skipping update');
       return;
     }
     
@@ -89,32 +103,32 @@ export class SpawningSystem {
     
     // Occasionally log spawning status to avoid console spam
     if (Math.random() < 0.05) {
-      console.log(`SpawningSystem: time=${currentTime.toFixed(2)}, lastObstacleTime=${this.lastObstacleTime.toFixed(2)}, interval=${this.levelConfig.spawnInterval}, speed=${this.levelConfig.speed}`);
-      console.log(`SpawningSystem: hasSpawnedFirstObstacle=${this.hasSpawnedFirstObstacle}, obstacles=${entityManager.getObstacles().length}, orbs=${entityManager.getOrbs().length}`);
+      logger.debug(`SpawningSystem: time=${currentTime.toFixed(2)}, lastObstacleTime=${this.lastObstacleTime.toFixed(2)}, interval=${this.levelConfig.spawnInterval}, planetSpeed=${this.levelConfig.speeds.planet}`);
+      logger.debug(`SpawningSystem: hasSpawnedFirstObstacle=${this.hasSpawnedFirstObstacle}, obstacles=${entityManager.getObstacles().length}, orbs=${entityManager.getOrbs().length}`);
     }
     
     // Ensure first obstacle is spawned with a delay
     if (!this.hasSpawnedFirstObstacle && currentTime > 1500) {
-      console.log('SpawningSystem: Spawning first obstacle');
-      this.spawnObstacle(this.levelConfig.speed);
+      logger.info('SpawningSystem: Spawning first obstacle');
+      this.spawnObstacle();
       this.lastObstacleTime = currentTime;
       this.hasSpawnedFirstObstacle = true;
     }
     // Then spawn regular obstacles
     else if (this.hasSpawnedFirstObstacle && currentTime - this.lastObstacleTime > this.levelConfig.spawnInterval) {
-      console.log(`SpawningSystem: Spawning obstacle at time=${currentTime.toFixed(2)}`);
-      this.spawnObstacle(this.levelConfig.speed);
+      logger.info(`SpawningSystem: Spawning obstacle at time=${currentTime.toFixed(2)}`);
+      this.spawnObstacle();
       this.lastObstacleTime = currentTime;
       
       // Chance to spawn an orb alongside the obstacle (but not at the same position)
       if (Math.random() < ORB_SPAWN_CHANCE) {
-        console.log('SpawningSystem: Planning to spawn orb with delay');
+        logger.info('SpawningSystem: Planning to spawn orb with delay');
         setTimeout(() => {
           if (gameState.isStarted && !gameState.isGameOver) {
-            console.log('SpawningSystem: Spawning orb after delay');
-            this.spawnOrb(this.levelConfig.speed);
+            logger.info('SpawningSystem: Spawning orb after delay');
+            this.spawnOrb();
           } else {
-            console.log('SpawningSystem: Cancelled orb spawn - game state changed');
+            logger.info('SpawningSystem: Cancelled orb spawn - game state changed');
           }
         }, this.levelConfig.spawnInterval * 0.4); // Stagger the orb spawn time
       }
@@ -124,7 +138,7 @@ export class SpawningSystem {
   /**
    * Spawn an obstacle
    */
-  private spawnObstacle(speed: number): void {
+  private spawnObstacle(): void {
     const levelNumber = this.getCurrentLevelIndex() + 1;
     
     const minRadius = 20;
@@ -143,12 +157,12 @@ export class SpawningSystem {
       planetY = safeZoneY + safeZoneSize + Math.random() * (GAME_HEIGHT - (safeZoneY + safeZoneSize) - radius * 2) + radius;
     }
     
-    // Create the first planet
+    // Create the first planet with its specific speed
     const planet = entityManager.createPlanet(
       GAME_WIDTH + radius,
       planetY,
       radius,
-      speed
+      this.levelConfig.speeds.planet
     );
     
     // Ensure no overlap with existing obstacles
@@ -164,12 +178,12 @@ export class SpawningSystem {
       // Calculate radius for second planet
       const secondRadius = radius * (0.7 + Math.random() * 0.6);
       
-      // Create the second planet with a horizontal offset
+      // Create the second planet with a horizontal offset and its specific speed
       const secondPlanet = entityManager.createPlanet(
         GAME_WIDTH + radius + 100 + Math.random() * 150, // Ensure horizontal spacing
         secondPlanetY,
         secondRadius,
-        speed
+        this.levelConfig.speeds.secondaryPlanet
       );
       
       // Check for overlaps with all existing obstacles including the first planet
@@ -180,7 +194,7 @@ export class SpawningSystem {
   /**
    * Spawn an orb
    */
-  private spawnOrb(speed: number): void {
+  private spawnOrb(): void {
     const radius = 12 + Math.random() * 6;
     
     const minY = GAME_HEIGHT * 0.2;
@@ -191,7 +205,7 @@ export class SpawningSystem {
       GAME_WIDTH + radius,
       orbY,
       radius,
-      speed
+      this.levelConfig.speeds.orb
     );
   }
   
@@ -289,7 +303,7 @@ export class SpawningSystem {
    */
   public dispose(): void {
     this.initialized = false;
-    console.log('SpawningSystem disposed');
+    logger.info('SpawningSystem disposed');
   }
 }
 

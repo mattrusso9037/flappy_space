@@ -54,7 +54,7 @@ export class EntityManager {
   public clearAll(): void {
     if (!this.app) return;
     
-    console.log('EntityManager: Clearing all entities');
+    this.logger.info('EntityManager: Clearing all entities');
     
     // Clear astronaut
     if (this.astronaut) {
@@ -68,7 +68,7 @@ export class EntityManager {
       this.astronaut = null;
       this.logger.info('Astronaut reference cleared');
     } else {
-      console.log('EntityManager: No astronaut to clear');
+      this.logger.info('EntityManager: No astronaut to clear');
     }
     
     // Clear obstacles
@@ -80,49 +80,39 @@ export class EntityManager {
     // Clear stars
     this.clearStars();
     
-    console.log('EntityManager: All entities cleared');
+    this.logger.info('EntityManager: All entities cleared');
   }
   
   /**
-   * Create the astronaut entity
+   * Create an astronaut entity
    */
   public createAstronaut(): Astronaut | null {
     if (!this.app) {
-      console.error('EntityManager: Cannot create astronaut - app is null');
+      this.logger.error('App not initialized in EntityManager');
       return null;
     }
     
-    // First check if astronaut already exists and remove it if it does
-    if (this.astronaut && this.astronaut.sprite) {
-      console.log('EntityManager: Astronaut already exists, removing old instance');
-      this.app.stage.removeChild(this.astronaut.sprite);
-      this.astronaut = null;
+    if (this.astronaut) {
+      this.logger.warn('Astronaut already exists, returning existing one');
+      return this.astronaut;
     }
-    
-    console.log('EntityManager: Creating new astronaut entity');
     
     const astronautTexture = assetManager.getTexture('astronaut');
     if (!astronautTexture) {
-      console.error('EntityManager: Failed to get astronaut texture');
+      this.logger.error('EntityManager: Failed to get astronaut texture');
       return null;
     }
     
-    // Create new astronaut at the starting position
     this.astronaut = new Astronaut(
       astronautTexture,
       ASTRONAUT.startX,
       ASTRONAUT.startY
     );
     
-    if (!this.astronaut || !this.astronaut.sprite) {
-      console.error('EntityManager: Failed to create astronaut');
-      return null;
-    }
-    
     // Add to stage
     this.app.stage.addChild(this.astronaut.sprite);
     
-    console.log(`EntityManager: Astronaut created at position (${ASTRONAUT.startX}, ${ASTRONAUT.startY})`);
+    this.logger.info(`EntityManager: Astronaut created at position (${ASTRONAUT.startX}, ${ASTRONAUT.startY})`);
     
     // Emit entity created event
     eventBus.emit(GameEvent.ENTITY_CREATED, {
@@ -139,7 +129,7 @@ export class EntityManager {
   public createPlanet(x: number, y: number, radius: number, speed: number): Planet {
     if (!this.app) throw new Error('App not initialized in EntityManager');
     
-    console.log(`EntityManager: Creating planet at (${x}, ${y}) with radius ${radius}`);
+    this.logger.info(`EntityManager: Creating planet at (${x}, ${y}) with radius ${radius}`);
     
     const planet = new Planet(x, y, radius, speed);
     
@@ -150,7 +140,7 @@ export class EntityManager {
     // Add to obstacles array
     this.obstacles.push(planet);
     
-    console.log(`EntityManager: Total obstacles now: ${this.obstacles.length}`);
+    this.logger.info(`EntityManager: Total obstacles now: ${this.obstacles.length}`);
     
     // Emit entity created event
     eventBus.emit(GameEvent.ENTITY_CREATED, {
@@ -167,7 +157,7 @@ export class EntityManager {
   public createOrb(x: number, y: number, radius: number, speed: number): Orb {
     if (!this.app) throw new Error('App not initialized in EntityManager');
     
-    console.log(`EntityManager: Creating orb at (${x}, ${y}) with radius ${radius}`);
+    this.logger.info(`EntityManager: Creating orb at (${x}, ${y}) with radius ${radius}`);
     
     const orb = new Orb(x, y, radius, speed);
     
@@ -178,7 +168,7 @@ export class EntityManager {
     // Add to orbs array
     this.orbs.push(orb);
     
-    console.log(`EntityManager: Total orbs now: ${this.orbs.length}`);
+    this.logger.info(`EntityManager: Total orbs now: ${this.orbs.length}`);
     
     // Emit entity created event
     eventBus.emit(GameEvent.ENTITY_CREATED, {
@@ -429,7 +419,7 @@ export class EntityManager {
   public getAllEntities(): any[] {
     // Debug this method occasionally
     if (Math.random() < 0.01) {
-      console.log(`EntityManager.getAllEntities: Astronaut: ${this.astronaut ? 'present' : 'null'}, Obstacles: ${this.obstacles.length}, Orbs: ${this.orbs.length}, Stars: ${this.stars.length}`); 
+      this.logger.debug(`EntityManager.getAllEntities: Astronaut: ${this.astronaut ? 'present' : 'null'}, Obstacles: ${this.obstacles.length}, Orbs: ${this.orbs.length}, Stars: ${this.stars.length}`); 
     }
     
     const allEntities: (Obstacle | Star | Astronaut)[] = [...this.obstacles, ...this.orbs, ...this.stars];
@@ -446,7 +436,7 @@ export class EntityManager {
   public dispose(): void {
     this.clearAll();
     this.initialized = false;
-    console.log('EntityManager disposed');
+    this.logger.info('EntityManager disposed');
   }
 }
 

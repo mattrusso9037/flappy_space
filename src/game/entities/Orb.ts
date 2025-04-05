@@ -3,6 +3,9 @@ import { Obstacle } from './Obstacle';
 import { Astronaut } from './Astronaut';
 import { rectanglesIntersect, circleRectIntersect } from './utils';
 import { eventBus, GameEvent } from '../eventBus';
+import { getLogger } from '../../utils/logger';
+
+const logger = getLogger('Orb');
 
 export class Orb extends Obstacle {
     graphics: PIXI.Graphics;
@@ -132,7 +135,7 @@ export class Orb extends Obstacle {
         if (this.collected) return 0;
         
         this.collected = true;
-        console.log('Orb collected at', this.x, this.y);
+        logger.info(`Orb collected at ${this.x}, ${this.y}`);
         
         // Emit event for audio/visual feedback and scoring
         eventBus.emit(GameEvent.ORB_COLLECTED, { x: this.x, y: this.y });

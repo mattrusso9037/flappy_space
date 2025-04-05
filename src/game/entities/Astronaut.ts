@@ -1,6 +1,9 @@
 import * as PIXI from 'pixi.js';
 import { GRAVITY, JUMP_VELOCITY, MAX_VELOCITY, GAME_HEIGHT } from '../config';
 import { eventBus, GameEvent } from '../eventBus';
+import { getLogger } from '../../utils/logger';
+
+const logger = getLogger('Astronaut');
 
 export class Astronaut {
   sprite: PIXI.Sprite;
@@ -25,11 +28,11 @@ export class Astronaut {
     
     // Subscribe to the JUMP_ACTION event
     eventBus.on(GameEvent.JUMP_ACTION).subscribe(() => {
-      console.log('Astronaut: Received JUMP_ACTION event from EventBus');
+      logger.debug('Astronaut: Received JUMP_ACTION event from EventBus');
       this.flap();
     });
 
-    console.log('Astronaut: Created and subscribed to JUMP_ACTION events');
+    logger.info('Astronaut: Created and subscribed to JUMP_ACTION events');
   }
 
   update(deltaMS: number = 16.667) {
@@ -37,7 +40,7 @@ export class Astronaut {
 
     // Occasionally log position for debugging
     if (Math.random() < 0.01) {
-      console.log(`Astronaut: Position (${this.sprite.x}, ${this.sprite.y}), Velocity: ${this.velocity}`);
+      logger.debug(`Astronaut: Position (${this.sprite.x}, ${this.sprite.y}), Velocity: ${this.velocity}`);
     }
 
     // Scale delta time to make physics consistent
@@ -61,13 +64,13 @@ export class Astronaut {
     if (this.sprite.y - this.sprite.height/2 < 0) {
       this.sprite.y = this.sprite.height/2;
       this.velocity = 0;
-      console.log('Astronaut: Hit top boundary');
+      logger.info('Astronaut: Hit top boundary');
     }
     
     if (this.sprite.y + this.sprite.height/2 > GAME_HEIGHT) {
       this.sprite.y = GAME_HEIGHT - this.sprite.height/2;
       this.velocity = 0;
-      console.log('Astronaut: Hit bottom boundary - dying');
+      logger.info('Astronaut: Hit bottom boundary - dying');
       this.die();
     }
   }
@@ -94,15 +97,15 @@ export class Astronaut {
 
   flap() {
     if (this.dead) {
-      console.log('Astronaut: Flap attempted but astronaut is dead');
+      logger.debug('Astronaut: Flap attempted but astronaut is dead');
       return;
     }
-    console.log(`Astronaut: Flap! Setting velocity from ${this.velocity} to ${JUMP_VELOCITY}`);
+    logger.debug(`Astronaut: Flap! Setting velocity from ${this.velocity} to ${JUMP_VELOCITY}`);
     this.velocity = JUMP_VELOCITY;
   }
 
   die() {
-    console.log('Astronaut: Dying...');
+    logger.info('Astronaut: Dying...');
     this.dead = true;
     this.sprite.tint = 0xFF5555;
   }

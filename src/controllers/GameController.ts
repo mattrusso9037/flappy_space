@@ -486,9 +486,9 @@ export class GameController {
     }
 
     // Prepare the config object specifically for the spawning system
-    // Ensure it includes the 'speed' property from the LEVELS config
+    // Ensure it includes the speeds property from the LEVELS config
     const spawningConfig = {
-      speed: currentLevelConfig.speed, // <-- Use speed from LEVELS
+      speeds: currentLevelConfig.speeds, // Use the speeds object from LEVELS
       spawnInterval: currentLevelConfig.spawnInterval,
       // Include orbFrequency if defined in LEVELS, otherwise use a default or omit
       orbFrequency: currentLevelConfig.orbFrequency || 3000
