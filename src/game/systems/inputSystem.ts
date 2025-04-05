@@ -1,6 +1,6 @@
 import { eventBus, GameEvent } from '../eventBus';
 import { gameStateService } from '../gameStateService';
-import inputManager, { InputEvent } from '../inputManager';
+import inputManager, { InputEvent, TouchData } from '../inputManager';
 import { Subscription } from 'rxjs';
 import { getLogger } from '../../utils/logger';
 
@@ -16,6 +16,7 @@ export class InputSystem {
   private initialized: boolean = false;
   private enabled: boolean = false;
   private inTransition: boolean = false;
+  private lastTouchCoordinates: { x: number, y: number } | null = null;
   
   private constructor() {
     // Private constructor for singleton
@@ -47,6 +48,10 @@ export class InputSystem {
     // Add start game event listener
     logger.debug('Registering START_GAME event handler');
     inputManager.on(InputEvent.START_GAME, this.handleStartGame);
+    
+    // Add touch event listener
+    logger.debug('Registering TOUCH event handler');
+    inputManager.on(InputEvent.TOUCH, this.handleTouchAction);
     
     // Add keyboard event listener for game start and debug mode
     logger.debug('Adding keydown event listener');
@@ -88,6 +93,7 @@ export class InputSystem {
     // Remove input manager listeners
     inputManager.off(InputEvent.JUMP, this.handleJumpAction);
     inputManager.off(InputEvent.START_GAME, this.handleStartGame);
+    inputManager.off(InputEvent.TOUCH, this.handleTouchAction);
     
     // Remove keyboard event listener
     document.removeEventListener('keydown', this.handleKeyDown);
@@ -131,6 +137,27 @@ export class InputSystem {
     // Dispatch jump event to the event bus
     logger.debug('Emitting JUMP_ACTION event');
     eventBus.emit(GameEvent.JUMP_ACTION, null);
+  }
+
+  /**
+   * Handle touch action from input manager
+   */
+  private handleTouchAction = (): void => {
+    // Get touch data from input manager
+    const touchData = inputManager.getLastEventData() as TouchData;
+    if (!touchData) {
+      logger.warn('Touch event received without touch data');
+      return;
+    }
+    
+    logger.debug(`Touch action at (${touchData.x}, ${touchData.y})`);
+    this.lastTouchCoordinates = { x: touchData.x, y: touchData.y };
+    
+    // We don't need to check if enabled for this because
+    // touch events should work even when the game isn't started
+    
+    // The actual jump will be triggered by the JUMP event separately
+    // This handler just captures touch coordinates for potential future use
   }
 
   private handleRestartGame = (): void => {
@@ -200,10 +227,31 @@ export class InputSystem {
   
   /**
    * Handle game click/tap events 
+   * This is typically called from the GameDisplay component
    */
   public handleGameClick = (): void => {
     logger.debug('Game area clicked/tapped');
     this.startOrResetGame();
+  }
+  
+  /**
+   * Handle direct touch events from outside the input manager
+   * This can be used by other components when they need to trigger
+   * touch events directly without going through the input manager
+   */
+  public handleDirectTouch = (x: number, y: number): void => {
+    logger.debug(`Direct touch at (${x}, ${y})`);
+    this.lastTouchCoordinates = { x, y };
+    
+    // If not in gameplay yet, attempt to start the game
+    if (!gameStateService.getState().isStarted || gameStateService.getState().isGameOver) {
+      logger.info('Direct touch triggering game start');
+      this.startOrResetGame();
+    } else {
+      // Otherwise trigger a jump
+      logger.debug('Direct touch triggering jump in active game');
+      eventBus.emit(GameEvent.JUMP_ACTION, null);
+    }
   }
   
   /**
@@ -225,6 +273,13 @@ export class InputSystem {
       logger.info('Restart game');
       eventBus.emit(GameEvent.RESTART_GAME, null);
     }
+  }
+  
+  /**
+   * Get the last touch coordinates
+   */
+  public getLastTouchCoordinates(): { x: number, y: number } | null {
+    return this.lastTouchCoordinates;
   }
 }
 

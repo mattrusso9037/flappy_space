@@ -1,5 +1,8 @@
 import * as PIXI from 'pixi.js';
 import { eventBus, GameEvent } from './eventBus';
+import { getLogger } from '../utils/logger';
+
+const logger = getLogger('AssetManager');
 
 // Asset types
 export type AssetType = 'texture' | 'spritesheet' | 'sound';
@@ -34,12 +37,12 @@ class AssetManager {
     // Register assets with PIXI.Assets using the correct API
     gameAssets.forEach(asset => {
       if (!asset.url) {
-        console.error(`Asset ${asset.name} has no URL defined`);
+        logger.error(`Asset ${asset.name} has no URL defined`);
         return;
       }
       
       // Log the asset being registered to help with debugging
-      console.log(`Registering asset: ${asset.name} with URL: ${asset.url}`);
+      logger.debug(`Registering asset: ${asset.name} with URL: ${asset.url}`);
       
       // Using the correct PIXI.Assets.add syntax - it takes a bundle definition object
       PIXI.Assets.add({
@@ -57,7 +60,7 @@ class AssetManager {
     if (this.loaded) return Promise.resolve();
     if (this.loadPromise) return this.loadPromise;
 
-    console.log('Starting to load assets...');
+    logger.info('Starting to load assets...');
 
     try {
       // Create load promise with proper error handling
@@ -65,27 +68,27 @@ class AssetManager {
         try {
           // Load assets one by one with better error reporting
           for (const asset of gameAssets) {
-            console.log(`Loading asset: ${asset.name} from ${asset.url}`);
+            logger.debug(`Loading asset: ${asset.name} from ${asset.url}`);
             await PIXI.Assets.load(asset.name);
-            console.log(`Successfully loaded: ${asset.name}`);
+            logger.debug(`Successfully loaded: ${asset.name}`);
           }
           
           this.loaded = true;
-          console.log('All assets loaded successfully');
+          logger.info('All assets loaded successfully');
           
           // Emit an event to notify that assets are loaded
           eventBus.emit(GameEvent.ASSETS_LOADED, gameAssets.map(a => a.name));
           
           resolve();
         } catch (error) {
-          console.error('Failed to load assets:', error);
+          logger.error('Failed to load assets:', error);
           reject(error);
         }
       });
 
       return this.loadPromise;
     } catch (error) {
-      console.error('Asset loading error:', error);
+      logger.error('Asset loading error:', error);
       throw error;
     }
   }
@@ -98,10 +101,10 @@ class AssetManager {
     if (this.loaded) return;
     if (this.loadPromise) return;
     
-    console.log('Starting asset loading asynchronously...');
+    logger.info('Starting asset loading asynchronously...');
     this.loadAssets()
-      .then(() => console.log('Async asset loading completed'))
-      .catch(error => console.error('Async asset loading failed:', error));
+      .then(() => logger.info('Async asset loading completed'))
+      .catch(error => logger.error('Async asset loading failed:', error));
   }
 
   /**
@@ -109,13 +112,13 @@ class AssetManager {
    */
   getTexture(name: string): PIXI.Texture {
     if (!this.loaded) {
-      console.warn(`Asset ${name} requested before assets were loaded.`);
+      logger.warn(`Asset ${name} requested before assets were loaded.`);
     }
     
     try {
       const texture = PIXI.Assets.get(name);
       if (!texture) {
-        console.error(`Texture '${name}' not found. Available assets:`, 
+        logger.error(`Texture '${name}' not found. Available assets:`, 
           gameAssets.map(a => a.name).join(', '));
         // Return a default texture or placeholder to prevent crashes
         return PIXI.Texture.WHITE;
@@ -123,7 +126,7 @@ class AssetManager {
       
       return texture;
     } catch (error) {
-      console.error(`Error getting texture '${name}':`, error);
+      logger.error(`Error getting texture '${name}':`, error);
       return PIXI.Texture.WHITE;
     }
   }

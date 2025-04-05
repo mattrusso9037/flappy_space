@@ -1,4 +1,8 @@
 // Input keys
+import { getLogger } from '../utils/logger';
+
+const logger = getLogger('InputManager');
+
 export enum InputKey {
   SPACE = 'Space',
   ARROW_UP = 'ArrowUp',
@@ -9,16 +13,26 @@ export enum InputKey {
 export enum InputEvent {
   JUMP = 'jump',
   START_GAME = 'start_game',
+  TOUCH = 'touch', // Add a specific touch event
 }
 
 // Event handler type
 type EventHandler = () => void;
+
+// Touch data type for additional touch information
+export interface TouchData {
+  x: number;
+  y: number;
+  timestamp: number;
+}
 
 class InputManager {
   private keyMap: Map<InputKey, boolean>;
   private eventHandlers: Map<InputEvent, EventHandler[]>;
   private enabled: boolean;
   private touchActive: boolean = false;
+  private lastTouchTime: number = 0;
+  private touchThrottleTime: number = 150; // ms between touch events
 
   constructor() {
     this.keyMap = new Map();
@@ -30,7 +44,7 @@ class InputManager {
       this.eventHandlers.set(event, []);
     });
     
-    console.log('InputManager: Created');
+    logger.info('Created');
   }
 
   /**
@@ -50,7 +64,7 @@ class InputManager {
     window.addEventListener('touchmove', this.handleTouchMove, { passive: false });
     
     this.enabled = true;
-    console.log('InputManager: Enabled with keyboard and touch support');
+    logger.info('Enabled with keyboard and touch support');
   }
 
   /**
@@ -69,7 +83,7 @@ class InputManager {
     window.removeEventListener('touchmove', this.handleTouchMove);
     
     this.enabled = false;
-    console.log('InputManager: Disabled');
+    logger.info('Disabled');
   }
 
   /**
@@ -79,7 +93,7 @@ class InputManager {
     const handlers = this.eventHandlers.get(event) || [];
     handlers.push(handler);
     this.eventHandlers.set(event, handlers);
-    console.log(`InputManager: Registered handler for ${event}, total handlers: ${handlers.length}`);
+    logger.debug(`Registered handler for ${event}, total handlers: ${handlers.length}`);
   }
 
   /**
@@ -91,7 +105,7 @@ class InputManager {
     if (index !== -1) {
       handlers.splice(index, 1);
       this.eventHandlers.set(event, handlers);
-      console.log(`InputManager: Unregistered handler for ${event}, remaining handlers: ${handlers.length}`);
+      logger.debug(`Unregistered handler for ${event}, remaining handlers: ${handlers.length}`);
     }
   }
 
@@ -114,7 +128,7 @@ class InputManager {
    */
   private handleKeyDown = (event: KeyboardEvent): void => {
     const key = event.code as InputKey;
-    console.log(`InputManager: KeyDown event - ${key}, enabled: ${this.enabled}`);
+    logger.debug(`KeyDown event - ${key}, enabled: ${this.enabled}`);
     
     // If key wasn't already down, trigger events
     if (!this.keyMap.get(key)) {
@@ -122,13 +136,12 @@ class InputManager {
       
       // Trigger jump event on relevant keys
       if (key === InputKey.SPACE || key === InputKey.ARROW_UP || key === InputKey.W) {
-        console.log(`InputManager: Triggering JUMP event from key ${key}`);
+        logger.debug(`Triggering JUMP event from key ${key}`);
         this.triggerEvent(InputEvent.JUMP);
         
         // Also trigger start game if space is pressed
-        // Note: The problem might be that we're only triggering JUMP and not START_GAME
         if (key === InputKey.SPACE) {
-          console.log('InputManager: Triggering START_GAME event from spacebar');
+          logger.debug('Triggering START_GAME event from spacebar');
           this.triggerEvent(InputEvent.START_GAME);
         }
       }
@@ -141,27 +154,52 @@ class InputManager {
   private handleKeyUp = (event: KeyboardEvent): void => {
     const key = event.code as InputKey;
     this.keyMap.set(key, false);
-    console.log(`InputManager: KeyUp event - ${key}`);
+    logger.debug(`KeyUp event - ${key}`);
   };
 
   /**
    * Handle touch start events (equivalent to keydown)
    */
   private handleTouchStart = (event: TouchEvent): void => {
-    if (!this.enabled) return;
+    if (!this.enabled) {
+      logger.debug('Touch ignored - input disabled');
+      return;
+    }
     
-    console.log('InputManager: TouchStart event detected');
+    const now = Date.now();
+    // Throttle touch events to prevent multiple rapid fires
+    if (now - this.lastTouchTime < this.touchThrottleTime) {
+      logger.debug('Touch throttled - too soon after last touch');
+      event.preventDefault();
+      return;
+    }
+    
+    this.lastTouchTime = now;
+    
+    // Get touch coordinates
+    const touch = event.touches[0];
+    const touchData: TouchData = {
+      x: touch.clientX,
+      y: touch.clientY,
+      timestamp: now
+    };
+    
+    logger.debug(`TouchStart event at (${touchData.x}, ${touchData.y})`);
     
     // Mark touch as active
     this.touchActive = true;
     
-    // Trigger the jump event
-    console.log('InputManager: Triggering JUMP event from touch');
-    this.triggerEvent(InputEvent.JUMP);
-    
-    // Also trigger start game event
-    console.log('InputManager: Triggering START_GAME event from touch');
+    // Always trigger the START_GAME event first
+    logger.debug('Triggering START_GAME event from touch');
     this.triggerEvent(InputEvent.START_GAME);
+    
+    // Then trigger the TOUCH event with touch data
+    logger.debug('Triggering TOUCH event');
+    this.triggerEventWithData(InputEvent.TOUCH, touchData);
+    
+    // Finally trigger JUMP for gameplay
+    logger.debug('Triggering JUMP event from touch');
+    this.triggerEvent(InputEvent.JUMP);
     
     // Prevent default behavior to avoid scrolling
     event.preventDefault();
@@ -171,7 +209,7 @@ class InputManager {
    * Handle touch end events (equivalent to keyup)
    */
   private handleTouchEnd = (event: TouchEvent): void => {
-    console.log('InputManager: TouchEnd event detected');
+    logger.debug('TouchEnd event detected');
     this.touchActive = false;
     
     // Prevent default behavior
@@ -191,8 +229,37 @@ class InputManager {
    */
   private triggerEvent(event: InputEvent): void {
     const handlers = this.eventHandlers.get(event) || [];
-    console.log(`InputManager: Triggering ${event} event, handlers: ${handlers.length}`);
+    logger.debug(`Triggering ${event} event, handlers: ${handlers.length}`);
     handlers.forEach(handler => handler());
+  }
+  
+  /**
+   * Trigger an input event with additional data
+   */
+  private triggerEventWithData(event: InputEvent, data: any): void {
+    const handlers = this.eventHandlers.get(event) || [];
+    logger.debug(`Triggering ${event} event with data, handlers: ${handlers.length}`);
+    // Since we don't have a way to pass data to handlers directly,
+    // we'll store it temporarily as a property
+    (this as any).lastEventData = data;
+    handlers.forEach(handler => handler());
+    delete (this as any).lastEventData;
+  }
+  
+  /**
+   * Get the last event data (for touch events)
+   */
+  getLastEventData(): any {
+    return (this as any).lastEventData;
+  }
+  
+  /**
+   * Manually trigger a start game event
+   * This can be called from UI components directly
+   */
+  triggerStartGame(): void {
+    logger.debug('Manual START_GAME trigger');
+    this.triggerEvent(InputEvent.START_GAME);
   }
 }
 

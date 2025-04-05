@@ -1,5 +1,8 @@
 import { Subject, Observable } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
+import { getLogger } from '../utils/logger';
+
+const logger = getLogger('EventBus');
 
 // Define standard game events
 export enum GameEvent {
@@ -58,23 +61,23 @@ export class EventBus {
   // Enable debug logging
   public enableDebug(): void {
     this.debug = true;
-    console.log('EventBus: Debug mode enabled - all events will be logged');
+    logger.info('Debug mode enabled - all events will be logged');
   }
   
   // Disable debug logging
   public disableDebug(): void {
     this.debug = false;
-    console.log('EventBus: Debug mode disabled');
+    logger.info('Debug mode disabled');
   }
   
   // Publish an event to the bus
   public emit<T>(type: GameEvent, data: T): void {
     // More detailed logging in debug mode
     if (this.debug) {
-      console.log(`%cEventBus EMIT: ${type}`, 'color: green; font-weight: bold', data);
+      logger.debug(`EMIT: ${type}`, data);
     } else {
       // Basic logging otherwise
-      console.log(`%c${type}`, 'color: green', data);
+      logger.debug(`${type}`, data);
     }
     this.eventSubject.next({ type, data });
   }
@@ -82,9 +85,9 @@ export class EventBus {
   // Subscribe to a specific event type
   public on<T>(eventType: GameEvent): Observable<T> {
     if (this.debug) {
-      console.log(`%cEventBus SUBSCRIBE: ${eventType}`, 'color: orange; font-weight: bold');
+      logger.debug(`SUBSCRIBE: ${eventType}`);
     } else {
-      console.log(`%cSubscribing to ${eventType}`, 'color: orange');
+      logger.debug(`Subscribing to ${eventType}`);
     }
     return this.eventSubject.pipe(
       filter(event => event.type === eventType),
