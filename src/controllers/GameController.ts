@@ -702,6 +702,7 @@ export class GameController {
     let tickCount = 0;
     // Last time we did a full entity speed analysis
     let lastEntitySpeedAnalysis = 0;
+    logger.debug('GameController: Game loop ticker called');
     
     return (ticker: Ticker) => {
       // Count ticks for periodic operations
