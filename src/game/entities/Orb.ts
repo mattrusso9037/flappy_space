@@ -138,41 +138,20 @@ export class Orb extends Obstacle {
         logger.info(`Orb collected at ${this.x}, ${this.y}`);
         
         // Emit event for audio/visual feedback and scoring
-        eventBus.emit(GameEvent.ORB_COLLECTED, { x: this.x, y: this.y });
+        // Include all necessary information for the UI system to handle animations
+        eventBus.emit(GameEvent.ORB_COLLECTED, { 
+            x: this.x, 
+            y: this.y,
+            radius: this.radius,
+            graphics: this.graphics,
+            glowGraphics: this.glowGraphics,
+            speed: this.speed
+        });
         
-        // Start collection animation
-        // Scale up and fade out
-        const duration = 0.5; // seconds
-        const scaleTarget = 2;
-        
-        // Create a PIXI tween animation
-        const startScale = this.graphics.scale.x;
-        
-        // Animate using PIXI Ticker instead of Tween
-        const ticker = PIXI.Ticker.shared;
-        const startTime = ticker.lastTime;
-        
-        const animationTick = (time: number) => {
-            const elapsed = (ticker.lastTime - startTime) / 1000;
-            const progress = Math.min(elapsed / duration, 1);
-            
-            // Scale up
-            const newScale = startScale + (scaleTarget - startScale) * progress;
-            this.graphics.scale.set(newScale);
-            this.glowGraphics.scale.set(newScale * 1.2);
-            
-            // Fade out
-            this.graphics.alpha = 1 - progress;
-            this.glowGraphics.alpha = (1 - progress) * 0.5;
-            
-            if (progress >= 1) {
-                ticker.remove(animationTick as unknown as PIXI.TickerCallback<any>);
-                this.graphics.visible = false;
-                this.glowGraphics.visible = false;
-            }
-        };
-        
-        ticker.add(animationTick as unknown as PIXI.TickerCallback<any>);
+        // Make graphics invisible immediately to avoid flickering
+        // The UI system will handle all visual animation
+        this.graphics.visible = false;
+        this.glowGraphics.visible = false;
         
         return 50; // Points awarded for collecting this orb
     }

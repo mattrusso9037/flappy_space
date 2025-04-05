@@ -51,7 +51,7 @@ export const LEVELS = [
     label: "Level 1", 
     orbsRequired: 5, 
     timeLimit: 60000, 
-    orbFrequency: 3000 
+    orbFrequency: 1 
   },
   { 
     speeds: {

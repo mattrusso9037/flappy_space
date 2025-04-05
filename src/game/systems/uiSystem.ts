@@ -3,13 +3,16 @@ import { gameStateService, GameState } from '../gameStateService';
 import { Scoreboard } from '../scoreboard';
 import { eventBus, GameEvent } from '../eventBus';
 import { Subscription } from 'rxjs';
+import { getLogger } from 'loglevel';
 
 // Interface for our particle data
 interface ParticleData {
-  vx: number;
-  vy: number;
-  alpha: number;
-  rotation: number;
+  vx?: number;
+  vy?: number;
+  alpha?: number;
+  rotation?: number;
+  isOrb?: boolean;
+  isGlow?: boolean;
 }
 
 // Add userdata to PIXI Graphics
@@ -31,19 +34,12 @@ export class UISystem {
   private gameState: GameState;
   private subscriptions: Subscription[] = [];
   private orbCollectionSubscription: Subscription | null = null;
-  
+  private logger = getLogger('UISystem');
   private constructor() {
     this.gameState = gameStateService.getState();
     
     // Subscribe to game state changes
     this.subscribeToStateChanges();
-    
-    // Subscribe to orb collection events for visual feedback
-    this.orbCollectionSubscription = eventBus.on<{x: number, y: number}>(GameEvent.ORB_COLLECTED).subscribe(data => {
-      if (data && typeof data === 'object' && 'x' in data && 'y' in data) {
-        this.createOrbCollectionEffect(data.x, data.y);
-      }
-    });
   }
   
   private subscribeToStateChanges(): void {
@@ -65,6 +61,21 @@ export class UISystem {
         this.updateScoreboard();
       })
     );
+
+    // Subscribe to orb collection events for visual feedback
+    this.orbCollectionSubscription = eventBus.on<{
+      x: number, 
+      y: number,
+      radius?: number,
+      graphics?: PIXI.Graphics,
+      glowGraphics?: PIXI.Graphics,
+      speed?: number
+    }>(GameEvent.ORB_COLLECTED).subscribe(data => {
+      this.logger.debug('orbCollectionSubscription', data);
+      if (data && typeof data === 'object' && 'x' in data && 'y' in data) {
+        this.createOrbCollectionEffect(data.x, data.y, data.radius, data.speed);
+      }
+    });
   }
   
   public static getInstance(): UISystem {
@@ -149,19 +160,65 @@ export class UISystem {
   /**
    * Create a visual effect when an orb is collected
    */
-  private createOrbCollectionEffect(x: number, y: number): void {
+  private createOrbCollectionEffect(x: number, y: number, radius?: number, speed?: number): void {
     if (!this.initialized || !this.orbEffects) {
-      console.log('UISystem: Cannot create orb collection effect - not initialized');
+      this.logger.warn('Cannot create orb collection effect - not initialized');
       return;
     }
     
-    console.log(`UISystem: Creating orb collection effect at ${x},${y}`);
+    this.logger.debug(`Creating orb collection effect at ${x},${y}`);
     
-    // Create a particle burst effect
-    const particles = new PIXI.Container();
-    particles.x = x;
-    particles.y = y;
-    this.orbEffects.addChild(particles);
+    // Get current level's speed factor for animation timing
+    const currentLevel = gameStateService.getState().level;
+    const levelIndex = Math.max(0, currentLevel - 1);
+    
+    // Use a more direct way to get level multiplier
+    const LEVEL_MULTIPLIERS = [1.0, 1.25, 1.5, 1.8, 2.0]; // Hardcoded to avoid import issues
+    const speedFactor = LEVEL_MULTIPLIERS[levelIndex] || 1.0;
+    
+    // Use the orb's speed if provided, otherwise calculate from level
+    const orbSpeed = speed || speedFactor;
+    
+    // Adjust animation parameters based on speed
+    const baseAnimationDuration = 2.5; // seconds
+    // Animation duration is longer when speed is higher
+    const animationDuration = baseAnimationDuration * Math.max(1.0, Math.sqrt(orbSpeed));
+    
+    // Create a particle burst effect container
+    const effectsContainer = new PIXI.Container();
+    effectsContainer.x = x;
+    effectsContainer.y = y;
+    this.orbEffects.addChild(effectsContainer);
+    
+    // Recreate a visual orb effect if radius is provided
+    if (radius) {
+      const orbEffect = new PIXI.Graphics();
+      const glowEffect = new PIXI.Graphics();
+      
+      // Draw the main orb
+      orbEffect.beginFill(0x00AAFF);
+      orbEffect.drawCircle(0, 0, radius);
+      orbEffect.endFill();
+      
+      // Add highlight
+      orbEffect.beginFill(0xFFFFFF, 0.5);
+      orbEffect.drawCircle(-radius * 0.3, -radius * 0.3, radius * 0.3);
+      orbEffect.endFill();
+      
+      // Draw glow
+      const glowRadius = radius * 1.5;
+      glowEffect.beginFill(0x00AAFF, 0.3);
+      glowEffect.drawCircle(0, 0, glowRadius);
+      glowEffect.endFill();
+      
+      // Add to container
+      effectsContainer.addChild(glowEffect);
+      effectsContainer.addChild(orbEffect);
+      
+      // These will be animated
+      orbEffect.userData = { isOrb: true };
+      glowEffect.userData = { isGlow: true };
+    }
     
     // Number of particles
     const count = 12;
@@ -169,7 +226,7 @@ export class UISystem {
     // Create particles
     for (let i = 0; i < count; i++) {
       const particle = new PIXI.Graphics();
-      
+       
       // Randomly colored particles
       const colors = [0x00FFFF, 0x00CCFF, 0xFFFFFF, 0x88DDFF];
       const color = colors[Math.floor(Math.random() * colors.length)];
@@ -183,15 +240,16 @@ export class UISystem {
       const angle = (i / count) * Math.PI * 2;
       const distance = 30 + Math.random() * 50;
       
-      // Store velocity
+      // Store velocity - slow down particles when game speed is higher
+      const velocityScale = 0.1 / Math.sqrt(speedFactor);
       particle.userData = {
-        vx: Math.cos(angle) * distance * 0.1,
-        vy: Math.sin(angle) * distance * 0.1,
+        vx: Math.cos(angle) * distance * velocityScale,
+        vy: Math.sin(angle) * distance * velocityScale,
         alpha: 1,
         rotation: Math.random() * 0.2 - 0.1
       };
       
-      particles.addChild(particle);
+      effectsContainer.addChild(particle);
     }
     
     // Create score popup (+50)
@@ -208,45 +266,99 @@ export class UISystem {
     scoreText.anchor.set(0.5);
     scoreText.x = 0;
     scoreText.y = -20;
-    particles.addChild(scoreText);
+    effectsContainer.addChild(scoreText);
+    
+    // Store a reference to the effects container
+    const containerRef = effectsContainer;
     
     // Animate particles
     let elapsed = 0;
     const ticker = PIXI.Ticker.shared;
     
     const animate = () => {
-      elapsed += ticker.deltaMS / 1000;
-      
-      // Update each particle
-      for (let i = 0; i < particles.children.length - 1; i++) {
-        const p = particles.children[i] as PIXI.Graphics;
-        const data = p.userData;
-        
-        // Move based on velocity
-        p.x += data.vx;
-        p.y += data.vy;
-        
-        // Slow down
-        data.vx *= 0.95;
-        data.vy *= 0.95;
-        
-        // Fade out
-        data.alpha -= 0.02;
-        p.alpha = Math.max(0, data.alpha);
-        
-        // Add a little rotation
-        p.rotation += data.rotation;
+      // Add a safety check
+      if (!containerRef || !containerRef.parent) {
+        ticker.remove(animate);
+        return;
       }
       
-      // Animate score text
-      scoreText.y -= 1.5;
-      scoreText.alpha = Math.max(0, 1 - elapsed / 1.5);
-      
-      // Remove when animation completes
-      if (elapsed >= 1.5) {
+      try {
+        elapsed += ticker.deltaMS / 1000;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        
+        // Update each child in the container
+        for (let i = 0; i < containerRef.children.length; i++) {
+          const child = containerRef.children[i];
+          if (!child) continue;
+          
+          const data = (child as any).userData;
+          if (!data) continue;
+          
+          // Handle orb/glow effects specially
+          if (data.isOrb) {
+            // Scale up the orb
+            const scaleValue = 1 + progress * 1.0;  // Scale to 2x
+            child.scale.set(scaleValue);
+            // Fade out
+            child.alpha = Math.max(0, 1 - progress * 1.2);  // Fade slightly faster than progress
+            continue;
+          }
+          
+          if (data.isGlow) {
+            // Scale up the glow more
+            const scaleValue = 1 + progress * 1.5;  // Scale to 2.5x
+            child.scale.set(scaleValue);
+            // Fade out
+            child.alpha = Math.max(0, 0.3 - progress * 0.3);  // Start at 0.3 alpha
+            continue;
+          }
+          
+          // Handle score text specially
+          if (child instanceof PIXI.Text) {
+            // Slower rise with higher speed
+            const textRiseSpeed = 1.5 / Math.sqrt(speedFactor);
+            child.y -= textRiseSpeed;
+            child.alpha = Math.max(0, 1 - progress * 1.2);  // Fade slightly faster than progress
+            continue;
+          }
+          
+          // Otherwise it's a particle
+          // Move based on velocity
+          if (data.vx !== undefined && data.vy !== undefined) {
+            child.x += data.vx;
+            child.y += data.vy;
+            
+            // Slow down
+            data.vx *= 0.95;
+            data.vy *= 0.95;
+            
+            // Fade out more slowly with higher speeds
+            const alphaReduction = 0.02 / Math.sqrt(speedFactor);
+            data.alpha -= alphaReduction;
+            child.alpha = Math.max(0, data.alpha);
+            
+            // Add a little rotation
+            if (data.rotation) {
+              child.rotation += data.rotation;
+            }
+          }
+        }
+        
+        // Remove when animation completes
+        if (elapsed >= animationDuration) {
+          ticker.remove(animate);
+          if (this.orbEffects && this.orbEffects.children.includes(containerRef)) {
+            this.orbEffects.removeChild(containerRef);
+            containerRef.destroy({ children: true });
+          }
+        }
+      } catch (error) {
+        // Handle any errors safely
+        this.logger.error(`Animation error: ${error}`);
         ticker.remove(animate);
-        this.orbEffects.removeChild(particles);
-        particles.destroy({ children: true });
+        if (this.orbEffects && containerRef && this.orbEffects.children.includes(containerRef)) {
+          this.orbEffects.removeChild(containerRef);
+        }
       }
     };
     
