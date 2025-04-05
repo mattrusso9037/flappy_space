@@ -7,7 +7,7 @@ import { Star } from '../entities/Star';
 import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { eventBus, GameEvent } from '../eventBus';
 import assetManager from '../assetManager';
-import logger from '../../utils/logger';
+import{ getLogger } from '../../utils/logger';
 
 /**
  * EntityManager manages all game entities and their lifecycle.
@@ -21,6 +21,7 @@ export class EntityManager {
   private orbs: Orb[] = [];
   private stars: Star[] = [];
   private initialized: boolean = false;
+  private logger = getLogger('EntityManager');
   
   private constructor() {
     // Private constructor for singleton
@@ -44,7 +45,7 @@ export class EntityManager {
     }
     
     this.initialized = true;
-    console.log('EntityManager initialized');
+    this.logger.info('EntityManager initialized');
   }
   
   /**
@@ -57,7 +58,7 @@ export class EntityManager {
     
     // Clear astronaut
     if (this.astronaut) {
-      logger.info('Removing astronaut from stage');
+      this.logger.info('Removing astronaut from stage');
       // Ensure the sprite exists before removing/destroying
       if (this.astronaut.sprite && this.app.stage.children.includes(this.astronaut.sprite)) {
          this.app.stage.removeChild(this.astronaut.sprite);
@@ -65,7 +66,7 @@ export class EntityManager {
       // Ensure astronaut resources are freed
       this.astronaut.sprite?.destroy(); // Destroy the sprite if it exists
       this.astronaut = null;
-      logger.info('Astronaut reference cleared');
+      this.logger.info('Astronaut reference cleared');
     } else {
       console.log('EntityManager: No astronaut to clear');
     }
@@ -210,6 +211,7 @@ export class EntityManager {
    */
   public createBackground(): void {
     if (!this.app) return;
+    this.logger.debug('EntityManager: Creating background starfield2');
     
     // Clear existing stars first
     this.clearStars();
@@ -323,7 +325,7 @@ export class EntityManager {
   private clearObstacles(): void {
     if (!this.app || !this.app.stage) return; // Added stage check for safety
 
-    logger.debug(`Clearing ${this.obstacles.length} obstacles`);
+    this.logger.debug(`Clearing ${this.obstacles.length} obstacles`);
     this.obstacles.forEach(obstacle => {
       // Remove from stage and destroy graphics/sprites
       if ('graphics' in obstacle && (obstacle as any).graphics instanceof PIXI.Graphics) {
@@ -344,7 +346,7 @@ export class EntityManager {
     });
 
     this.obstacles = [];
-    logger.debug('Obstacles cleared');
+    this.logger.debug('Obstacles cleared');
   }
   
   /**
@@ -353,7 +355,7 @@ export class EntityManager {
   private clearOrbs(): void {
     if (!this.app || !this.app.stage) return; // Added stage check
 
-    logger.debug(`Clearing ${this.orbs.length} orbs`);
+    this.logger.debug(`Clearing ${this.orbs.length} orbs`);
     this.orbs.forEach(orb => {
       if (orb.graphics instanceof PIXI.Graphics) {
         if (this.app?.stage.children.includes(orb.graphics)) {
@@ -370,7 +372,7 @@ export class EntityManager {
     });
 
     this.orbs = [];
-    logger.debug('Orbs cleared');
+    this.logger.debug('Orbs cleared');
   }
   
   /**
@@ -379,7 +381,7 @@ export class EntityManager {
   private clearStars(): void {
     if (!this.app || !this.app.stage) return; // Added stage check
 
-        logger.debug(`Clearing ${this.stars.length} stars`);
+        this.logger.debug(`Clearing ${this.stars.length} stars`);
         this.stars.forEach(star => {
           if (star.graphics instanceof PIXI.Graphics) {
              if (this.app?.stage.children.includes(star.graphics)) {
@@ -390,7 +392,7 @@ export class EntityManager {
         });
 
         this.stars = [];
-        logger.debug('Stars cleared');
+        this.logger.debug('Stars cleared');
   }
   
   /**

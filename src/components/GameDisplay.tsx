@@ -13,6 +13,7 @@ import { renderSystem } from '../game/systems/renderSystem';
 import { physicsSystem } from '../game/systems/physicsSystem';
 import { spawningSystem } from '../game/systems/spawningSystem';
 import { uiSystem } from '../game/systems/uiSystem';
+import Logger from '../utils/logger';
 
 interface GameDisplayProps {
   gameStarted: boolean;
@@ -75,8 +76,6 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
 
   // Initialize Pixi app
   useEffect(() => {
-    console.log('GameDisplay: Component mounted, initializing PIXI');
-    isMountedRef.current = true;
     
     const setupApp = async () => {
       // Guard against multiple initializations
@@ -251,7 +250,11 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
     };
     
     console.log('GameDisplay: Calling setupApp');
-    setupApp();
+    if (!isMountedRef.current) {
+      Logger.debug('GameDisplay: Component mounted, initializing PIXI');
+      setupApp();
+      isMountedRef.current = true;
+    }
     
     // Cleanup function
     return () => {

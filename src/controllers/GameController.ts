@@ -127,13 +127,13 @@ export class GameController {
     this.gameLoopFunc = this.createGameLoop();
     
     // Create the background right away
-    this.renderSystem.createBackground();
+    // this.renderSystem.createBackground();
     
     // Start the ticker immediately just for background animation
     if (this.app.ticker) {
       logger.info('Starting ticker for background animation');
       logger.info(`Initial ticker configuration - speed: ${this.app.ticker.speed}, minFPS: ${this.app.ticker.minFPS}, maxFPS: ${this.app.ticker.maxFPS}`);
-      
+      this.app.ticker.remove(this.gameLoopFunc);
       this.app.ticker.add(this.gameLoopFunc);
       this.app.ticker.start();
       
@@ -703,8 +703,9 @@ export class GameController {
     // Last time we did a full entity speed analysis
     let lastEntitySpeedAnalysis = 0;
     logger.debug('GameController: Game loop ticker called');
-    
+
     return (ticker: Ticker) => {
+      logger.debug('GameController: Game loop ticker called'); //
       // Count ticks for periodic operations
       tickCount++;
       

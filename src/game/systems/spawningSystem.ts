@@ -20,7 +20,7 @@ export class SpawningSystem {
   // Spawning state
   private lastObstacleTime: number = 0;
   private lastOrbTime: number = 0;
-  private levelConfig: LevelConfig = { speed: 2.5, spawnInterval: 2500 };
+  private levelConfig: LevelConfig = { speed: 5, spawnInterval: 2500 };
   private hasSpawnedFirstObstacle: boolean = false;
   
   private constructor() {

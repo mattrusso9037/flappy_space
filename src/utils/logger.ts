@@ -40,7 +40,7 @@ export function initLogger(config: Partial<LoggerConfig> = {}): void {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
   
   // Set the log level
-  log.setLevel(finalConfig.level);
+  log.setLevel(LogLevel.DEBUG);
   
   // Save config for formatters
   (window as any).__loggerConfig = finalConfig;
