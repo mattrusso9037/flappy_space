@@ -2,6 +2,9 @@ import { eventBus, GameEvent } from '../eventBus';
 import { gameStateService } from '../gameStateService';
 import inputManager, { InputEvent } from '../inputManager';
 import { Subscription } from 'rxjs';
+import { getLogger } from '../../utils/logger';
+
+const logger = getLogger('InputSystem');
 
 /**
  * InputSystem processes user input and dispatches game events.
@@ -12,10 +15,11 @@ export class InputSystem {
   private subscriptions: Subscription[] = [];
   private initialized: boolean = false;
   private enabled: boolean = false;
+  private inTransition: boolean = false;
   
   private constructor() {
     // Private constructor for singleton
-    console.log('InputSystem: Instance created');
+    logger.info('Instance created');
   }
   
   public static getInstance(): InputSystem {
@@ -30,29 +34,29 @@ export class InputSystem {
    */
   public initialize(): void {
     if (this.initialized) {
-      console.log('InputSystem: Already initialized, skipping');
+      logger.warn('Already initialized, skipping');
       return;
     }
     
-    console.log('InputSystem: Initializing...');
+    logger.info('Initializing...');
     
     // Add jump event listener
-    console.log('InputSystem: Registering JUMP event handler');
+    logger.debug('Registering JUMP event handler');
     inputManager.on(InputEvent.JUMP, this.handleJumpAction);
 
     // Add start game event listener
-    console.log('InputSystem: Registering START_GAME event handler');
+    logger.debug('Registering START_GAME event handler');
     inputManager.on(InputEvent.START_GAME, this.handleStartGame);
     
     // Add keyboard event listener for game start and debug mode
-    console.log('InputSystem: Adding keydown event listener');
+    logger.debug('Adding keydown event listener');
     document.addEventListener('keydown', this.handleKeyDown);
     
     // Subscribe to game state changes to enable/disable input appropriately
     this.subscriptions.push(
       gameStateService.select(state => state.isGameOver).subscribe(isGameOver => {
         if (isGameOver) {
-          console.log('InputSystem: Game over detected, disabling input');
+          logger.info('Game over detected, disabling input');
           this.disable();
         }
       })
@@ -60,26 +64,26 @@ export class InputSystem {
     
     this.subscriptions.push(
       gameStateService.select(state => state.isStarted).subscribe(isStarted => {
-        console.log(`InputSystem: isStarted changed to ${isStarted}`);
+        logger.debug(`isStarted changed to ${isStarted}`);
         if (isStarted) {
-          console.log('InputSystem: Game started, enabling input');
+          logger.info('Game started, enabling input');
           this.enable();
         } else {
-          console.log('InputSystem: Game stopped, disabling input');
+          logger.info('Game stopped, disabling input');
           this.disable();
         }
       })
     );
     
     this.initialized = true;
-    console.log('InputSystem: Initialization complete');
+    logger.info('Initialization complete');
   }
   
   /**
    * Clean up resources when the system is no longer needed
    */
   public dispose(): void {
-    console.log('InputSystem: Disposing...');
+    logger.info('Disposing...');
     
     // Remove input manager listeners
     inputManager.off(InputEvent.JUMP, this.handleJumpAction);
@@ -93,7 +97,7 @@ export class InputSystem {
     this.subscriptions = [];
     
     this.initialized = false;
-    console.log('InputSystem: Disposed');
+    logger.info('Disposed');
   }
   
   /**
@@ -102,7 +106,7 @@ export class InputSystem {
   public enable(): void {
     inputManager.enable();
     this.enabled = true;
-    console.log('InputSystem: Input enabled');
+    logger.info('Input enabled');
   }
   
   /**
@@ -111,26 +115,26 @@ export class InputSystem {
   public disable(): void {
     inputManager.disable();
     this.enabled = false;
-    console.log('InputSystem: Input disabled');
+    logger.info('Input disabled');
   }
   
   /**
    * Handle jump action from input manager
    */
   private handleJumpAction = (): void => {
-    console.log(`InputSystem: Jump action received, enabled: ${this.enabled}`);
+    logger.debug(`Jump action received, enabled: ${this.enabled}`);
     if (!this.enabled) {
-      console.log('InputSystem: Jump action ignored - input disabled');
+      logger.debug('Jump action ignored - input disabled');
       return;
     }
     
     // Dispatch jump event to the event bus
-    console.log('InputSystem: Emitting JUMP_ACTION event');
+    logger.debug('Emitting JUMP_ACTION event');
     eventBus.emit(GameEvent.JUMP_ACTION, null);
   }
 
   private handleRestartGame = (): void => {
-    console.log('InputSystem: Emitting RESTART_GAME event');
+    logger.info('Emitting RESTART_GAME event');
     eventBus.emit(GameEvent.RESTART_GAME, null);
   }
   
@@ -139,39 +143,86 @@ export class InputSystem {
    */
   private handleStartGame = (): void => {
     // No need to check if enabled - we want to allow game starting even when input is disabled
-    console.log('InputSystem: START_GAME event received from InputManager');
+    logger.debug('START_GAME event received from InputManager');
     
-    // Get current game state
-    const gameState = gameStateService.getState();
-    console.log(`InputSystem: Current game state - isStarted: ${gameState.isStarted}, isGameOver: ${gameState.isGameOver}`);
-    
-    // Only emit START_GAME if the game isn't already started
-    if (!gameState.isStarted) {
-      // Dispatch start game event to the event bus
-      console.log('InputSystem: Emitting START_GAME event to EventBus');
-      eventBus.emit(GameEvent.START_GAME, null);
-    } else {
-      console.log('InputSystem: Game already started, ignoring START_GAME event');
+    this.startOrResetGame();
+  }
+  
+  /**
+   * Start or reset the game based on current state
+   * This provides a unified entry point for all game flow control
+   */
+  public startOrResetGame(): boolean {
+    // Prevent multiple rapid calls
+    if (this.inTransition) {
+      logger.info('Game transition already in progress, ignoring request');
+      return false;
     }
+
+    // Get current game state
+    const state = gameStateService.getState();
+    logger.info(`Current game state - isStarted: ${state.isStarted}, isGameOver: ${state.isGameOver}`);
+    
+    try {
+      this.inTransition = true;
+      
+      // If game is over, reset everything first
+      if (state.isGameOver) {
+        logger.info('Game was over - emitting RESTART_GAME event');
+        eventBus.emit(GameEvent.RESTART_GAME, null);
+        
+        // Wait a short time before starting
+        setTimeout(() => {
+          logger.info('Starting game after reset');
+          eventBus.emit(GameEvent.START_GAME, null);
+          this.inTransition = false;
+        }, 200);
+        
+        return true;
+      } 
+      // If game is not started and not in game over state, just start it
+      else if (!state.isStarted) {
+        logger.info('Starting new game');
+        eventBus.emit(GameEvent.START_GAME, null);
+        this.inTransition = false;
+        return true;
+      }
+      
+      // Game is already in progress
+      this.inTransition = false;
+      return false;
+    } catch (error) {
+      logger.error(`Error controlling game: ${error}`);
+      this.inTransition = false;
+      return false;
+    }
+  }
+  
+  /**
+   * Handle game click/tap events 
+   */
+  public handleGameClick = (): void => {
+    logger.debug('Game area clicked/tapped');
+    this.startOrResetGame();
   }
   
   /**
    * Handle keyboard events
    */
   private handleKeyDown = (e: KeyboardEvent): void => {
-    console.log(`InputSystem: KeyDown event - ${e.key}, isStarted: ${gameStateService.getState().isStarted}`);
+    logger.debug(`KeyDown event - ${e.key}, isStarted: ${gameStateService.getState().isStarted}`);
     
-    // Handle spacebar for game start
-    if (e.key === ' ' && !gameStateService.getState().isStarted && !gameStateService.getState().isGameOver) {
-      console.log('InputSystem: Spacebar pressed while game not started, emitting START_GAME event directly');
-      eventBus.emit(GameEvent.START_GAME, null);
+    // Handle spacebar for game start/reset
+    if (e.key === ' ' || e.code === 'Space') {
+      logger.info('Spacebar pressed');
+      this.startOrResetGame();
     } 
     // Handle debug mode toggle
     else if (e.key === 'd' || e.key === 'D') {
-      console.log('InputSystem: Debug mode toggle');
+      logger.info('Debug mode toggle');
       gameStateService.toggleDebugMode();
     } else if (e.key === 'r' || e.key === 'R') {
-      console.log('InputSystem: Restart game');
+      logger.info('Restart game');
       eventBus.emit(GameEvent.RESTART_GAME, null);
     }
   }

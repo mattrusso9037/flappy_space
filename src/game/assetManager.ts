@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js';
+import { eventBus, GameEvent } from './eventBus';
 
 // Asset types
 export type AssetType = 'texture' | 'spritesheet' | 'sound';
@@ -71,6 +72,10 @@ class AssetManager {
           
           this.loaded = true;
           console.log('All assets loaded successfully');
+          
+          // Emit an event to notify that assets are loaded
+          eventBus.emit(GameEvent.ASSETS_LOADED, gameAssets.map(a => a.name));
+          
           resolve();
         } catch (error) {
           console.error('Failed to load assets:', error);
@@ -83,6 +88,20 @@ class AssetManager {
       console.error('Asset loading error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Load assets asynchronously without awaiting the result
+   * This allows the caller to continue execution while assets load
+   */
+  loadAssetsAsync(): void {
+    if (this.loaded) return;
+    if (this.loadPromise) return;
+    
+    console.log('Starting asset loading asynchronously...');
+    this.loadAssets()
+      .then(() => console.log('Async asset loading completed'))
+      .catch(error => console.error('Async asset loading failed:', error));
   }
 
   /**
