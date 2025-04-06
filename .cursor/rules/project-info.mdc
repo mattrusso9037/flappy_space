@@ -1,0 +1,116 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Flappy Space Game - Architecture Guide for AI Development
+
+This guide helps you understand the Flappy Space game architecture to accurately implement features, fix bugs, and extend the codebase while maintaining existing patterns.
+
+## Key Architecture: Entity-Component-System (ECS)
+
+This game uses an ECS architecture that clearly separates:
+- **Entities**: Game objects (Astronaut, Planet, Orb)
+- **Components**: Data attached to entities (position, sprite, etc.)
+- **Systems**: Logic that processes related components
+
+When extending the code, maintain this separation of concerns:
+1. Entity classes should primarily store state, not implement complex logic
+2. Game logic belongs in systems, not entities
+3. Communication between systems happens via EventBus
+4. Systems should have focused responsibilities
+
+## Directory Structure & Component Responsibilities
+flappy_space/
+│
+src/
+├── components/ # React UI components
+│ └── GameDisplay.tsx # Hosts game canvas, handles UI rendering & game lifecycle
+│
+├── controllers/ # Orchestration layer
+│ └── GameController.ts # Central coordinator of all game systems
+│
+├── game/ # Core game engine
+│ ├── config.ts # Game constants & configuration
+│ ├── assetManager.ts # Asset loading & resource management (textures)
+│ ├── eventBus.ts # Event publishing/subscription system
+│ ├── gameStateService.ts # Global state management (score, level, game status)
+│ ├── inputManager.ts # Low-level input detection (keyboard, touch)
+│ │
+│ ├── entities/ # Game object definitions
+│ │ ├── Astronaut.ts # Player character
+│ │ ├── Planet.ts # Obstacle entity
+│ │ ├── Orb.ts # Collectible entity
+│ │ └── utils.ts # Shared entity utilities
+│ │
+│ └── systems/ # Game logic processors
+│ ├── audioSystem.ts # Sound effects & music
+│ ├── entityManager.ts # Entity lifecycle management
+│ ├── inputSystem.ts # Input processing & game control
+│ ├── physicsSystem.ts # Movement, collision detection
+│ ├── renderSystem.ts # Drawing & visual updates
+│ ├── spawningSystem.ts # Creating obstacles & collectibles
+│ └── uiSystem.ts # HUD & game UI effects
+│
+└── utils/ # Shared utilities
+├── logger.ts # Logging system
+└── frameRateMonitor.ts # Performance monitoring
+
+
+## Key Patterns & Extension Points
+
+### 1. Event-Based Communication
+- Use `eventBus.emit(GameEvent.EVENT_NAME, data)` to broadcast events
+- Systems listen with `eventBus.on(GameEvent.EVENT_NAME).subscribe(handler)`
+- Always add new event types to the `GameEvent` enum in `eventBus.ts`
+
+### 2. State Management
+- Global game state lives in `gameStateService`
+- Systems should read state but generally not modify it directly
+- State changes happen via the GameController or through events
+
+### 3. Input Handling (Recently Refactored)
+- `inputManager.ts`: Low-level input detection (keyboard/touch events)
+- `inputSystem.ts`: Processes raw input into game actions
+- Touch events follow this chain: Touch → InputManager → InputSystem → EventBus → Game Systems
+
+### 4. Asset Loading (Recently Refactored)
+- Assets are loaded asynchronously with event notification
+- Systems should listen for `GameEvent.ASSETS_LOADED` before accessing assets
+- Add new assets to the `gameAssets` array in `assetManager.ts`
+
+### 5. Logging (Recently Refactored)
+- Always use the logger: `const logger = getLogger('ComponentName')`
+- Use appropriate log levels: `logger.debug()`, `logger.info()`, `logger.warn()`, `logger.error()`
+- Don't use `console.log()` directly
+
+## Common Workflows
+
+### Adding a New Entity
+1. Create a class in `entities/` extending base entity classes if appropriate
+2. Add entity creation in `entityManager.ts` or `spawningSystem.ts`
+3. Add rendering logic in `renderSystem.ts`
+4. Add physics/collision handling in `physicsSystem.ts` if needed
+
+### Adding a New Feature
+1. Identify which systems need modification
+2. Consider adding new events to `GameEvent` if systems need to communicate
+3. Update game state in `gameStateService.ts` if new state is needed
+4. Modify UI in `uiSystem.ts` or `GameDisplay.tsx` for visual feedback
+
+### Fixing Bugs
+1. Check the event flow when debugging event-related issues
+2. Verify entity lifecycle for rendering or collision issues
+3. Mobile/touch input uses a separate path than keyboard input
+4. Asset loading issues usually involve the asynchronous loading process
+
+## Recent Implementations
+
+1. **Mobile Touch Handling**: Enhanced to track coordinates and handle multi-touch
+2. **Asynchronous Asset Loading**: Non-blocking asset loading with event notification
+3. **Game Flow Control**: Centralized in InputSystem with race condition prevention
+4. **Namespaced Logging**: Consistent pattern across all components
+5. **Touch Device Detection**: Conditionally renders mobile UI elements
+6. **Event-Based Animation**: Orb collection animations triggered via event bus
+
+When implementing new features, reference these recent patterns as guides for maintaining consistency.
