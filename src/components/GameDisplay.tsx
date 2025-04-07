@@ -56,11 +56,11 @@ const GameDisplay = ({ }: GameDisplayProps) => {
   useEffect(() => {
     logger.debug('Setting up game state subscription');
     const subscription = gameStateService.getState$().subscribe(state => {
-      if (isMountedRef.current) {
+      // if (isMountedRef.current) {
         // onGameStateChange(state);
         setIsGameOver(state.isGameOver);
         setGameStarted(state.isStarted);
-      }
+      // }
     });
     
     return () => {
