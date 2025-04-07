@@ -18,12 +18,10 @@ import { getLogger } from '../utils/logger';
 const logger = getLogger('GameDisplay');
 
 interface GameDisplayProps {
-  gameStarted: boolean;
-  onGameClick?: () => void;
-  onGameStateChange: (state: GameState) => void;
+
 }
 
-const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDisplayProps) => {
+const GameDisplay = ({ }: GameDisplayProps) => {
   // Use a dedicated ref for the container div that will hold the canvas
   const pixiContainerRef = useRef<HTMLDivElement>(null);
   
@@ -37,6 +35,8 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
   // Component state
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
   // Track whether we're on a touch device
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
@@ -57,7 +57,9 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
     logger.debug('Setting up game state subscription');
     const subscription = gameStateService.getState$().subscribe(state => {
       if (isMountedRef.current) {
-        onGameStateChange(state);
+        // onGameStateChange(state);
+        setIsGameOver(state.isGameOver);
+        setGameStarted(state.isStarted);
       }
     });
     
@@ -65,7 +67,8 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       logger.debug('Cleaning up game state subscription');
       subscription.unsubscribe();
     };
-  }, [onGameStateChange]);
+  }, []);
+
 
   // Clean up function that can be called both in effects and event handlers
   const cleanupPixi = useCallback(() => {
@@ -92,14 +95,11 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
 
   // Initialize game controller and systems when assets are loaded
   const initializeGameController = useCallback(() => {
-    logger.debug('Initializing game controller after assets loaded');
+    logger.debug('Initializing game controller after assets loaded', isMountedRef.current, appRef.current);
     
-    if (!isMountedRef.current || !appRef.current) {
-      logger.debug('Cannot initialize - component unmounted or app destroyed');
-      return;
-    }
     
     setIsLoaded(true);
+    logger.debug('Setting isLoaded to true');
     setLoadError(null);
     
     try {
@@ -154,7 +154,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         setLoadError(`Failed to initialize game controller: ${controllerError instanceof Error ? controllerError.message : String(controllerError)}`);
       }
     }
-  }, []);
+  }, [gameControllerRef, gameControllerRef, isMountedRef, appRef]);
 
   // Initialize Pixi app
   useEffect(() => {
@@ -238,7 +238,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         // Start loading assets asynchronously
         logger.debug('Starting asset loading process');
         if (!assetManager.isLoaded()) {
-          assetManager.loadAssetsAsync();
+          await assetManager.loadAssetsAsync();
         } else {
           // If assets are already loaded, initialize the game controller immediately
           logger.debug('Assets already loaded, initializing game controller');
@@ -257,7 +257,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
         }
         cleanupPixi();
       }
-    };
+        };
     
     logger.debug('Calling setupApp');
     setupApp();
@@ -275,11 +275,11 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
     logger.debug('Setting up ASSETS_LOADED event listener');
     
     const assetsLoadedSubscription = eventBus.on(GameEvent.ASSETS_LOADED).subscribe((assetNames) => {
-      logger.debug('ASSETS_LOADED event received', { assetNames });
+      logger.debug('ASSETS_LOADED event received', { assetNames }, isMountedRef.current);
       
-      if (isMountedRef.current) {
+      // if (isMountedRef.current) {
         initializeGameController();
-      }
+      // }
     });
     
     // Clean up event listeners
@@ -287,50 +287,14 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       logger.debug('Cleaning up ASSETS_LOADED event listener');
       assetsLoadedSubscription.unsubscribe();
     };
-  }, [initializeGameController]);
+  }, [initializeGameController, isMountedRef.current]);
   
-  // Handle game state changes from props
-  useEffect(() => {
-    if (!gameControllerRef.current) {
-      logger.debug('gameStarted effect skipped - no gameController');
-      return;
-    }
-    
-    logger.debug(`gameStarted prop changed to ${gameStarted}`);
-    
-    if (gameStarted) {
-      // Use the inputSystem to handle starting the game
-      inputSystem.startOrResetGame();
-    }
-  }, [gameStarted]);
   
-  // Handle game click/tap
-  const handleGameClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    logger.debug(`Game area clicked at (${e.clientX}, ${e.clientY})`);
-    
-    // Use the inputSystem to handle clicks/touches
-    inputSystem.handleDirectTouch(e.clientX, e.clientY);
-    
-    // Call the parent's click handler if provided
-    if (onGameClick) onGameClick();
-  }, [onGameClick]);
   
   // Handle direct touch events
-  const handleTouch = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    e.preventDefault(); // Prevent default touch behavior
-    
-    const touch = e.touches[0];
-    if (!touch) return;
-    
-    logger.debug(`Touch detected at (${touch.clientX}, ${touch.clientY})`);
-    
-    // Pass the touch coordinates to the inputSystem
-    inputSystem.handleDirectTouch(touch.clientX, touch.clientY);
-    
-    // Call the parent's click handler if provided
-    if (onGameClick) onGameClick();
-  }, [onGameClick]);
   
+  logger.debug('GameDisplay rendered', isLoaded, isGameOver, gameStarted);
+
   return (
     <div className="game-display-wrapper">
       {/* This div will hold the PIXI canvas */}
@@ -343,8 +307,8 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
           height: '100%',
           position: 'relative'
         }}
-        onClick={handleGameClick}
-        onTouchStart={handleTouch}
+        // onClick={handleGameClick}
+        // onTouchStart={handleTouch}
       />
       
       {/* Show loading error if there is one */}
@@ -365,7 +329,7 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
       )}
       
       {/* Show game start or game over messages */}
-      {isLoaded && (!gameStarted || gameStateService.getState().isGameOver) && (
+      {isLoaded && (!gameStarted || isGameOver) && (
         <div 
           className="start-overlay" 
           onClick={() => inputSystem.startOrResetGame()}
@@ -374,8 +338,8 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
             inputSystem.startOrResetGame();
           }}
         >
-          <h2>{gameStateService.getState().isGameOver ? 'Game Over!' : 'Flappy Spaceman'}</h2>
-          {gameStateService.getState().isGameOver && (
+          <h2>{isGameOver ? 'Game Over!' : 'Flappy Spaceman'}</h2>
+          {isGameOver && (
             <>
               <p>Score: {gameStateService.getState().score}</p>
               <p>Orbs: {gameStateService.getState().orbsCollected}/{gameStateService.getState().orbsRequired}</p>
@@ -385,29 +349,29 @@ const GameDisplay = ({ gameStarted, onGameClick, onGameStateChange }: GameDispla
               )}
             </>
           )}
-          <p>{gameStateService.getState().isGameOver ? 'Press SPACE to try again' : 'Press SPACE to start'}</p>
+          <p>{isGameOver ? 'Press SPACE to try again' : 'Press SPACE to start'}</p>
           <p>Use SPACE, Up Arrow, or W to fly!</p>
           {isTouchDevice && (
             <p className="mobile-instruction">Tap anywhere to jump!</p>
           )}
-          {!gameStateService.getState().isGameOver && (
+          {!isGameOver && (
             <p className="mission-goal">Collect all orbs before time runs out!</p>
           )}
         </div>
       )}
       
       {/* Display a touch overlay during gameplay on mobile/touch devices */}
-      {isLoaded && gameStarted && !gameStateService.getState().isGameOver && isTouchDevice && (
+      {/* {isLoaded && gameStarted && !isGameOver && isTouchDevice && (
         <div 
           className="touch-overlay" 
-          onClick={handleGameClick}
-          onTouchStart={handleTouch}
+          // onClick={handleGameClick}
+          // onTouchStart={handleTouch}
         >
           <div className="touch-hint-container">
             <div className="touch-hint">Tap to fly!</div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

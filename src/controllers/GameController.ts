@@ -241,14 +241,6 @@ export class GameController {
   public setupGame(): void {
     logger.info('Setting up game...');
     
-    // Log current ticker state before reset
-    if (this.app?.ticker) {
-      logger.info(`TICKER STATUS BEFORE RESET - speed: ${this.app.ticker.speed}, ` +
-                 `started: ${this.app.ticker.started}, ` +
-                 `deltaMS: ${this.app.ticker.deltaMS}, ` +
-                 `deltaTime: ${this.app.ticker.deltaTime}, ` +
-                 `lastTime: ${this.app.ticker.lastTime}`);
-    }
     
     // Run entity speed analysis before clearing
     this.analyzeEntitySpeeds();
@@ -702,10 +694,8 @@ export class GameController {
     let tickCount = 0;
     // Last time we did a full entity speed analysis
     let lastEntitySpeedAnalysis = 0;
-    logger.debug('GameController: Game loop ticker called');
 
     return (ticker: Ticker) => {
-      logger.debug('GameController: Game loop ticker called'); //
       // Count ticks for periodic operations
       tickCount++;
       
@@ -715,11 +705,7 @@ export class GameController {
       // Log ticker state more frequently during gameplay
       if (Math.random() < 0.05) {
         const gameState = this.gameStateService.getState();
-        logger.info(`TICKER STATUS - speed: ${ticker.speed.toFixed(4)}, ` +
-                   `deltaMS: ${ticker.deltaMS.toFixed(2)}, ` +
-                   `FPS est: ${(1000 / ticker.deltaMS).toFixed(1)}, ` +
-                   `isStarted: ${gameState.isStarted}, ` +
-                   `isGameOver: ${gameState.isGameOver}`);
+   
       }
       
       // Every 300 frames (about 5 seconds at 60fps), check ticker health

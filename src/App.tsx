@@ -7,7 +7,6 @@ import { GameState } from './game/gameStateService'
 
 function App() {
   // Game state
-  const [gameStarted, setGameStarted] = useState(false)
   const [gameState, setGameState] = useState<GameState>({
     score: 0,
     level: 1,
@@ -23,18 +22,6 @@ function App() {
     debugMode: false
   })
   
-  // Handle state updates from the game manager
-  const handleGameStateChange = (newState: GameState) => {
-    setGameState(newState)
-    
-    // Update UI state based on game state
-    if (newState.isGameOver) {
-      setGameStarted(false)
-    } else if (newState.isStarted && !gameStarted) {
-      setGameStarted(true)
-    }
-  }
-
 
   return (
     <div className="App">
@@ -44,10 +31,7 @@ function App() {
       
       <main className="App-main">
         <div className="game-container">
-          <GameDisplay
-            gameStarted={gameStarted} 
-            onGameStateChange={handleGameStateChange}
-          />
+          <GameDisplay  />
           
     
         </div>
