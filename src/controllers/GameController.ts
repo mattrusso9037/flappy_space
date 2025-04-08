@@ -93,8 +93,6 @@ export class GameController {
     
     // Initialize frame rate monitor
     logger.info('Enabling frame rate monitor');
-    frameRateMonitor.enable();
-    frameRateMonitor.setLogInterval(2000); // Log every 2 seconds
     
     // Initialize all systems
     logger.debug('Initializing InputSystem');
