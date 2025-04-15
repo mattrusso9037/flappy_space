@@ -6,14 +6,32 @@ const logger = getLogger('InputManager');
 export enum InputKey {
   SPACE = 'Space',
   ARROW_UP = 'ArrowUp',
+  ARROW_DOWN = 'ArrowDown',
+  ARROW_LEFT = 'ArrowLeft',
+  ARROW_RIGHT = 'ArrowRight',
   W = 'KeyW',
+  A = 'KeyA',
+  S = 'KeyS',
+  D = 'KeyD',
 }
 
 // Input events
 export enum InputEvent {
   JUMP = 'jump',
+  MOVE_UP = 'move_up',
+  MOVE_DOWN = 'move_down',
+  MOVE_LEFT = 'move_left',
+  MOVE_RIGHT = 'move_right',
   START_GAME = 'start_game',
   TOUCH = 'touch', // Add a specific touch event
+}
+
+// Direction type
+export enum Direction {
+  UP = 'up',
+  DOWN = 'down',
+  LEFT = 'left',
+  RIGHT = 'right',
 }
 
 // Event handler type
@@ -134,16 +152,46 @@ class InputManager {
     if (!this.keyMap.get(key)) {
       this.keyMap.set(key, true);
       
-      // Trigger jump event on relevant keys
-      if (key === InputKey.SPACE || key === InputKey.ARROW_UP || key === InputKey.W) {
-        logger.debug(`Triggering JUMP event from key ${key}`);
-        this.triggerEvent(InputEvent.JUMP);
-        
-        // Also trigger start game if space is pressed
-        if (key === InputKey.SPACE) {
+      // Handle each key type
+      switch (key) {
+        case InputKey.SPACE:
+          logger.debug('Triggering JUMP event from spacebar');
+          this.triggerEvent(InputEvent.JUMP);
+          // Also trigger start game
           logger.debug('Triggering START_GAME event from spacebar');
           this.triggerEvent(InputEvent.START_GAME);
-        }
+          break;
+        
+        case InputKey.ARROW_UP:
+        case InputKey.W:
+          logger.debug(`Triggering MOVE_UP event from key ${key}`);
+          this.triggerEvent(InputEvent.MOVE_UP);
+          // Also trigger jump for backward compatibility
+          logger.debug(`Triggering JUMP event from key ${key}`);
+          this.triggerEvent(InputEvent.JUMP);
+          break;
+        
+        case InputKey.ARROW_DOWN:
+        case InputKey.S:
+          logger.debug(`Triggering MOVE_DOWN event from key ${key}`);
+          this.triggerEvent(InputEvent.MOVE_DOWN);
+          break;
+        
+        case InputKey.ARROW_LEFT:
+        case InputKey.A:
+          logger.debug(`Triggering MOVE_LEFT event from key ${key}`);
+          this.triggerEvent(InputEvent.MOVE_LEFT);
+          break;
+        
+        case InputKey.ARROW_RIGHT:
+        case InputKey.D:
+          logger.debug(`Triggering MOVE_RIGHT event from key ${key}`);
+          this.triggerEvent(InputEvent.MOVE_RIGHT);
+          break;
+        
+        default:
+          // Unhandled key
+          break;
       }
     }
   };
@@ -223,6 +271,19 @@ class InputManager {
     // Prevent scrolling while touching the game
     event.preventDefault();
   };
+
+  /**
+   * Get the currently pressed directional keys
+   * Returns an object with boolean flags for each direction
+   */
+  public getDirectionalInput(): Record<Direction, boolean> {
+    return {
+      [Direction.UP]: this.isKeyDown(InputKey.ARROW_UP) || this.isKeyDown(InputKey.W),
+      [Direction.DOWN]: this.isKeyDown(InputKey.ARROW_DOWN) || this.isKeyDown(InputKey.S),
+      [Direction.LEFT]: this.isKeyDown(InputKey.ARROW_LEFT) || this.isKeyDown(InputKey.A),
+      [Direction.RIGHT]: this.isKeyDown(InputKey.ARROW_RIGHT) || this.isKeyDown(InputKey.D)
+    };
+  }
 
   /**
    * Trigger an input event

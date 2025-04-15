@@ -1,6 +1,6 @@
 import { eventBus, GameEvent } from '../eventBus';
 import { gameStateService } from '../gameStateService';
-import inputManager, { InputEvent, TouchData } from '../inputManager';
+import inputManager, { InputEvent, TouchData, Direction } from '../inputManager';
 import { Subscription } from 'rxjs';
 import { getLogger } from '../../utils/logger';
 
@@ -44,6 +44,13 @@ export class InputSystem {
     // Add jump event listener
     logger.debug('Registering JUMP event handler');
     inputManager.on(InputEvent.JUMP, this.handleJumpAction);
+
+    // Add movement event listeners
+    logger.debug('Registering directional movement handlers');
+    inputManager.on(InputEvent.MOVE_UP, this.handleMoveUpAction);
+    inputManager.on(InputEvent.MOVE_DOWN, this.handleMoveDownAction);
+    inputManager.on(InputEvent.MOVE_LEFT, this.handleMoveLeftAction);
+    inputManager.on(InputEvent.MOVE_RIGHT, this.handleMoveRightAction);
 
     // Add start game event listener
     logger.debug('Registering START_GAME event handler');
@@ -92,6 +99,10 @@ export class InputSystem {
     
     // Remove input manager listeners
     inputManager.off(InputEvent.JUMP, this.handleJumpAction);
+    inputManager.off(InputEvent.MOVE_UP, this.handleMoveUpAction);
+    inputManager.off(InputEvent.MOVE_DOWN, this.handleMoveDownAction);
+    inputManager.off(InputEvent.MOVE_LEFT, this.handleMoveLeftAction);
+    inputManager.off(InputEvent.MOVE_RIGHT, this.handleMoveRightAction);
     inputManager.off(InputEvent.START_GAME, this.handleStartGame);
     inputManager.off(InputEvent.TOUCH, this.handleTouchAction);
     
@@ -137,6 +148,66 @@ export class InputSystem {
     // Dispatch jump event to the event bus
     logger.debug('Emitting JUMP_ACTION event');
     eventBus.emit(GameEvent.JUMP_ACTION, null);
+  }
+
+  /**
+   * Handle move up action from input manager
+   */
+  private handleMoveUpAction = (): void => {
+    logger.debug(`Move up action received, enabled: ${this.enabled}`);
+    if (!this.enabled) {
+      logger.debug('Move up action ignored - input disabled');
+      return;
+    }
+    
+    // Dispatch move up event to the event bus
+    logger.debug('Emitting MOVE_UP_ACTION event');
+    eventBus.emit(GameEvent.MOVE_UP_ACTION, null);
+  }
+
+  /**
+   * Handle move down action from input manager
+   */
+  private handleMoveDownAction = (): void => {
+    logger.debug(`Move down action received, enabled: ${this.enabled}`);
+    if (!this.enabled) {
+      logger.debug('Move down action ignored - input disabled');
+      return;
+    }
+    
+    // Dispatch move down event to the event bus
+    logger.debug('Emitting MOVE_DOWN_ACTION event');
+    eventBus.emit(GameEvent.MOVE_DOWN_ACTION, null);
+  }
+
+  /**
+   * Handle move left action from input manager
+   */
+  private handleMoveLeftAction = (): void => {
+    logger.debug(`Move left action received, enabled: ${this.enabled}`);
+    if (!this.enabled) {
+      logger.debug('Move left action ignored - input disabled');
+      return;
+    }
+    
+    // Dispatch move left event to the event bus
+    logger.debug('Emitting MOVE_LEFT_ACTION event');
+    eventBus.emit(GameEvent.MOVE_LEFT_ACTION, null);
+  }
+
+  /**
+   * Handle move right action from input manager
+   */
+  private handleMoveRightAction = (): void => {
+    logger.debug(`Move right action received, enabled: ${this.enabled}`);
+    if (!this.enabled) {
+      logger.debug('Move right action ignored - input disabled');
+      return;
+    }
+    
+    // Dispatch move right event to the event bus
+    logger.debug('Emitting MOVE_RIGHT_ACTION event');
+    eventBus.emit(GameEvent.MOVE_RIGHT_ACTION, null);
   }
 
   /**
@@ -273,6 +344,14 @@ export class InputSystem {
       logger.info('Restart game');
       eventBus.emit(GameEvent.RESTART_GAME, null);
     }
+  }
+  
+  /**
+   * Get the current directional input state
+   * This can be used by systems that need continuous input rather than events
+   */
+  public getDirectionalInput(): Record<Direction, boolean> {
+    return inputManager.getDirectionalInput();
   }
   
   /**
