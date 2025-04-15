@@ -8,7 +8,7 @@ import { GameController } from '../controllers/GameController';
 import { eventBus, GameEvent } from '../game/eventBus';
 import { inputSystem } from '../game/systems/inputSystem';
 import { audioSystem } from '../game/systems/audioSystem';
-import { entityManager } from '../game/systems/entityManager';
+import { entityManager } from '../game/systems/entitySystem';
 import { renderSystem } from '../game/systems/renderSystem';
 import { physicsSystem } from '../game/systems/physicsSystem';
 import { spawningSystem } from '../game/systems/spawningSystem';

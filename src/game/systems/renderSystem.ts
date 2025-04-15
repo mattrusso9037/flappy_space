@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { entityManager } from './entityManager';
+import { entityManager } from './entitySystem';
 import { gameStateService } from '../gameStateService';
 import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '../config';
 

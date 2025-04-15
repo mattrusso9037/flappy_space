@@ -2,7 +2,7 @@ import { Astronaut } from '../entities/Astronaut';
 import { Obstacle } from '../entities/Obstacle';
 import { Orb } from '../entities/Orb';
 import { gameStateService } from '../gameStateService';
-import { entityManager } from './entityManager';
+import { entityManager } from './entitySystem';
 import { eventBus, GameEvent } from '../eventBus';
 import { getLogger } from '../../utils/logger';
 

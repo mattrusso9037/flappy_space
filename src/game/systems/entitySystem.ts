@@ -12,8 +12,8 @@ import{ getLogger } from '../../utils/logger';
 /**
  * EntityManager manages all game entities and their lifecycle.
  */
-export class EntityManager {
-  private static instance: EntityManager;
+export class EntitySystem {
+  private static instance: EntitySystem;
   
   private app: PIXI.Application | null = null;
   private astronaut: Astronaut | null = null;
@@ -27,11 +27,11 @@ export class EntityManager {
     // Private constructor for singleton
   }
   
-  public static getInstance(): EntityManager {
-    if (!EntityManager.instance) {
-      EntityManager.instance = new EntityManager();
+  public static getInstance(): EntitySystem {
+    if (!EntitySystem.instance) {
+      EntitySystem.instance = new EntitySystem();
     }
-    return EntityManager.instance;
+    return EntitySystem.instance;
   }
   
   /**
@@ -441,4 +441,4 @@ export class EntityManager {
 }
 
 // Export a default instance for convenient imports
-export const entityManager = EntityManager.getInstance(); 
+export const entityManager = EntitySystem.getInstance(); 
