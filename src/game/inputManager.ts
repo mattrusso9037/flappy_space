@@ -51,6 +51,7 @@ class InputManager {
   private touchActive: boolean = false;
   private lastTouchTime: number = 0;
   private touchThrottleTime: number = 150; // ms between touch events
+  private lastEventData: unknown = null;
 
   constructor() {
     this.keyMap = new Map();
@@ -297,21 +298,19 @@ class InputManager {
   /**
    * Trigger an input event with additional data
    */
-  private triggerEventWithData(event: InputEvent, data: any): void {
+  private triggerEventWithData(event: InputEvent, data: unknown): void {
     const handlers = this.eventHandlers.get(event) || [];
     logger.debug(`Triggering ${event} event with data, handlers: ${handlers.length}`);
-    // Since we don't have a way to pass data to handlers directly,
-    // we'll store it temporarily as a property
-    (this as any).lastEventData = data;
+    this.lastEventData = data;
     handlers.forEach(handler => handler());
-    delete (this as any).lastEventData;
+    this.lastEventData = null;
   }
   
   /**
    * Get the last event data (for touch events)
    */
-  getLastEventData(): any {
-    return (this as any).lastEventData;
+  getLastEventData(): unknown {
+    return this.lastEventData;
   }
   
   /**

@@ -33,8 +33,12 @@ const DEFAULT_CONFIG: LoggerConfig = {
   showLogLevel: true
 };
 
+interface CustomWindow extends Window {
+  __loggerConfig?: LoggerConfig;
+}
+
 /**
- * Initialize the logger with configuration
+ * Initialize the logging system
  */
 export function initLogger(config: Partial<LoggerConfig> = {}): void {
   const finalConfig = { ...DEFAULT_CONFIG, ...config };
@@ -43,7 +47,7 @@ export function initLogger(config: Partial<LoggerConfig> = {}): void {
   log.setLevel(LogLevel.DEBUG);
   
   // Save config for formatters
-  (window as any).__loggerConfig = finalConfig;
+  (window as unknown as CustomWindow).__loggerConfig = finalConfig;
   
   // Log the current configuration
   Logger.info('Logger initialized', { level: finalConfig.level });
@@ -53,7 +57,7 @@ export function initLogger(config: Partial<LoggerConfig> = {}): void {
  * Format a log message with context information
  */
 function formatMessage(level: LogLevel, context: string, message: string): string {
-  const config = (window as any).__loggerConfig || DEFAULT_CONFIG;
+  const config = (window as unknown as CustomWindow).__loggerConfig || DEFAULT_CONFIG;
   
   const parts: string[] = [];
   
@@ -79,19 +83,19 @@ function formatMessage(level: LogLevel, context: string, message: string): strin
  */
 export function getLogger(context: string) {
   return {
-    trace: (message: string, ...args: any[]) => 
+    trace: (message: string, ...args: unknown[]) => 
       log.trace(formatMessage(LogLevel.TRACE, context, message), ...args),
     
-    debug: (message: string, ...args: any[]) => 
+    debug: (message: string, ...args: unknown[]) => 
       log.debug(formatMessage(LogLevel.DEBUG, context, message), ...args),
     
-    info: (message: string, ...args: any[]) => 
+    info: (message: string, ...args: unknown[]) => 
       log.info(formatMessage(LogLevel.INFO, context, message), ...args),
     
-    warn: (message: string, ...args: any[]) => 
+    warn: (message: string, ...args: unknown[]) => 
       log.warn(formatMessage(LogLevel.WARN, context, message), ...args),
     
-    error: (message: string, ...args: any[]) => 
+    error: (message: string, ...args: unknown[]) => 
       log.error(formatMessage(LogLevel.ERROR, context, message), ...args)
   };
 }

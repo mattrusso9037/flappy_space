@@ -13,15 +13,10 @@ interface ScoreboardProps {
 const Scoreboard: React.FC<ScoreboardProps> = ({ 
   score, 
   level, 
-  warps, 
-  time, 
   orbsCollected, 
   orbsRequired,
   timeRemaining 
 }) => {
-  // Format time as seconds with one decimal place
-  const formattedTime = (time / 1000).toFixed(1);
-  
   // Format time remaining in seconds
   const timeRemainingSeconds = Math.max(0, Math.ceil(timeRemaining / 1000));
   const minutes = Math.floor(timeRemainingSeconds / 60);

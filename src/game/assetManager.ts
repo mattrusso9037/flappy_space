@@ -64,7 +64,7 @@ class AssetManager {
 
     try {
       // Create load promise with proper error handling
-      this.loadPromise = new Promise(async (resolve, reject) => {
+      this.loadPromise = (async () => {
         try {
           // Load assets one by one with better error reporting
           for (const asset of gameAssets) {
@@ -78,13 +78,11 @@ class AssetManager {
           
           // Emit an event to notify that assets are loaded
           eventBus.emit(GameEvent.ASSETS_LOADED, gameAssets.map(a => a.name));
-          
-          resolve();
         } catch (error) {
           logger.error('Failed to load assets:', error);
-          reject(error);
+          throw error;
         }
-      });
+      })();
 
       return this.loadPromise;
     } catch (error) {

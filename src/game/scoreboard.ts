@@ -1,5 +1,4 @@
 import * as PIXI from 'pixi.js';
-import { GAME_WIDTH } from './config';
 
 export class Scoreboard {
   private container!: PIXI.Container;
@@ -94,7 +93,7 @@ export class Scoreboard {
     const ms = Math.floor((timeRemaining % 1000) / 100); // Get tenths of a second
     
     // Format time as M:SS.T for better readability
-    let timeDisplay = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}.${ms}`;
+    const timeDisplay = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}.${ms}`;
     this.timeText.text = timeDisplay;
 
     // Update progress bar

@@ -1,6 +1,6 @@
 import { GameState } from '../gameStateService';
 import { entityManager } from './entitySystem';
-import { LEVELS, ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { Planet } from '../entities/Planet';
 import { getLogger } from '../../utils/logger';
 

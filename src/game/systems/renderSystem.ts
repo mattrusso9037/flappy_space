@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { entityManager } from './entitySystem';
 import { gameStateService } from '../gameStateService';
-import { COLORS, GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 /**
  * RenderSystem manages all rendering operations for the game.
@@ -42,7 +42,7 @@ export class RenderSystem {
   /**
    * Update the render system (called every frame)
    */
-  public update(deltaTime: number, entities: any[]): void {
+  public update(_deltaTime?: number, _entities?: unknown[]): void {
     if (!this.initialized || !this.app) return;
   
     
@@ -134,11 +134,12 @@ export class RenderSystem {
       if ('radius' in obstacle) {
         this.debugGraphics.lineStyle(2, 0xFF0000);
         
+        const planet = obstacle as { x: number; y: number; radius: number };
         const planetBounds = new PIXI.Bounds();
-        planetBounds.minX = obstacle.x - (obstacle as any).radius;
-        planetBounds.maxX = obstacle.x + (obstacle as any).radius;
-        planetBounds.minY = obstacle.y - (obstacle as any).radius;
-        planetBounds.maxY = obstacle.y + (obstacle as any).radius;
+        planetBounds.minX = planet.x - planet.radius;
+        planetBounds.maxX = planet.x + planet.radius;
+        planetBounds.minY = planet.y - planet.radius;
+        planetBounds.maxY = planet.y + planet.radius;
         
         this.debugGraphics.drawRect(
           planetBounds.minX,
@@ -172,7 +173,7 @@ export class RenderSystem {
   /**
    * Add a display object to the stage
    */
-  public add(displayObject: any): void {
+  public add(displayObject: PIXI.ContainerChild): void {
     if (!this.app) return;
     this.app.stage.addChild(displayObject);
   }
@@ -180,7 +181,7 @@ export class RenderSystem {
   /**
    * Remove a display object from the stage
    */
-  public remove(displayObject: any): void {
+  public remove(displayObject: PIXI.ContainerChild): void {
     if (!this.app) return;
     this.app.stage.removeChild(displayObject);
   }

@@ -1,0 +1,46 @@
+import '@testing-library/jest-dom/vitest';
+
+// Provide basic canvas 2D context mock for jsdom environment if needed by Pixi.js
+if (typeof HTMLCanvasElement !== 'undefined') {
+  const originalGetContext = HTMLCanvasElement.prototype.getContext;
+  // @ts-expect-error - Mocking getContext for jsdom test environment
+  HTMLCanvasElement.prototype.getContext = function (
+    this: HTMLCanvasElement,
+    contextId: string,
+    options?: unknown
+  ) {
+    const ctx = originalGetContext ? (originalGetContext as (id: string, opts?: unknown) => unknown).call(this, contextId, options) : null;
+    if (ctx) return ctx;
+
+    return {
+      fillRect: () => {},
+      clearRect: () => {},
+      getImageData: (_x: number, _y: number, w: number, h: number) => ({
+        data: new Array(w * h * 4).fill(0),
+      }),
+      putImageData: () => {},
+      createImageData: () => [],
+      createLinearGradient: () => ({ addColorStop: () => {} }),
+      createRadialGradient: () => ({ addColorStop: () => {} }),
+      setTransform: () => {},
+      drawImage: () => {},
+      save: () => {},
+      fillText: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      closePath: () => {},
+      stroke: () => {},
+      translate: () => {},
+      scale: () => {},
+      rotate: () => {},
+      arc: () => {},
+      fill: () => {},
+      measureText: () => ({ width: 0 }),
+      transform: () => {},
+      rect: () => {},
+      clip: () => {},
+    };
+  };
+}

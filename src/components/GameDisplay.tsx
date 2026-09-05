@@ -3,7 +3,7 @@ import * as PIXI from 'pixi.js';
 import { GAME_WIDTH, GAME_HEIGHT } from '../game/config';
 import assetManager from '../game/assetManager';
 import inputManager from '../game/inputManager';
-import { GameState, gameStateService } from '../game/gameStateService';
+import { gameStateService } from '../game/gameStateService';
 import { GameController } from '../controllers/GameController';
 import { eventBus, GameEvent } from '../game/eventBus';
 import { inputSystem } from '../game/systems/inputSystem';
@@ -17,11 +17,7 @@ import { getLogger } from '../utils/logger';
 
 const logger = getLogger('GameDisplay');
 
-interface GameDisplayProps {
-
-}
-
-const GameDisplay = ({ }: GameDisplayProps) => {
+const GameDisplay = () => {
   // Use a dedicated ref for the container div that will hold the canvas
   const pixiContainerRef = useRef<HTMLDivElement>(null);
   
@@ -43,7 +39,6 @@ const GameDisplay = ({ }: GameDisplayProps) => {
   // Check if the device supports touch events
   useEffect(() => {
     const checkTouchSupport = () => {
-      const hasTouchPoints = navigator.maxTouchPoints > 0;
       const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       logger.debug(`Touch support detected: ${hasTouch}, max touch points: ${navigator.maxTouchPoints}`);
       setIsTouchDevice(hasTouch);
@@ -154,7 +149,7 @@ const GameDisplay = ({ }: GameDisplayProps) => {
         setLoadError(`Failed to initialize game controller: ${controllerError instanceof Error ? controllerError.message : String(controllerError)}`);
       }
     }
-  }, [gameControllerRef, gameControllerRef, isMountedRef, appRef]);
+  }, [gameControllerRef, isMountedRef, appRef]);
 
   // Initialize Pixi app
   useEffect(() => {
@@ -287,7 +282,7 @@ const GameDisplay = ({ }: GameDisplayProps) => {
       logger.debug('Cleaning up ASSETS_LOADED event listener');
       assetsLoadedSubscription.unsubscribe();
     };
-  }, [initializeGameController, isMountedRef.current]);
+  }, [initializeGameController]);
   
   
   

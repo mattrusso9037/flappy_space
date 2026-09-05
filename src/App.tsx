@@ -1,27 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import GameDisplay from './components/GameDisplay'
-import Scoreboard from './components/Scoreboard'
 import LevelMessage from './components/LevelMessage'
 import './App.css'
-import { GameState } from './game/gameStateService'
+import { GameState, gameStateService } from './game/gameStateService'
 
 function App() {
   // Game state
-  const [gameState, setGameState] = useState<GameState>({
-    score: 0,
-    level: 1,
-    warps: 0,
-    time: 0,
-    orbsCollected: 0,
-    orbsRequired: 5,
-    timeLimit: 60000,
-    timeRemaining: 60000,
-    isStarted: false,
-    isGameOver: false,
-    isLevelComplete: false,
-    debugMode: false
-  })
-  
+  const [gameState, setGameState] = useState<GameState>(gameStateService.getState())
+
+  useEffect(() => {
+    const sub = gameStateService.getState$().subscribe(setGameState)
+    return () => sub.unsubscribe()
+  }, [])
 
   return (
     <div className="App">
@@ -31,9 +21,7 @@ function App() {
       
       <main className="App-main">
         <div className="game-container">
-          <GameDisplay  />
-          
-    
+          <GameDisplay />
         </div>
       </main>
       

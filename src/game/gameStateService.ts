@@ -2,7 +2,6 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import { map, distinctUntilChanged } from 'rxjs/operators';
 import { LEVELS } from './config';
 import { eventBus, GameEvent } from './eventBus';
-import inputManager from './inputManager';
 // The core game state interface
 export interface GameState {
   score: number;

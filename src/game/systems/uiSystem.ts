@@ -291,7 +291,16 @@ export class UISystem {
           const child = containerRef.children[i];
           if (!child) continue;
           
-          const data = (child as any).userData;
+          const data = (child as unknown as {
+            userData?: {
+              isOrb?: boolean;
+              isGlow?: boolean;
+              vx?: number;
+              vy?: number;
+              alpha?: number;
+              rotation?: number;
+            };
+          }).userData;
           if (!data) continue;
           
           // Handle orb/glow effects specially
@@ -324,7 +333,7 @@ export class UISystem {
           
           // Otherwise it's a particle
           // Move based on velocity
-          if (data.vx !== undefined && data.vy !== undefined) {
+          if (typeof data.vx === 'number' && typeof data.vy === 'number') {
             child.x += data.vx;
             child.y += data.vy;
             
@@ -334,11 +343,13 @@ export class UISystem {
             
             // Fade out more slowly with higher speeds
             const alphaReduction = 0.02 / Math.sqrt(speedFactor);
-            data.alpha -= alphaReduction;
-            child.alpha = Math.max(0, data.alpha);
+            if (typeof data.alpha === 'number') {
+              data.alpha -= alphaReduction;
+              child.alpha = Math.max(0, data.alpha);
+            }
             
             // Add a little rotation
-            if (data.rotation) {
+            if (typeof data.rotation === 'number') {
               child.rotation += data.rotation;
             }
           }

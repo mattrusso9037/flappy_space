@@ -1,6 +1,5 @@
 import { Astronaut } from '../entities/Astronaut';
 import { Obstacle } from '../entities/Obstacle';
-import { Orb } from '../entities/Orb';
 import { gameStateService } from '../gameStateService';
 import { entityManager } from './entitySystem';
 import { eventBus, GameEvent } from '../eventBus';
@@ -113,7 +112,7 @@ export class PhysicsSystem {
   /**
    * Update physics for all entities
    */
-  public update(deltaTime: number, entities: any[]): void {
+  public update(deltaTime: number, _entities?: unknown[]): void {
     if (!this.initialized) return;
     
     const astronaut = entityManager.getAstronaut();

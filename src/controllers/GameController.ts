@@ -1,9 +1,15 @@
 import { Application, Ticker } from 'pixi.js';
-import inputManager, { InputEvent } from '../game/inputManager';
 import { EventBus, GameEvent } from '../game/eventBus';
 import { AudioSystem } from '../game/systems/audioSystem';
 import { InputSystem } from '../game/systems/inputSystem';
-import { GameStateService, GameState } from '../game/gameStateService';
+import { EntitySystem } from '../game/systems/entitySystem';
+import { RenderSystem } from '../game/systems/renderSystem';
+import { PhysicsSystem } from '../game/systems/physicsSystem';
+import { SpawningSystem } from '../game/systems/spawningSystem';
+import { UISystem } from '../game/systems/uiSystem';
+import { Obstacle } from '../game/entities/Obstacle';
+import { Orb } from '../game/entities/Orb';
+import { GameStateService } from '../game/gameStateService';
 import { LEVELS } from '../game/config';
 import { getLogger } from '../utils/logger';
 import { frameRateMonitor } from '../utils/frameRateMonitor';
@@ -35,11 +41,11 @@ export class GameController {
   // Game systems
   private inputSystem: InputSystem;
   private audioSystem: AudioSystem;
-  private entityManager: any;
-  private renderSystem: any;
-  private physicsSystem: any;
-  private spawningSystem: any;
-  private uiSystem: any;
+  private entityManager: EntitySystem;
+  private renderSystem: RenderSystem;
+  private physicsSystem: PhysicsSystem;
+  private spawningSystem: SpawningSystem;
+  private uiSystem: UISystem;
   
   // Game loop
   private gameLoopFunc: (ticker: Ticker) => void;
@@ -51,11 +57,11 @@ export class GameController {
     gameStateService: GameStateService,
     inputSystem: InputSystem,
     audioSystem: AudioSystem,
-    entityManager: any,
-    renderSystem: any,
-    physicsSystem: any,
-    spawningSystem: any,
-    uiSystem: any
+    entityManager: EntitySystem,
+    renderSystem: RenderSystem,
+    physicsSystem: PhysicsSystem,
+    spawningSystem: SpawningSystem,
+    uiSystem: UISystem
   ) {
     logger.info('Constructor called');
     this.app = app;
@@ -89,7 +95,6 @@ export class GameController {
     }
     
     logger.info('Initializing...');
-    this.app = this.app;
     
     // Initialize frame rate monitor
     logger.info('Enabling frame rate monitor');
@@ -168,7 +173,7 @@ export class GameController {
     
     // Collect speed data from obstacles
     if (obstacles.length > 0) {
-      const speedData: EntitySpeedData[] = obstacles.map((o: any) => ({
+      const speedData: EntitySpeedData[] = obstacles.map((o: Obstacle) => ({
         id: o.id || 'unknown',
         speed: o.speed,
         initialSpeed: o.initialSpeed,
@@ -201,7 +206,7 @@ export class GameController {
     
     // Collect speed data from orbs
     if (orbs.length > 0) {
-      const speedData: EntitySpeedData[] = orbs.map((o: any) => ({
+      const speedData: EntitySpeedData[] = orbs.map((o: Orb) => ({
         id: o.id || 'unknown',
         speed: o.speed,
         initialSpeed: o.initialSpeed,
@@ -591,7 +596,7 @@ export class GameController {
     });
     
     logger.info('Subscribing to ORB_COLLECTED event');
-    this.eventBus.on(GameEvent.ORB_COLLECTED).subscribe((data: any) => {
+    this.eventBus.on(GameEvent.ORB_COLLECTED).subscribe((data: unknown) => {
       logger.info(`GameController: Received ORB_COLLECTED, data:`, data);
       // Check if all orbs have been collected
       const state = this.gameStateService.getState();
@@ -604,10 +609,10 @@ export class GameController {
     });
     
     logger.info('Subscribing to TIME_UPDATED event');
-    this.eventBus.on(GameEvent.TIME_UPDATED).subscribe((data: any) => {
+    this.eventBus.on<{ timeRemaining?: number }>(GameEvent.TIME_UPDATED).subscribe((data) => {
       logger.info(`GameController: Received TIME_UPDATED, data:`, data);
       // Check if time ran out
-      if (data && data.timeRemaining <= 0) {
+      if (data && typeof data.timeRemaining === 'number' && data.timeRemaining <= 0) {
         logger.info('GameController: Time expired');
         this.gameOver();
       }
@@ -699,12 +704,6 @@ export class GameController {
       
       // Track frame in the monitor
       frameRateMonitor.trackFrame(ticker.deltaMS);
-      
-      // Log ticker state more frequently during gameplay
-      if (Math.random() < 0.05) {
-        const gameState = this.gameStateService.getState();
-   
-      }
       
       // Every 300 frames (about 5 seconds at 60fps), check ticker health
       if (tickCount % 300 === 0) {

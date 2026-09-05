@@ -250,14 +250,15 @@ export class EntitySystem {
         if (index === -1) return;
 
         // Remove from display and destroy
-        if ('graphics' in obstacle && (obstacle as any).graphics instanceof PIXI.Graphics) {
-           const graphics = (obstacle as any).graphics;
+        const obstacleWithGraphics = obstacle as { graphics?: PIXI.Graphics; glowGraphics?: PIXI.Graphics };
+        if (obstacleWithGraphics.graphics instanceof PIXI.Graphics) {
+           const graphics = obstacleWithGraphics.graphics;
            if (this.app.stage.children.includes(graphics)) {
              this.app.stage.removeChild(graphics);
            }
            graphics.destroy(); // Destroy graphics
-          if ('glowGraphics' in obstacle && (obstacle as any).glowGraphics instanceof PIXI.Graphics) {
-             const glowGraphics = (obstacle as any).glowGraphics;
+          if (obstacleWithGraphics.glowGraphics instanceof PIXI.Graphics) {
+             const glowGraphics = obstacleWithGraphics.glowGraphics;
             if (this.app.stage.children.includes(glowGraphics)) {
               this.app.stage.removeChild(glowGraphics);
             }
@@ -318,15 +319,16 @@ export class EntitySystem {
     this.logger.debug(`Clearing ${this.obstacles.length} obstacles`);
     this.obstacles.forEach(obstacle => {
       // Remove from stage and destroy graphics/sprites
-      if ('graphics' in obstacle && (obstacle as any).graphics instanceof PIXI.Graphics) {
-        const graphics = (obstacle as any).graphics;
+      const itemWithGraphics = obstacle as { graphics?: PIXI.Graphics; glowGraphics?: PIXI.Graphics };
+      if (itemWithGraphics.graphics instanceof PIXI.Graphics) {
+        const graphics = itemWithGraphics.graphics;
         if (this.app?.stage.children.includes(graphics)) {
             this.app.stage.removeChild(graphics);
         }
         graphics.destroy(); // Destroy graphics
 
-        if ('glowGraphics' in obstacle && (obstacle as any).glowGraphics instanceof PIXI.Graphics) {
-          const glowGraphics = (obstacle as any).glowGraphics;
+        if (itemWithGraphics.glowGraphics instanceof PIXI.Graphics) {
+          const glowGraphics = itemWithGraphics.glowGraphics;
            if (this.app?.stage.children.includes(glowGraphics)) {
              this.app.stage.removeChild(glowGraphics);
            }
@@ -416,7 +418,7 @@ export class EntitySystem {
   /**
    * Get all game entities as a single array
    */
-  public getAllEntities(): any[] {
+  public getAllEntities(): (Obstacle | Star | Astronaut)[] {
     // Debug this method occasionally
     if (Math.random() < 0.01) {
       this.logger.debug(`EntityManager.getAllEntities: Astronaut: ${this.astronaut ? 'present' : 'null'}, Obstacles: ${this.obstacles.length}, Orbs: ${this.orbs.length}, Stars: ${this.stars.length}`); 

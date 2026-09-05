@@ -35,7 +35,7 @@ export enum GameEvent {
 }
 
 // Type for event payloads
-export interface EventPayload<T = any> {
+export interface EventPayload<T = unknown> {
   type: GameEvent;
   data: T;
 }

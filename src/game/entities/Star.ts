@@ -1,5 +1,4 @@
 import * as PIXI from 'pixi.js';
-import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 
 export class Star {
   graphics: PIXI.Graphics;
