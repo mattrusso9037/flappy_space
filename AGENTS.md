@@ -101,10 +101,35 @@ The game engine follows an **Entity-Component-System (ECS)** architecture with a
 
 ---
 
-## 5. File & Directory Layout
+## 5. PixiJS v8 Skills & Reference Guidance
+
+Comprehensive PixiJS v8 reference skills and cheatsheets are maintained for AI agents assisting with this project.
+
+### Locations
+- **Global / Machine**: `~/.agents/skills/` (symlinked to `~/.gemini/config/skills/` for Antigravity discovery).
+- **Workspace (Project-Local)**: `.agents/skills/` (optional, for direct workspace access).
+
+### Available PixiJS Skills
+- **Router / Entry Point**: `pixijs` (`SKILL.md` routes to all specialized skills below).
+- **Foundations & Core**: `pixijs-application`, `pixijs-core-concepts`, `pixijs-create`, `pixijs-environments`.
+- **Scene Graph & Display**: `pixijs-scene-container`, `pixijs-scene-core-concepts`, `pixijs-scene-graphics`, `pixijs-scene-sprite`, `pixijs-scene-mesh`, `pixijs-scene-text`, `pixijs-scene-particle-container`, `pixijs-scene-dom-container`, `pixijs-scene-gif`.
+- **Rendering & Shaders**: `pixijs-custom-rendering`, `pixijs-filters`, `pixijs-blend-modes`, `pixijs-color`.
+- **Interactions & Pipeline**: `pixijs-events`, `pixijs-assets`, `pixijs-ticker`, `pixijs-math`, `pixijs-accessibility`.
+- **Optimization & Upgrades**: `pixijs-performance`, `pixijs-migration-v8`.
+- **API Reference Fallback**: For APIs not covered directly in a sub-skill, reference `https://pixijs.download/release/docs/llms.txt`.
+
+### Agent Guidelines for PixiJS
+1. **Always Target Pixi.js v8**: Never use deprecated v7 APIs (e.g., synchronous `new Application()` without `await app.init()`, old `@pixi/*` sub-packages, or legacy `beginFill()`/`endFill()`).
+2. **Consult Relevant Sub-Skill**: Before implementing complex rendering, particle systems, filters, or custom shaders, consult the corresponding skill instructions or references.
+3. **Preserve Headless Testing**: Ensure all Pixi display code remains compatible with the canvas mocks in `src/test/setup.ts`.
+
+---
+
+## 6. File & Directory Layout
 
 ```
 flappy_space/
+├── .agents/skills/            # Optional project-local agent skills
 ├── .cursor/rules/             # Cursor-specific rule configurations
 ├── .github/workflows/         # GitHub Actions CI automation
 ├── electron/                  # Electron main & preload scripts
@@ -127,3 +152,4 @@ flappy_space/
 ├── tsconfig.json              # TypeScript root configuration
 └── vite.config.ts             # Vite bundler & Vitest test runner configuration
 ```
+
