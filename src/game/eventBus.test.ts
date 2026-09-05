@@ -32,10 +32,10 @@ describe('EventBus', () => {
   });
 
   it('allows subscribing and receiving emitted events with correct payload', () => {
-    const bus = EventBus.getInstance();
+    const bus = new EventBus();
     const mockHandler = vi.fn();
 
-    const subscription = bus.on<number>(GameEvent.SCORE_CHANGED).subscribe(mockHandler);
+    const subscription = bus.on(GameEvent.SCORE_CHANGED).subscribe(mockHandler);
 
     bus.emit(GameEvent.SCORE_CHANGED, 42);
     expect(mockHandler).toHaveBeenCalledWith(42);
@@ -48,12 +48,12 @@ describe('EventBus', () => {
   });
 
   it('isolates different event types so handlers only receive their registered event', () => {
-    const bus = EventBus.getInstance();
+    const bus = new EventBus();
     const scoreHandler = vi.fn();
     const levelHandler = vi.fn();
 
-    const sub1 = bus.on<number>(GameEvent.SCORE_CHANGED).subscribe(scoreHandler);
-    const sub2 = bus.on<number>(GameEvent.LEVEL_CHANGED).subscribe(levelHandler);
+    const sub1 = bus.on(GameEvent.SCORE_CHANGED).subscribe(scoreHandler);
+    const sub2 = bus.on(GameEvent.LEVEL_CHANGED).subscribe(levelHandler);
 
     bus.emit(GameEvent.LEVEL_CHANGED, 3);
     expect(scoreHandler).not.toHaveBeenCalled();
@@ -64,7 +64,7 @@ describe('EventBus', () => {
   });
 
   it('stops delivering events after unsubscribing', () => {
-    const bus = EventBus.getInstance();
+    const bus = new EventBus();
     const mockHandler = vi.fn();
 
     const sub = bus.on(GameEvent.GAME_OVER).subscribe(mockHandler);
@@ -77,7 +77,7 @@ describe('EventBus', () => {
   });
 
   it('toggles debug logging without throwing', () => {
-    const bus = EventBus.getInstance();
+    const bus = new EventBus();
     expect(() => bus.enableDebug()).not.toThrow();
     bus.emit(GameEvent.SCORE_CHANGED, 10);
     expect(() => bus.disableDebug()).not.toThrow();
@@ -85,15 +85,16 @@ describe('EventBus', () => {
   });
 
   it('provides the raw event stream with full payload metadata', () => {
-    const bus = EventBus.getInstance();
+    const bus = new EventBus();
     const streamHandler = vi.fn();
 
     const sub = bus.getEventStream().subscribe(streamHandler);
-    bus.emit(GameEvent.ORB_COLLECTED, 5);
+    const orbData = { x: 10, y: 20 };
+    bus.emit(GameEvent.ORB_COLLECTED, orbData);
 
     expect(streamHandler).toHaveBeenCalledWith({
       type: GameEvent.ORB_COLLECTED,
-      data: 5
+      data: orbData
     });
 
     sub.unsubscribe();

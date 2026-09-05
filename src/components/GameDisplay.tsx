@@ -3,9 +3,8 @@ import * as PIXI from 'pixi.js';
 import { Subscription } from 'rxjs';
 import { GAME_WIDTH, GAME_HEIGHT } from '../game/config';
 import assetManager from '../game/assetManager';
-import inputManager from '../game/inputManager';
-import { GameState, gameStateService } from '../game/gameStateService';
-import { eventBus, GameEvent } from '../game/eventBus';
+import { GameState, getInitialGameState } from '../game/gameStateService';
+import { GameEvent } from '../game/eventBus';
 import { createFlappySpaceRuntime } from '../game/createFlappySpaceRuntime';
 import { GameRuntime } from '../game/GameRuntime';
 import { getLogger } from '../utils/logger';
@@ -31,16 +30,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
     onGameStateChangeRef.current = onGameStateChange;
   }, [onGameStateChange]);
 
-  // Track component mounted state
-  const isMountedRef = useRef(true);
-  
   // Component presentation state
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isGameOver, setIsGameOver] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
-  const [currentState, setCurrentState] = useState<GameState>(() => gameStateService.getState());
+  const [currentState, setCurrentState] = useState<GameState>(getInitialGameState);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+
 
   // Check if device supports touch events
   useEffect(() => {
@@ -68,9 +65,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
       runtimeRef.current = null;
     }
 
-    logger.debug('Disabling input manager');
-    inputManager.disable();
-
     if (appRef.current) {
       logger.debug('Destroying PIXI application');
       appRef.current.destroy(true, { children: true, texture: true });
@@ -80,7 +74,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
 
   // Initialize game runtime after assets are loaded
   const initializeRuntime = useCallback(() => {
-    logger.debug('Initializing game runtime after assets loaded', isMountedRef.current, appRef.current);
+    logger.debug('Initializing game runtime after assets loaded', appRef.current);
     
     setIsLoaded(true);
     setLoadError(null);
@@ -117,7 +111,6 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
 
       // Subscribe to runtime state changes for React presentation
       runtimeSubRef.current = runtime.state.getState$().subscribe(state => {
-        if (!isMountedRef.current) return;
         setIsGameOver(state.isGameOver);
         setGameStarted(state.isStarted);
         setCurrentState(state);
@@ -127,15 +120,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
       logger.debug('GameRuntime initialized successfully');
     } catch (err) {
       logger.error('Failed to initialize game runtime:', err);
-      if (isMountedRef.current) {
-        setLoadError(`Failed to initialize game runtime: ${err instanceof Error ? err.message : String(err)}`);
-      }
+      setLoadError(`Failed to initialize game runtime: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, []);
 
   // Initialize Pixi app and attach canvas
   useEffect(() => {
-    isMountedRef.current = true;
+    let isCancelled = false;
+    let removeResizeListener: (() => void) | null = null;
 
     const setupApp = async () => {
       if (!pixiContainerRef.current || appRef.current) {
@@ -153,18 +145,17 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
           resolution: window.devicePixelRatio || 1,
         });
 
-        if (!isMountedRef.current) {
+        if (isCancelled) {
           app.destroy(true);
           return;
         }
         
         appRef.current = app;
         
-        if (pixiContainerRef.current.firstChild) {
+        if (pixiContainerRef.current) {
           pixiContainerRef.current.innerHTML = '';
+          pixiContainerRef.current.appendChild(app.canvas);
         }
-        
-        pixiContainerRef.current.appendChild(app.canvas);
         
         // Setup responsive canvas scaling
         const handleResize = () => {
@@ -192,23 +183,21 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
         
         handleResize();
         window.addEventListener('resize', handleResize);
+        removeResizeListener = () => {
+          window.removeEventListener('resize', handleResize);
+        };
         
         // Load assets
         if (!assetManager.isLoaded()) {
           await assetManager.loadAssets();
         }
         
-        if (!isMountedRef.current) return;
+        if (isCancelled) return;
         initializeRuntime();
-        
-        return () => {
-          window.removeEventListener('resize', handleResize);
-        };
       } catch (error) {
+        if (isCancelled) return;
         logger.error('Error initializing Pixi application:', error);
-        if (isMountedRef.current) {
-          setLoadError(`Error initializing game: ${error instanceof Error ? error.message : String(error)}`);
-        }
+        setLoadError(`Error initializing game: ${error instanceof Error ? error.message : String(error)}`);
         cleanupPixi();
       }
     };
@@ -216,23 +205,14 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
     setupApp();
     
     return () => {
-      isMountedRef.current = false;
+      isCancelled = true;
+      if (removeResizeListener) {
+        removeResizeListener();
+      }
       cleanupPixi();
     };
   }, [cleanupPixi, initializeRuntime]);
-  
-  // Set up listener for asset loading completion if triggered elsewhere
-  useEffect(() => {
-    const assetsLoadedSubscription = eventBus.on(GameEvent.ASSETS_LOADED).subscribe(() => {
-      if (!runtimeRef.current && appRef.current && isMountedRef.current) {
-        initializeRuntime();
-      }
-    });
-    
-    return () => {
-      assetsLoadedSubscription.unsubscribe();
-    };
-  }, [initializeRuntime]);
+
 
   const handleStartOrReset = () => {
     if (runtimeRef.current) {

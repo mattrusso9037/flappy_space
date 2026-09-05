@@ -28,101 +28,100 @@ export enum GameEvent {
   SHOW_START_PROMPT = 'SHOW_START_PROMPT',
   HIDE_START_PROMPT = 'HIDE_START_PROMPT',
   RESTART_GAME = 'RESTART_GAME',
-  PLAYER_DEATH = 'PLAYER_DEATH',
-  COLLECT_ORB = 'COLLECT_ORB',
-  PLAYER_HIT_OBSTACLE = 'PLAYER_HIT_OBSTACLE',
-  ASSETS_LOADED = 'ASSETS_LOADED'
+  ASSETS_LOADED = 'ASSETS_LOADED',
 }
 
-// Typed event map for Flappy Space
+export interface OrbCollectedData {
+  orbId?: string;
+  x: number;
+  y: number;
+  radius?: number;
+  speed?: number;
+  graphics?: unknown;
+  glowGraphics?: unknown;
+}
+
+export interface CollisionData {
+  entityType?: string;
+  astronaut?: unknown;
+  obstacle?: unknown;
+}
+
+export interface TimeUpdatedData {
+  time?: number;
+  timeRemaining: number;
+  timeRanOut?: boolean;
+}
+
+export interface LevelCompleteData {
+  level: number;
+}
+
+export interface GameOverData {
+  reason?: string;
+}
+
+export interface EntityEventData {
+  type: string;
+  entity: unknown;
+}
+
+// Canonical strongly-typed event map
 export interface FlappyGameEvents {
-  SCORE_CHANGED: number;
-  LEVEL_CHANGED: number;
-  GAME_OVER: null | { reason?: string };
-  LEVEL_COMPLETE: number;
-  GAME_STARTED: null | void;
-  GAME_RESET: null | void;
-  ORB_COLLECTED: number | { x: number; y: number; radius?: number; graphics?: unknown; glowGraphics?: unknown; speed?: number; orbId?: string };
-  OBSTACLE_PASSED: unknown;
-  COLLISION_DETECTED: unknown;
-  JUMP_ACTION: null | void;
-  MOVE_UP_ACTION: null | void;
-  MOVE_DOWN_ACTION: null | void;
-  MOVE_LEFT_ACTION: null | void;
-  MOVE_RIGHT_ACTION: null | void;
-  DEBUG_TOGGLED: boolean;
-  ENTITY_CREATED: unknown;
-  ENTITY_DESTROYED: unknown;
-  TIME_UPDATED: { time?: number; timeRemaining?: number; timeRanOut?: boolean };
-  START_GAME: null | void;
-  SHOW_START_PROMPT: null | void;
-  HIDE_START_PROMPT: null | void;
-  RESTART_GAME: null | void;
-  PLAYER_DEATH: unknown;
-  COLLECT_ORB: unknown;
-  PLAYER_HIT_OBSTACLE: unknown;
-  ASSETS_LOADED: string[];
-
-  // Typed game event contracts
-  gameStarted: void;
-  gameReset: void;
-  jumpRequested: void;
-  moveLeftRequested: void;
-  moveRightRequested: void;
-  moveUpRequested: void;
-  moveDownRequested: void;
-  playerDied: { reason: 'obstacle' | 'boundary' | 'timeout' };
-  obstaclePassed: { obstacleId: string };
-  orbCollected: { orbId: string; x: number; y: number; radius: number };
-  scoreChanged: { score: number };
-  levelChanged: { level: number };
-  levelComplete: { level: number };
+  [GameEvent.SCORE_CHANGED]: number;
+  [GameEvent.LEVEL_CHANGED]: number;
+  [GameEvent.GAME_OVER]: GameOverData | null;
+  [GameEvent.LEVEL_COMPLETE]: LevelCompleteData;
+  [GameEvent.GAME_STARTED]: null | void;
+  [GameEvent.GAME_RESET]: null | void;
+  [GameEvent.ORB_COLLECTED]: OrbCollectedData;
+  [GameEvent.OBSTACLE_PASSED]: unknown;
+  [GameEvent.COLLISION_DETECTED]: CollisionData | null;
+  [GameEvent.JUMP_ACTION]: null | void;
+  [GameEvent.MOVE_UP_ACTION]: null | void;
+  [GameEvent.MOVE_DOWN_ACTION]: null | void;
+  [GameEvent.MOVE_LEFT_ACTION]: null | void;
+  [GameEvent.MOVE_RIGHT_ACTION]: null | void;
+  [GameEvent.DEBUG_TOGGLED]: boolean;
+  [GameEvent.ENTITY_CREATED]: EntityEventData;
+  [GameEvent.ENTITY_DESTROYED]: EntityEventData;
+  [GameEvent.TIME_UPDATED]: TimeUpdatedData;
+  [GameEvent.START_GAME]: null | void;
+  [GameEvent.SHOW_START_PROMPT]: null | void;
+  [GameEvent.HIDE_START_PROMPT]: null | void;
+  [GameEvent.RESTART_GAME]: null | void;
+  [GameEvent.ASSETS_LOADED]: string[];
 }
 
-// Type for event payloads
 export interface EventPayload<T = unknown> {
   type: string;
   data: T;
 }
 
-// The EventBus class (can be instantiated per runtime or used via singleton during transition)
+/**
+ * EventBus coordinates communication between decoupled systems.
+ * Strictly typed with no permissive fallback overloads.
+ */
 export class EventBus<TEvents extends object = FlappyGameEvents> {
-  private static instance: EventBus<FlappyGameEvents>;
-  
-  // The main subject that all events flow through
   private eventSubject: Subject<EventPayload<unknown>>;
-  
-  // Debug flag to control verbose logging
   private debug: boolean = false;
-  
+
   public constructor() {
     this.eventSubject = new Subject<EventPayload<unknown>>();
   }
-  
-  // Get the singleton instance (retained during transition)
-  public static getInstance(): EventBus<FlappyGameEvents> {
-    if (!EventBus.instance) {
-      EventBus.instance = new EventBus<FlappyGameEvents>();
-    }
-    return EventBus.instance;
-  }
-  
-  // Enable debug logging
+
   public enableDebug(): void {
     this.debug = true;
     logger.info('Debug mode enabled - all events will be logged');
   }
-  
-  // Disable debug logging
+
   public disableDebug(): void {
     this.debug = false;
     logger.info('Debug mode disabled');
   }
-  
-  // Publish an event to the bus
-  public emit<K extends keyof TEvents>(type: K, data: TEvents[K]): void;
-  public emit<T = unknown>(type: string | GameEvent, data: T): void;
-  public emit(type: unknown, data: unknown): void {
+
+  // Publish a strongly-typed event
+  public emit<K extends keyof TEvents>(type: K, data: TEvents[K]): void {
     const eventType = String(type);
     if (this.debug) {
       logger.debug(`EMIT: ${eventType}`, data);
@@ -131,11 +130,9 @@ export class EventBus<TEvents extends object = FlappyGameEvents> {
     }
     this.eventSubject.next({ type: eventType, data });
   }
-  
-  // Subscribe to a specific event type
-  public on<K extends keyof TEvents, TResult = TEvents[K]>(eventType: K): Observable<TResult>;
-  public on<T = unknown>(eventType: string | GameEvent): Observable<T>;
-  public on(eventType: unknown): Observable<unknown> {
+
+  // Subscribe to a strongly-typed event
+  public on<K extends keyof TEvents>(eventType: K): Observable<TEvents[K]> {
     const targetType = String(eventType);
     if (this.debug) {
       logger.debug(`SUBSCRIBE: ${targetType}`);
@@ -144,15 +141,12 @@ export class EventBus<TEvents extends object = FlappyGameEvents> {
     }
     return this.eventSubject.pipe(
       filter(event => event.type === targetType),
-      map(event => event.data)
+      map(event => event.data as TEvents[K])
     );
   }
-  
-  // Get the raw event stream (for advanced use cases)
+
+  // Raw stream for diagnostic purposes
   public getEventStream(): Observable<EventPayload<unknown>> {
     return this.eventSubject.asObservable();
   }
 }
-
-// Export a default instance for convenient imports
-export const eventBus = EventBus.getInstance();

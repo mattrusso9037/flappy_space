@@ -8,6 +8,7 @@ import { RenderSystem } from './systems/renderSystem';
 import { InputSystem } from './systems/inputSystem';
 import { AudioSystem } from './systems/audioSystem';
 import { UISystem } from './systems/uiSystem';
+import { InputManager } from './inputManager';
 import { GameRuntime } from './GameRuntime';
 import { getLogger } from '../utils/logger';
 
@@ -21,13 +22,14 @@ export function createFlappySpaceRuntime(app: PIXI.Application): GameRuntime {
   logger.info('Assembling Flappy Space runtime dependencies...');
 
   const events = new EventBus();
-  const state = new GameStateService(undefined, events);
+  const state = new GameStateService();
+  const inputMgr = new InputManager();
 
   const entities = new EntitySystem(app, undefined, events);
   const physics = new PhysicsSystem(entities, state, events);
   const spawning = new SpawningSystem(entities, state);
   const rendering = new RenderSystem(app, entities, state);
-  const input = new InputSystem(events, state, undefined, entities);
+  const input = new InputSystem(events, state, inputMgr, entities);
   const audio = new AudioSystem(events);
 
   const ui = new UISystem(app, events, state);

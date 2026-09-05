@@ -44,6 +44,7 @@ export class GameRuntime {
   private initialized: boolean = false;
   private disposed: boolean = false;
   private isPaused: boolean = false;
+  private levelTransitionCountdown: number | null = null;
   private subscriptions: Subscription[] = [];
   private onTickBound: (ticker: PIXI.Ticker) => void;
 
@@ -98,6 +99,7 @@ export class GameRuntime {
    */
   public reset(): void {
     logger.info('Resetting GameRuntime session...');
+    this.levelTransitionCountdown = null;
     this.systems.entities.clearAll();
     this.systems.spawning.resetSpawning();
     this.state.resetGame();
@@ -183,8 +185,28 @@ export class GameRuntime {
       return;
     }
 
+    // If waiting for level transition, count down simulation time
+    if (this.levelTransitionCountdown !== null) {
+      this.levelTransitionCountdown -= deltaSeconds;
+      if (this.levelTransitionCountdown <= 0) {
+        this.levelTransitionCountdown = null;
+        if (!this.disposed) {
+          const nextLevel = this.state.getState().level;
+          this.systems.entities.clearAll();
+          this.systems.spawning.resetSpawning();
+          this.initializeLevel(nextLevel);
+        }
+      }
+      return;
+    }
+
     // 2. Decrement remaining level time
-    this.state.updateTime(ticker.deltaMS);
+    const updatedState = this.state.updateTime(ticker.deltaMS);
+    this.events.emit(GameEvent.TIME_UPDATED, {
+      time: updatedState.time,
+      timeRemaining: updatedState.timeRemaining,
+      timeRanOut: updatedState.timeRemaining <= 0,
+    });
 
     // 3. Update physics (movement, boundaries, collisions)
     try {
@@ -222,6 +244,7 @@ export class GameRuntime {
     if (this.disposed) return;
 
     logger.info('Disposing GameRuntime...');
+    this.levelTransitionCountdown = null;
 
     if (this.app.ticker) {
       this.app.ticker.remove(this.onTickBound);
@@ -279,7 +302,7 @@ export class GameRuntime {
 
     // TIME_UPDATED checks timeout
     this.subscriptions.push(
-      this.events.on<{ timeRemaining?: number }>(GameEvent.TIME_UPDATED).subscribe(data => {
+      this.events.on(GameEvent.TIME_UPDATED).subscribe(data => {
         if (data && typeof data.timeRemaining === 'number' && data.timeRemaining <= 0) {
           this.handleGameOver('timeout');
         }
@@ -299,21 +322,16 @@ export class GameRuntime {
       astronaut.die();
     }
 
-    this.events.emit(GameEvent.GAME_OVER, null);
+    this.events.emit(GameEvent.GAME_OVER, { reason });
   }
 
   private handleLevelComplete(): void {
-    logger.info('Level complete triggered');
+    const currentLevel = this.state.getState().level;
+    logger.info(`Level ${currentLevel} complete triggered`);
     this.state.levelComplete();
-    this.events.emit(GameEvent.LEVEL_COMPLETE, null);
+    this.events.emit(GameEvent.LEVEL_COMPLETE, { level: currentLevel });
 
-    // Transition to next level after brief celebration
-    setTimeout(() => {
-      if (this.disposed) return;
-      const nextLevel = this.state.getState().level;
-      this.systems.entities.clearAll();
-      this.systems.spawning.resetSpawning();
-      this.initializeLevel(nextLevel);
-    }, 2000);
+    // Transition to next level after brief celebration via simulation time countdown
+    this.levelTransitionCountdown = 2.0;
   }
 }

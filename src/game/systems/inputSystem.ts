@@ -1,7 +1,7 @@
-import { EventBus, eventBus, GameEvent } from '../eventBus';
-import { GameStateService, gameStateService } from '../gameStateService';
-import defaultInputManager, { InputEvent, TouchData, Direction } from '../inputManager';
-import { EntitySystem, entityManager } from './entitySystem';
+import { EventBus, GameEvent } from '../eventBus';
+import { GameStateService } from '../gameStateService';
+import { InputManager, InputEvent, TouchData, Direction } from '../inputManager';
+import { EntitySystem } from './entitySystem';
 import { Subscription } from 'rxjs';
 import { getLogger } from '../../utils/logger';
 
@@ -12,7 +12,6 @@ const logger = getLogger('InputSystem');
  * It abstracts the low-level input handling from the game logic.
  */
 export class InputSystem {
-  private static instance: InputSystem;
   private subscriptions: Subscription[] = [];
   private initialized: boolean = false;
   private enabled: boolean = false;
@@ -20,27 +19,20 @@ export class InputSystem {
   private lastTouchCoordinates: { x: number, y: number } | null = null;
   private readonly events: EventBus;
   private readonly state: GameStateService;
-  private readonly inputMgr: typeof defaultInputManager;
+  private readonly inputMgr: InputManager;
   private readonly entities: EntitySystem;
   
   public constructor(
-    events: EventBus = eventBus,
-    state: GameStateService = gameStateService,
-    inputMgr: typeof defaultInputManager = defaultInputManager,
-    entities: EntitySystem = entityManager
+    events: EventBus,
+    state: GameStateService,
+    inputMgr: InputManager,
+    entities: EntitySystem
   ) {
     this.events = events;
     this.state = state;
     this.inputMgr = inputMgr;
     this.entities = entities;
     logger.info('Instance created');
-  }
-  
-  public static getInstance(): InputSystem {
-    if (!InputSystem.instance) {
-      InputSystem.instance = new InputSystem();
-    }
-    return InputSystem.instance;
   }
   
   /**
@@ -121,6 +113,9 @@ export class InputSystem {
     
     // Remove keyboard event listener
     document.removeEventListener('keydown', this.handleKeyDown);
+    
+    // Dispose input manager
+    this.inputMgr.dispose();
     
     // Unsubscribe from all state changes
     this.subscriptions.forEach(sub => sub.unsubscribe());
@@ -284,16 +279,10 @@ export class InputSystem {
       
       // If game is over, reset everything first
       if (state.isGameOver) {
-        logger.info('Game was over - emitting RESTART_GAME event');
+        logger.info('Game was over - emitting RESTART_GAME and START_GAME events');
         this.events.emit(GameEvent.RESTART_GAME, null);
-        
-        // Wait a short time before starting
-        setTimeout(() => {
-          logger.info('Starting game after reset');
-          this.events.emit(GameEvent.START_GAME, null);
-          this.inTransition = false;
-        }, 200);
-        
+        this.events.emit(GameEvent.START_GAME, null);
+        this.inTransition = false;
         return true;
       } 
       // If game is not started and not in game over state, just start it
@@ -383,7 +372,4 @@ export class InputSystem {
   public getLastTouchCoordinates(): { x: number, y: number } | null {
     return this.lastTouchCoordinates;
   }
-}
-
-// Export a default instance for convenient imports
-export const inputSystem = InputSystem.getInstance(); 
+} 

@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { gameStateService, GameStateService } from './gameStateService';
-import { eventBus, GameEvent } from './eventBus';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { GameStateService } from './gameStateService';
 import { LEVELS } from './config';
 
 describe('GameStateService', () => {
+  let stateService: GameStateService;
+
   beforeEach(() => {
-    gameStateService.resetGame();
+    stateService = new GameStateService();
   });
 
   it('isolates separate state service instances', () => {
@@ -18,7 +19,7 @@ describe('GameStateService', () => {
   });
 
   it('initializes with default Level 1 state', () => {
-    const state = gameStateService.getState();
+    const state = stateService.getState();
     expect(state.score).toBe(0);
     expect(state.level).toBe(1);
     expect(state.warps).toBe(0);
@@ -33,59 +34,42 @@ describe('GameStateService', () => {
     expect(state.debugMode).toBe(false);
   });
 
-  it('starts the game and emits GAME_STARTED event', () => {
-    const handler = vi.fn();
-    const sub = eventBus.on(GameEvent.GAME_STARTED).subscribe(handler);
+  it('starts the game and updates state flags', () => {
+    stateService.startGame();
 
-    gameStateService.startGame();
-
-    const state = gameStateService.getState();
+    const state = stateService.getState();
     expect(state.isStarted).toBe(true);
     expect(state.isGameOver).toBe(false);
     expect(state.isLevelComplete).toBe(false);
-    expect(handler).toHaveBeenCalled();
-
-    sub.unsubscribe();
   });
 
-  it('increments score correctly and emits SCORE_CHANGED event', () => {
-    const scoreHandler = vi.fn();
-    const sub = eventBus.on<number>(GameEvent.SCORE_CHANGED).subscribe(scoreHandler);
+  it('increments score correctly', () => {
+    stateService.incrementScore(50);
+    expect(stateService.getState().score).toBe(50);
 
-    gameStateService.incrementScore(50);
-    expect(gameStateService.getState().score).toBe(50);
-
-    gameStateService.incrementScore(25);
-    expect(gameStateService.getState().score).toBe(75);
-
-    expect(scoreHandler).toHaveBeenCalledWith(50);
-    expect(scoreHandler).toHaveBeenCalledWith(75);
-
-    sub.unsubscribe();
+    stateService.incrementScore(25);
+    expect(stateService.getState().score).toBe(75);
   });
 
   it('collects orbs, increases score by ORB_POINTS (50), and detects level completion threshold', () => {
-    const required = gameStateService.getState().orbsRequired;
+    const required = stateService.getState().orbsRequired;
     for (let i = 1; i < required; i++) {
-      gameStateService.collectOrb();
-      expect(gameStateService.getState().orbsCollected).toBe(i);
-      expect(gameStateService.getState().isLevelComplete).toBe(false);
+      stateService.collectOrb();
+      expect(stateService.getState().orbsCollected).toBe(i);
+      expect(stateService.getState().isLevelComplete).toBe(false);
     }
 
     // Collecting the final required orb
-    gameStateService.collectOrb();
-    expect(gameStateService.getState().orbsCollected).toBe(required);
-    expect(gameStateService.getState().isLevelComplete).toBe(true);
-    expect(gameStateService.getState().score).toBe(required * 50);
+    stateService.collectOrb();
+    expect(stateService.getState().orbsCollected).toBe(required);
+    expect(stateService.getState().isLevelComplete).toBe(true);
+    expect(stateService.getState().score).toBe(required * 50);
   });
 
   it('transitions to next level on levelComplete()', () => {
-    const levelHandler = vi.fn();
-    const sub = eventBus.on<number>(GameEvent.LEVEL_CHANGED).subscribe(levelHandler);
+    stateService.levelComplete();
 
-    gameStateService.levelComplete();
-
-    const state = gameStateService.getState();
+    const state = stateService.getState();
     expect(state.level).toBe(2);
     expect(state.warps).toBe(1);
     expect(state.orbsCollected).toBe(0);
@@ -93,74 +77,58 @@ describe('GameStateService', () => {
     expect(state.timeLimit).toBe(LEVELS[1].timeLimit);
     expect(state.timeRemaining).toBe(LEVELS[1].timeLimit);
     expect(state.isLevelComplete).toBe(true);
-    expect(levelHandler).toHaveBeenCalledWith(2);
-
-    sub.unsubscribe();
   });
 
   it('marks game over when completing the maximum level', () => {
     // Progress through all levels
     for (let i = 1; i < LEVELS.length; i++) {
-      gameStateService.levelComplete();
+      stateService.levelComplete();
     }
-    expect(gameStateService.getState().level).toBe(LEVELS.length);
+    expect(stateService.getState().level).toBe(LEVELS.length);
 
     // Complete the final level
-    gameStateService.levelComplete();
-    expect(gameStateService.getState().isGameOver).toBe(true);
+    stateService.levelComplete();
+    expect(stateService.getState().isGameOver).toBe(true);
   });
 
   it('updates time, decrements timeRemaining, and triggers game over when time expires', () => {
-    const timeHandler = vi.fn();
-    const sub = eventBus.on(GameEvent.TIME_UPDATED).subscribe(timeHandler);
-
-    gameStateService.updateTime(1000);
-    expect(gameStateService.getState().time).toBe(1000);
-    expect(gameStateService.getState().timeRemaining).toBe(LEVELS[0].timeLimit - 1000);
-    expect(gameStateService.getState().isGameOver).toBe(false);
+    stateService.updateTime(1000);
+    expect(stateService.getState().time).toBe(1000);
+    expect(stateService.getState().timeRemaining).toBe(LEVELS[0].timeLimit - 1000);
+    expect(stateService.getState().isGameOver).toBe(false);
 
     // Advance time past limit
-    gameStateService.updateTime(LEVELS[0].timeLimit);
-    expect(gameStateService.getState().timeRemaining).toBe(0);
-    expect(gameStateService.getState().isGameOver).toBe(true);
-    expect(timeHandler).toHaveBeenCalled();
-
-    sub.unsubscribe();
+    stateService.updateTime(LEVELS[0].timeLimit);
+    expect(stateService.getState().timeRemaining).toBe(0);
+    expect(stateService.getState().isGameOver).toBe(true);
   });
 
   it('marks game over directly when gameOver() is called', () => {
-    gameStateService.startGame();
-    expect(gameStateService.getState().isStarted).toBe(true);
+    stateService.startGame();
+    expect(stateService.getState().isStarted).toBe(true);
 
-    gameStateService.gameOver();
-    expect(gameStateService.getState().isGameOver).toBe(true);
-    expect(gameStateService.getState().isStarted).toBe(false);
+    stateService.gameOver();
+    expect(stateService.getState().isGameOver).toBe(true);
+    expect(stateService.getState().isStarted).toBe(false);
   });
 
-  it('toggles debug mode and emits DEBUG_TOGGLED event', () => {
-    const debugHandler = vi.fn();
-    const sub = eventBus.on<boolean>(GameEvent.DEBUG_TOGGLED).subscribe(debugHandler);
+  it('toggles debug mode', () => {
+    stateService.toggleDebugMode();
+    expect(stateService.getState().debugMode).toBe(true);
 
-    gameStateService.toggleDebugMode();
-    expect(gameStateService.getState().debugMode).toBe(true);
-    expect(debugHandler).toHaveBeenCalledWith(true);
-
-    gameStateService.toggleDebugMode();
-    expect(gameStateService.getState().debugMode).toBe(false);
-    expect(debugHandler).toHaveBeenCalledWith(false);
-
-    sub.unsubscribe();
+    stateService.toggleDebugMode();
+    expect(stateService.getState().debugMode).toBe(false);
   });
 
   it('notifies subscribers via select() on distinct value changes', () => {
     const scoreValues: number[] = [];
-    const sub = gameStateService.select(s => s.score).subscribe(score => {
+    const sub = stateService.select((s: { score: number }) => s.score).subscribe(score => {
       scoreValues.push(score);
     });
 
-    gameStateService.incrementScore(10);
-    gameStateService.incrementScore(10);
-    gameStateService.incrementScore(20);
+    stateService.incrementScore(10);
+    stateService.incrementScore(10);
+    stateService.incrementScore(20);
 
     expect(scoreValues).toEqual([0, 10, 20, 40]);
     sub.unsubscribe();

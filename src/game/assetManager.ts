@@ -1,5 +1,4 @@
 import * as PIXI from 'pixi.js';
-import { eventBus, GameEvent } from './eventBus';
 import { getLogger } from '../utils/logger';
 
 const logger = getLogger('AssetManager');
@@ -24,7 +23,7 @@ const gameAssets: AssetDefinition[] = [
   // Add more assets here as needed
 ];
 
-class AssetManager {
+export class AssetManager {
   private loaded: boolean = false;
   private loadPromise: Promise<void> | null = null;
 
@@ -75,9 +74,6 @@ class AssetManager {
           
           this.loaded = true;
           logger.info('All assets loaded successfully');
-          
-          // Emit an event to notify that assets are loaded
-          eventBus.emit(GameEvent.ASSETS_LOADED, gameAssets.map(a => a.name));
         } catch (error) {
           logger.error('Failed to load assets:', error);
           throw error;

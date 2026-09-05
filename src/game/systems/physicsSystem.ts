@@ -1,7 +1,7 @@
 import { Obstacle } from '../entities/Obstacle';
-import { GameStateService, gameStateService } from '../gameStateService';
-import { EntitySystem, entityManager } from './entitySystem';
-import { EventBus, eventBus, GameEvent } from '../eventBus';
+import { GameStateService } from '../gameStateService';
+import { EntitySystem } from './entitySystem';
+import { EventBus, GameEvent } from '../eventBus';
 import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('PhysicsSystem');
@@ -10,24 +10,16 @@ const logger = getLogger('PhysicsSystem');
  * PhysicsSystem handles physics calculations, movement, and collisions.
  */
 export class PhysicsSystem {
-  private static instance: PhysicsSystem;
   private initialized: boolean = false;
   private scrollSpeed: number = 0;
   private lastSpeedDiagnosticTime: number = 0;
   private speedDiagnosticInterval: number = 5000; // Log all speeds every 5 seconds
   
   public constructor(
-    private readonly entities: EntitySystem = entityManager,
-    private readonly state: GameStateService = gameStateService,
-    private readonly events: EventBus = eventBus
+    private readonly entities: EntitySystem,
+    private readonly state: GameStateService,
+    private readonly events: EventBus
   ) {}
-  
-  public static getInstance(): PhysicsSystem {
-    if (!PhysicsSystem.instance) {
-      PhysicsSystem.instance = new PhysicsSystem();
-    }
-    return PhysicsSystem.instance;
-  }
   
   /**
    * Initialize the PhysicsSystem
@@ -220,7 +212,4 @@ export class PhysicsSystem {
     this.initialized = false;
     logger.info('PhysicsSystem disposed');
   }
-}
-
-// Export a default instance for convenient imports
-export const physicsSystem = PhysicsSystem.getInstance(); 
+} 

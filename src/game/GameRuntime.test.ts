@@ -138,5 +138,127 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
 
     runtime.dispose();
   });
+
+  it('handles simulation-time level transition deterministically without setTimeout', () => {
+    const runtime = createFlappySpaceRuntime(app);
+    runtime.initialize();
+    runtime.reset();
+    runtime.start();
+
+    const levelCompleteEvents: Array<{ level: number }> = [];
+    runtime.events.on(GameEvent.LEVEL_COMPLETE).subscribe(data => {
+      levelCompleteEvents.push(data);
+    });
+
+    // Award all required orbs to trigger level completion
+    const required = runtime.state.getState().orbsRequired;
+    for (let i = 0; i < required - 1; i++) {
+      runtime.state.collectOrb();
+    }
+    // Final orb triggers completion
+    runtime.state.collectOrb();
+    runtime.events.emit(GameEvent.ORB_COLLECTED, { x: 100, y: 100 });
+
+    expect(levelCompleteEvents).toHaveLength(1);
+    expect(levelCompleteEvents[0]).toEqual({ level: 1 });
+
+    // Level state updated to 2, but runtime has not yet re-initialized entities because of countdown
+    expect(runtime.state.getState().level).toBe(2);
+
+    // Advance simulation time by 1.0 second (deltaMS = 1000)
+    runtime.onTick({ deltaMS: 1000 } as PIXI.Ticker);
+
+    // Pause the game - ticking while paused should not advance level countdown
+    runtime.pause();
+    runtime.onTick({ deltaMS: 1000 } as PIXI.Ticker);
+    runtime.resume();
+
+    // Advance remaining 1.0 second (total 2.0s)
+    runtime.onTick({ deltaMS: 1000 } as PIXI.Ticker);
+
+    // Level 2 should now be fully initialized
+    const astronaut = runtime.systems.entities.getAstronaut();
+    expect(astronaut).toBeDefined();
+
+    runtime.dispose();
+  });
+
+  it('clears level transition countdown if reset is called during celebration', () => {
+    const runtime = createFlappySpaceRuntime(app);
+    runtime.initialize();
+    runtime.reset();
+    runtime.start();
+
+    // Trigger level complete
+    const required = runtime.state.getState().orbsRequired;
+    for (let i = 0; i < required; i++) {
+      runtime.state.collectOrb();
+    }
+    runtime.events.emit(GameEvent.ORB_COLLECTED, { x: 100, y: 100 });
+
+    // Mid-transition reset
+    runtime.reset();
+    expect(runtime.state.getState().level).toBe(1);
+
+    // Ticking 2 seconds should not cause transition to level 2
+    runtime.onTick({ deltaMS: 2000 } as PIXI.Ticker);
+    expect(runtime.state.getState().level).toBe(1);
+
+    runtime.dispose();
+  });
+
+  it('emits strongly-typed GAME_OVER event with reason on collision or timeout', () => {
+    const runtime = createFlappySpaceRuntime(app);
+    runtime.initialize();
+    runtime.reset();
+    runtime.start();
+
+    const gameOverEvents: Array<{ reason?: string } | null> = [];
+    runtime.events.on(GameEvent.GAME_OVER).subscribe(data => {
+      gameOverEvents.push(data);
+    });
+
+    // Trigger collision
+    runtime.events.emit(GameEvent.COLLISION_DETECTED, null);
+
+    expect(gameOverEvents).toHaveLength(1);
+    expect(gameOverEvents[0]).toEqual({ reason: 'collision' });
+    expect(runtime.state.getState().isGameOver).toBe(true);
+
+    runtime.dispose();
+  });
+
+  it('isolates multiple concurrent runtimes completely', () => {
+    const app1 = new PIXI.Application();
+    app1.stage = new PIXI.Container();
+    app1.ticker = new PIXI.Ticker();
+
+    const app2 = new PIXI.Application();
+    app2.stage = new PIXI.Container();
+    app2.ticker = new PIXI.Ticker();
+
+    const runtime1 = createFlappySpaceRuntime(app1);
+    const runtime2 = createFlappySpaceRuntime(app2);
+
+    runtime1.initialize();
+    runtime2.initialize();
+
+    runtime1.reset();
+    runtime2.reset();
+
+    runtime1.start();
+    // runtime2 is not started
+
+    expect(runtime1.state.getState().isStarted).toBe(true);
+    expect(runtime2.state.getState().isStarted).toBe(false);
+
+    runtime1.state.incrementScore(100);
+    expect(runtime1.state.getState().score).toBe(100);
+    expect(runtime2.state.getState().score).toBe(0);
+
+    runtime1.dispose();
+    runtime2.dispose();
+  });
 });
+
 

@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
-import { GameStateService, gameStateService, GameState } from '../gameStateService';
+import { GameStateService, GameState } from '../gameStateService';
 import { Scoreboard } from '../scoreboard';
-import { EventBus, eventBus, GameEvent } from '../eventBus';
+import { EventBus, GameEvent } from '../eventBus';
 import { Subscription } from 'rxjs';
 import { getLogger } from '../../utils/logger';
 
@@ -28,7 +28,6 @@ declare module 'pixi.js' {
  * UISystem manages all UI elements in the game.
  */
 export class UISystem {
-  private static instance: UISystem;
   private app?: PIXI.Application;
   private scoreboard!: Scoreboard;
   private initialized: boolean = false;
@@ -41,9 +40,9 @@ export class UISystem {
   private readonly state: GameStateService;
 
   public constructor(
-    app?: PIXI.Application,
-    events: EventBus = eventBus,
-    state: GameStateService = gameStateService
+    app: PIXI.Application | undefined,
+    events: EventBus,
+    state: GameStateService
   ) {
     this.app = app;
     this.events = events;
@@ -75,14 +74,7 @@ export class UISystem {
     );
 
     // Subscribe to orb collection events for visual feedback
-    this.orbCollectionSubscription = this.events.on<{
-      x: number;
-      y: number;
-      radius?: number;
-      graphics?: PIXI.Graphics;
-      glowGraphics?: PIXI.Graphics;
-      speed?: number;
-    }>(GameEvent.ORB_COLLECTED).subscribe(data => {
+    this.orbCollectionSubscription = this.events.on(GameEvent.ORB_COLLECTED).subscribe(data => {
       logger.debug('orbCollectionSubscription', data);
       if (data && typeof data === 'object' && 'x' in data && 'y' in data) {
         this.createOrbCollectionEffect(data.x, data.y, data.radius, data.speed);
@@ -97,13 +89,6 @@ export class UISystem {
     }
     this.subscriptions.forEach(sub => sub.unsubscribe());
     this.subscriptions = [];
-  }
-  
-  public static getInstance(): UISystem {
-    if (!UISystem.instance) {
-      UISystem.instance = new UISystem();
-    }
-    return UISystem.instance;
   }
   
   /**
@@ -412,6 +397,3 @@ export class UISystem {
     }
   }
 }
-
-// Export a default instance for convenient imports
-export const uiSystem = UISystem.getInstance();

@@ -129,13 +129,14 @@ flappy_space/
 ├── public/                    # Static assets (sprites, icons)
 ├── src/
 │   ├── components/            # React UI components (GameDisplay, Scoreboard, LevelMessage)
-│   ├── engine/                # Runtime-agnostic engine primitives (GameRuntime, EventBus, types)
-│   ├── games/flappy-space/    # Flappy Space composition root (createFlappySpaceRuntime)
-│   ├── game/                  # Core game logic and systems
+│   ├── game/                  # Core game logic, systems, composition root, and runtime
 │   │   ├── config.ts          # Game constants, physics values, level configs
+│   │   ├── createFlappySpaceRuntime.ts # Flappy Space composition root
+│   │   ├── GameRuntime.ts     # Game session runtime lifecycle owner
 │   │   ├── eventBus.ts        # Instantiable, typed EventBus
 │   │   ├── gameStateService.ts# Centralized state management store
 │   │   ├── inputManager.ts    # Low-level keyboard and touch events
+│   │   ├── types.ts           # Game system lifecycle interfaces
 │   │   ├── entities/          # Entities (Astronaut, Planet, Orb, Star)
 │   │   └── systems/           # Systems (Physics, Render, Spawning, Audio, UI, Entity)
 │   ├── test/                  # Test setup and Canvas mocks

@@ -5,7 +5,7 @@ import { Planet } from '../entities/Planet';
 import { Orb } from '../entities/Orb';
 import { Star } from '../entities/Star';
 import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
-import { EventBus, eventBus, GameEvent } from '../eventBus';
+import { EventBus, GameEvent } from '../eventBus';
 import defaultAssetManager from '../assetManager';
 import { getLogger } from '../../utils/logger';
 
@@ -13,8 +13,6 @@ import { getLogger } from '../../utils/logger';
  * EntityManager manages all game entities and their lifecycle.
  */
 export class EntitySystem {
-  private static instance: EntitySystem;
-  
   private app: PIXI.Application | null = null;
   private astronaut: Astronaut | null = null;
   private obstacles: Obstacle[] = [];
@@ -23,23 +21,16 @@ export class EntitySystem {
   private initialized: boolean = false;
   private logger = getLogger('EntityManager');
   private assetMgr: typeof defaultAssetManager;
-  private events: EventBus;
+  private events?: EventBus;
   
   public constructor(
     app?: PIXI.Application,
     assetMgr: typeof defaultAssetManager = defaultAssetManager,
-    events: EventBus = eventBus
+    events?: EventBus
   ) {
     this.app = app ?? null;
     this.assetMgr = assetMgr;
     this.events = events;
-  }
-  
-  public static getInstance(): EntitySystem {
-    if (!EntitySystem.instance) {
-      EntitySystem.instance = new EntitySystem();
-    }
-    return EntitySystem.instance;
   }
   
   /**
@@ -116,7 +107,7 @@ export class EntitySystem {
     this.logger.info('Astronaut created and added to stage');
     
     // Emit entity created event
-    this.events.emit(GameEvent.ENTITY_CREATED, {
+    this.events?.emit(GameEvent.ENTITY_CREATED, {
       type: 'astronaut',
       entity: this.astronaut
     });
@@ -144,7 +135,7 @@ export class EntitySystem {
     this.logger.info(`EntityManager: Total obstacles now: ${this.obstacles.length}`);
     
     // Emit entity created event
-    this.events.emit(GameEvent.ENTITY_CREATED, {
+    this.events?.emit(GameEvent.ENTITY_CREATED, {
       type: 'planet',
       entity: planet
     });
@@ -172,7 +163,7 @@ export class EntitySystem {
     this.logger.info(`EntityManager: Total orbs now: ${this.orbs.length}`);
     
     // Emit entity created event
-    this.events.emit(GameEvent.ENTITY_CREATED, {
+    this.events?.emit(GameEvent.ENTITY_CREATED, {
       type: 'orb',
       entity: orb
     });
@@ -271,7 +262,7 @@ export class EntitySystem {
         this.obstacles.splice(index, 1);
 
         // Emit entity destroyed event
-        this.events.emit(GameEvent.ENTITY_DESTROYED, {
+        this.events?.emit(GameEvent.ENTITY_DESTROYED, {
           type: 'obstacle',
           entity: obstacle
         });
@@ -305,7 +296,7 @@ export class EntitySystem {
         this.orbs.splice(index, 1);
 
         // Emit entity destroyed event
-        this.events.emit(GameEvent.ENTITY_DESTROYED, {
+        this.events?.emit(GameEvent.ENTITY_DESTROYED, {
           type: 'orb',
           entity: orb
         });
@@ -436,7 +427,4 @@ export class EntitySystem {
     this.initialized = false;
     this.logger.info('EntityManager disposed');
   }
-}
-
-// Export a default instance for convenient imports
-export const entityManager = EntitySystem.getInstance(); 
+} 

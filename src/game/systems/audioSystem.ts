@@ -1,4 +1,4 @@
-import { EventBus, eventBus, GameEvent } from '../eventBus';
+import { EventBus, GameEvent } from '../eventBus';
 import audioManager from '../audio';
 import { Subscription } from 'rxjs';
 import { getLogger } from '../../utils/logger';
@@ -10,25 +10,17 @@ const logger = getLogger('AudioSystem');
  * It subscribes to the EventBus to receive notifications about game state changes.
  */
 export class AudioSystem {
-  private static instance: AudioSystem;
   private subscriptions: Subscription[] = [];
   private initialized: boolean = false;
   private readonly events: EventBus;
   private readonly audioMgr: typeof audioManager;
   
   public constructor(
-    events: EventBus = eventBus,
+    events: EventBus,
     audioMgr: typeof audioManager = audioManager
   ) {
     this.events = events;
     this.audioMgr = audioMgr;
-  }
-  
-  public static getInstance(): AudioSystem {
-    if (!AudioSystem.instance) {
-      AudioSystem.instance = new AudioSystem();
-    }
-    return AudioSystem.instance;
   }
   
   /**
@@ -109,6 +101,3 @@ export class AudioSystem {
     );
   }
 }
-
-// Export a default instance for convenient imports
-export const audioSystem = AudioSystem.getInstance();

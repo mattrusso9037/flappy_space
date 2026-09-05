@@ -44,7 +44,8 @@ export interface TouchData {
   timestamp: number;
 }
 
-class InputManager {
+export class InputManager {
+
   private keyMap: Map<InputKey, boolean>;
   private eventHandlers: Map<InputEvent, EventHandler[]>;
   private enabled: boolean;
@@ -321,8 +322,18 @@ class InputManager {
     logger.debug('Manual START_GAME trigger');
     this.triggerEvent(InputEvent.START_GAME);
   }
-}
 
-// Create singleton instance
-const inputManager = new InputManager();
-export default inputManager; 
+  /**
+   * Dispose resources and remove all browser event listeners
+   */
+  dispose(): void {
+    this.disable();
+    this.keyMap.clear();
+    this.eventHandlers.forEach(handlers => {
+      handlers.length = 0;
+    });
+    this.lastEventData = null;
+    logger.info('Disposed');
+  }
+}
+ 

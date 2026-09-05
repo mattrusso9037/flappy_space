@@ -1,17 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import GameDisplay from './components/GameDisplay'
 import LevelMessage from './components/LevelMessage'
 import './App.css'
-import { GameState, gameStateService } from './game/gameStateService'
+import { GameState } from './game/gameStateService'
 
 function App() {
-  // Game state
-  const [gameState, setGameState] = useState<GameState>(gameStateService.getState())
+  // Game state pushed from runtime through GameDisplay
+  const [gameState, setGameState] = useState<GameState | null>(null)
 
-  useEffect(() => {
-    const sub = gameStateService.getState$().subscribe(setGameState)
-    return () => sub.unsubscribe()
-  }, [])
 
   return (
     <div className="App">
@@ -25,12 +21,13 @@ function App() {
         </div>
       </main>
       
-      {gameState.isLevelComplete && (
+      {gameState?.isLevelComplete && (
         <LevelMessage 
           level={gameState.level} 
           isVisible={gameState.isLevelComplete}
         />
       )}
+
     </div>
   )
 }

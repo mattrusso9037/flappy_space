@@ -1,5 +1,5 @@
 import { GameState, GameStateService } from '../gameStateService';
-import { EntitySystem, entityManager } from './entitySystem';
+import { EntitySystem } from './entitySystem';
 import { ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT, LEVELS } from '../config';
 import { Planet } from '../entities/Planet';
 import { getLogger } from '../../utils/logger';
@@ -21,7 +21,6 @@ export interface LevelConfig {
  * based on simulation time and level configuration.
  */
 export class SpawningSystem {
-  private static instance: SpawningSystem;
   private initialized: boolean = false;
   private readonly entities: EntitySystem;
   private readonly state?: GameStateService;
@@ -41,18 +40,11 @@ export class SpawningSystem {
   private hasSpawnedFirstObstacle: boolean = false;
   
   public constructor(
-    entities: EntitySystem = entityManager,
+    entities: EntitySystem,
     state?: GameStateService
   ) {
     this.entities = entities;
     this.state = state;
-  }
-  
-  public static getInstance(): SpawningSystem {
-    if (!SpawningSystem.instance) {
-      SpawningSystem.instance = new SpawningSystem();
-    }
-    return SpawningSystem.instance;
   }
   
   /**
@@ -305,6 +297,3 @@ export class SpawningSystem {
     logger.info('SpawningSystem disposed');
   }
 }
-
-// Export a default instance for convenient imports
-export const spawningSystem = SpawningSystem.getInstance();

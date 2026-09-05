@@ -1,14 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as PIXI from 'pixi.js';
-import { uiSystem } from './uiSystem';
-import { gameStateService } from '../gameStateService';
+import { UISystem } from './uiSystem';
+import { GameStateService } from '../gameStateService';
+import { EventBus } from '../eventBus';
 
-describe('UISystem Characterization', () => {
+describe('UISystem', () => {
   let stage: PIXI.Container;
+  let events: EventBus;
+  let state: GameStateService;
+  let uiSystem: UISystem;
 
   beforeEach(() => {
     stage = new PIXI.Container();
-    gameStateService.resetGame();
+    events = new EventBus();
+    state = new GameStateService();
+    uiSystem = new UISystem(undefined, events, state);
   });
 
   afterEach(() => {
@@ -27,8 +33,8 @@ describe('UISystem Characterization', () => {
     uiSystem.initialize(stage);
 
     // Trigger state changes
-    gameStateService.incrementScore(50);
-    expect(gameStateService.getState().score).toBe(50);
+    state.incrementScore(50);
+    expect(state.getState().score).toBe(50);
   });
 
   it('cleans up subscriptions on dispose()', () => {

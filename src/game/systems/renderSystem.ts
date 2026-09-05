@@ -1,13 +1,12 @@
 import * as PIXI from 'pixi.js';
-import { EntitySystem, entityManager } from './entitySystem';
-import { GameStateService, gameStateService } from '../gameStateService';
+import { EntitySystem } from './entitySystem';
+import { GameStateService } from '../gameStateService';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 /**
  * RenderSystem manages all rendering operations for the game.
  */
 export class RenderSystem {
-  private static instance: RenderSystem;
   private app: PIXI.Application | null = null;
   private debugGraphics: PIXI.Graphics | null = null;
   private initialized: boolean = false;
@@ -15,20 +14,13 @@ export class RenderSystem {
   private readonly state: GameStateService;
   
   public constructor(
-    app?: PIXI.Application,
-    entities: EntitySystem = entityManager,
-    state: GameStateService = gameStateService
+    app: PIXI.Application | null,
+    entities: EntitySystem,
+    state: GameStateService
   ) {
     this.app = app ?? null;
     this.entities = entities;
     this.state = state;
-  }
-  
-  public static getInstance(): RenderSystem {
-    if (!RenderSystem.instance) {
-      RenderSystem.instance = new RenderSystem();
-    }
-    return RenderSystem.instance;
   }
   
   /**
@@ -224,7 +216,4 @@ export class RenderSystem {
     
     this.initialized = false;
   }
-}
-
-// Export a default instance for convenient imports
-export const renderSystem = RenderSystem.getInstance(); 
+} 
