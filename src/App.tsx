@@ -21,7 +21,7 @@ function App() {
       
       <main className="App-main">
         <div className="game-container">
-          <GameDisplay />
+          <GameDisplay onGameStateChange={setGameState} />
         </div>
       </main>
       

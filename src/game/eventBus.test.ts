@@ -2,10 +2,33 @@ import { describe, it, expect, vi } from 'vitest';
 import { EventBus, GameEvent } from './eventBus';
 
 describe('EventBus', () => {
-  it('provides a singleton instance', () => {
-    const bus1 = EventBus.getInstance();
-    const bus2 = EventBus.getInstance();
-    expect(bus1).toBe(bus2);
+  it('isolates separate instances so events emitted on one do not affect another', () => {
+    const bus1 = new EventBus();
+    const bus2 = new EventBus();
+    const handler1 = vi.fn();
+    const handler2 = vi.fn();
+
+    bus1.on(GameEvent.SCORE_CHANGED).subscribe(handler1);
+    bus2.on(GameEvent.SCORE_CHANGED).subscribe(handler2);
+
+    bus1.emit(GameEvent.SCORE_CHANGED, 42);
+
+    expect(handler1).toHaveBeenCalledWith(42);
+    expect(handler2).not.toHaveBeenCalled();
+  });
+
+  it('supports strongly-typed custom event maps', () => {
+    interface TestEvents {
+      foo: { value: number };
+      bar: string;
+    }
+    const typedBus = new EventBus<TestEvents>();
+    const fooHandler = vi.fn();
+
+    typedBus.on('foo').subscribe(fooHandler);
+    typedBus.emit('foo', { value: 123 });
+
+    expect(fooHandler).toHaveBeenCalledWith({ value: 123 });
   });
 
   it('allows subscribing and receiving emitted events with correct payload', () => {

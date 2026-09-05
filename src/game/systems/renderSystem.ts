@@ -1,6 +1,6 @@
 import * as PIXI from 'pixi.js';
-import { entityManager } from './entitySystem';
-import { gameStateService } from '../gameStateService';
+import { EntitySystem, entityManager } from './entitySystem';
+import { GameStateService, gameStateService } from '../gameStateService';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config';
 
 /**
@@ -11,9 +11,17 @@ export class RenderSystem {
   private app: PIXI.Application | null = null;
   private debugGraphics: PIXI.Graphics | null = null;
   private initialized: boolean = false;
+  private readonly entities: EntitySystem;
+  private readonly state: GameStateService;
   
-  private constructor() {
-    // Private constructor for singleton
+  public constructor(
+    app?: PIXI.Application,
+    entities: EntitySystem = entityManager,
+    state: GameStateService = gameStateService
+  ) {
+    this.app = app ?? null;
+    this.entities = entities;
+    this.state = state;
   }
   
   public static getInstance(): RenderSystem {
@@ -26,17 +34,20 @@ export class RenderSystem {
   /**
    * Initialize the RenderSystem with the PIXI application
    */
-  public initialize(app: PIXI.Application): void {
+  public initialize(app?: PIXI.Application): void {
     if (this.initialized) return;
     
-    this.app = app;
+    if (app) {
+      this.app = app;
+    }
     
-    // Set up debug graphics
-    this.debugGraphics = new PIXI.Graphics();
-    this.app.stage.addChild(this.debugGraphics);
+    if (this.app) {
+      // Set up debug graphics
+      this.debugGraphics = new PIXI.Graphics();
+      this.app.stage.addChild(this.debugGraphics);
+    }
     
     this.initialized = true;
-    console.log('RenderSystem initialized');
   }
   
   /**
@@ -56,7 +67,7 @@ export class RenderSystem {
   public createBackground(): void {
     if (!this.initialized) return;
     
-    entityManager.createBackground();
+    this.entities.createBackground();
   }
   
   /**
@@ -66,7 +77,7 @@ export class RenderSystem {
     if (!this.initialized) return;
     
     // Get all stars and update their positions
-    const stars = entityManager.getStars();
+    const stars = this.entities.getStars();
     if (stars.length > 0) {
       // Update star positions with controlled deltaTime to prevent speed inconsistencies
       // Limit deltaTime to ensure smooth and consistent star movement
@@ -93,7 +104,7 @@ export class RenderSystem {
   private renderDebugInfo(): void {
     if (!this.debugGraphics || !this.app) return;
     
-    const gameState = gameStateService.getState();
+    const gameState = this.state.getState();
     
     // Skip if debug mode is disabled
     if (!gameState.debugMode) {
@@ -104,7 +115,7 @@ export class RenderSystem {
     this.debugGraphics.clear();
     
     // Get astronaut
-    const astronaut = entityManager.getAstronaut();
+    const astronaut = this.entities.getAstronaut();
     
     // Draw astronaut hitbox
     if (astronaut) {
@@ -129,7 +140,7 @@ export class RenderSystem {
     }
     
     // Draw obstacle hitboxes
-    const obstacles = entityManager.getObstacles();
+    const obstacles = this.entities.getObstacles();
     for (const obstacle of obstacles) {
       if ('radius' in obstacle) {
         this.debugGraphics.lineStyle(2, 0xFF0000);
@@ -151,7 +162,7 @@ export class RenderSystem {
     }
     
     // Draw orb hitboxes
-    const orbs = entityManager.getOrbs();
+    const orbs = this.entities.getOrbs();
     for (const orb of orbs) {
       this.debugGraphics.lineStyle(2, 0x0000FF);
       
@@ -212,7 +223,6 @@ export class RenderSystem {
     }
     
     this.initialized = false;
-    console.log('RenderSystem disposed');
   }
 }
 

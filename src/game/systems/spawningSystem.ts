@@ -1,12 +1,12 @@
-import { GameState } from '../gameStateService';
-import { entityManager } from './entitySystem';
-import { ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { GameState, GameStateService } from '../gameStateService';
+import { EntitySystem, entityManager } from './entitySystem';
+import { ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT, LEVELS } from '../config';
 import { Planet } from '../entities/Planet';
 import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('SpawningSystem');
 
-interface LevelConfig {
+export interface LevelConfig {
   speeds: {
     planet: number;
     secondaryPlanet: number;
@@ -18,15 +18,18 @@ interface LevelConfig {
 
 /**
  * SpawningSystem handles spawning of obstacles, orbs, and other entities
- * based on game time and level.
+ * based on simulation time and level configuration.
  */
 export class SpawningSystem {
   private static instance: SpawningSystem;
   private initialized: boolean = false;
+  private readonly entities: EntitySystem;
+  private readonly state?: GameStateService;
   
   // Spawning state
   private lastObstacleTime: number = 0;
   private lastOrbTime: number = 0;
+  private pendingOrbSpawnRemainingMs: number = 0;
   private levelConfig: LevelConfig = { 
     speeds: {
       planet: 1.0,
@@ -37,8 +40,12 @@ export class SpawningSystem {
   };
   private hasSpawnedFirstObstacle: boolean = false;
   
-  private constructor() {
-    // Private constructor for singleton
+  public constructor(
+    entities: EntitySystem = entityManager,
+    state?: GameStateService
+  ) {
+    this.entities = entities;
+    this.state = state;
   }
   
   public static getInstance(): SpawningSystem {
@@ -55,7 +62,6 @@ export class SpawningSystem {
     if (this.initialized) return;
     
     this.resetSpawning();
-    
     this.initialized = true;
     logger.info('SpawningSystem initialized');
   }
@@ -66,7 +72,21 @@ export class SpawningSystem {
   public resetSpawning(): void {
     this.lastObstacleTime = 0;
     this.lastOrbTime = 0;
+    this.pendingOrbSpawnRemainingMs = 0;
     this.hasSpawnedFirstObstacle = false;
+  }
+
+  /**
+   * Initialize configuration for a specific level
+   */
+  public initializeLevel(level: number): void {
+    const config = LEVELS[level - 1] || LEVELS[0];
+    this.setLevelConfig({
+      speeds: config.speeds,
+      spawnInterval: config.spawnInterval,
+      orbFrequency: config.orbFrequency || 3000,
+    });
+    this.resetSpawning();
   }
   
   /**
@@ -79,67 +99,65 @@ export class SpawningSystem {
     };
     logger.info('SpawningSystem: Level config updated', this.levelConfig);
   }
+
+  public getLevelConfig(): LevelConfig {
+    return this.levelConfig;
+  }
   
   /**
-   * Update the spawning system
+   * Update the spawning system using simulation delta time
    */
   public update(deltaTime: number, gameState: GameState): void {
     if (!this.initialized) {
-      logger.info('SpawningSystem: Not initialized, skipping update');
       return;
     }
     
-    if (!gameState.isStarted) {
-      if (Math.random() < 0.01) logger.debug('SpawningSystem: Game not started, skipping update');
+    if (!gameState.isStarted || gameState.isGameOver) {
       return;
     }
     
-    if (gameState.isGameOver) {
-      if (Math.random() < 0.01) logger.debug('SpawningSystem: Game over, skipping update');
-      return;
+    const deltaMs = deltaTime * 1000;
+
+    // Process pending delayed orb spawn via simulation time
+    if (this.pendingOrbSpawnRemainingMs > 0) {
+      this.pendingOrbSpawnRemainingMs -= deltaMs;
+      if (this.pendingOrbSpawnRemainingMs <= 0) {
+        this.pendingOrbSpawnRemainingMs = 0;
+        if (gameState.isStarted && !gameState.isGameOver) {
+          logger.info('SpawningSystem: Spawning orb after simulation delay');
+          this.spawnOrb();
+        }
+      }
     }
-    
+
     const currentTime = gameState.time;
     
-    // Occasionally log spawning status to avoid console spam
-    if (Math.random() < 0.05) {
-      logger.debug(`SpawningSystem: time=${currentTime.toFixed(2)}, lastObstacleTime=${this.lastObstacleTime.toFixed(2)}, interval=${this.levelConfig.spawnInterval}, planetSpeed=${this.levelConfig.speeds.planet}`);
-      logger.debug(`SpawningSystem: hasSpawnedFirstObstacle=${this.hasSpawnedFirstObstacle}, obstacles=${entityManager.getObstacles().length}, orbs=${entityManager.getOrbs().length}`);
-    }
-    
-    // Ensure first obstacle is spawned with a delay
+    // Ensure first obstacle is spawned with an initial delay
     if (!this.hasSpawnedFirstObstacle && currentTime > 1500) {
       logger.info('SpawningSystem: Spawning first obstacle');
-      this.spawnObstacle();
+      this.spawnObstacle(gameState);
       this.lastObstacleTime = currentTime;
       this.hasSpawnedFirstObstacle = true;
     }
-    // Then spawn regular obstacles
+    // Then spawn regular obstacles according to interval
     else if (this.hasSpawnedFirstObstacle && currentTime - this.lastObstacleTime > this.levelConfig.spawnInterval) {
       logger.info(`SpawningSystem: Spawning obstacle at time=${currentTime.toFixed(2)}`);
-      this.spawnObstacle();
+      this.spawnObstacle(gameState);
       this.lastObstacleTime = currentTime;
       
-      // Chance to spawn an orb alongside the obstacle (but not at the same position)
+      // Stagger orb spawn using simulation time countdown
       if (Math.random() < ORB_SPAWN_CHANCE) {
-        logger.info('SpawningSystem: Planning to spawn orb with delay');
-        setTimeout(() => {
-          if (gameState.isStarted && !gameState.isGameOver) {
-            logger.info('SpawningSystem: Spawning orb after delay');
-            this.spawnOrb();
-          } else {
-            logger.info('SpawningSystem: Cancelled orb spawn - game state changed');
-          }
-        }, this.levelConfig.spawnInterval * 0.4); // Stagger the orb spawn time
+        logger.info('SpawningSystem: Scheduling delayed orb spawn in simulation time');
+        this.pendingOrbSpawnRemainingMs = this.levelConfig.spawnInterval * 0.4;
       }
     }
   }
   
   /**
-   * Spawn an obstacle
+   * Spawn an obstacle based on current level configuration
    */
-  private spawnObstacle(): void {
-    const levelNumber = this.getCurrentLevelIndex() + 1;
+  private spawnObstacle(gameState?: GameState): void {
+    const levelNumber = this.getCurrentLevelIndex(gameState) + 1;
     
     const minRadius = 20;
     const maxRadius = 40 + (levelNumber * 5);
@@ -150,43 +168,38 @@ export class SpawningSystem {
     
     const positionAbove = Math.random() > 0.5;
     
-    let planetY;
+    let planetY: number;
     if (positionAbove) {
       planetY = Math.random() * (safeZoneY - radius * 2) + radius;
     } else {
       planetY = safeZoneY + safeZoneSize + Math.random() * (GAME_HEIGHT - (safeZoneY + safeZoneSize) - radius * 2) + radius;
     }
     
-    // Create the first planet with its specific speed
-    const planet = entityManager.createPlanet(
+    // Create the primary planet with level speed
+    const planet = this.entities.createPlanet(
       GAME_WIDTH + radius,
       planetY,
       radius,
       this.levelConfig.speeds.planet
     );
     
-    // Ensure no overlap with existing obstacles
     this.ensureNoOverlap(planet);
     
-    // Spawn a second planet with a probability
+    // Spawn secondary planet on levels > 1
     if (Math.random() < 0.3 && levelNumber > 1) {
-      // Determine the second planet's vertical position
       const secondPlanetY = positionAbove 
         ? safeZoneY + safeZoneSize + Math.random() * (GAME_HEIGHT - (safeZoneY + safeZoneSize) - radius * 2) + radius
         : Math.random() * (safeZoneY - radius * 2) + radius;
       
-      // Calculate radius for second planet
       const secondRadius = radius * (0.7 + Math.random() * 0.6);
       
-      // Create the second planet with a horizontal offset and its specific speed
-      const secondPlanet = entityManager.createPlanet(
-        GAME_WIDTH + radius + 100 + Math.random() * 150, // Ensure horizontal spacing
+      const secondPlanet = this.entities.createPlanet(
+        GAME_WIDTH + radius + 100 + Math.random() * 150,
         secondPlanetY,
         secondRadius,
         this.levelConfig.speeds.secondaryPlanet
       );
       
-      // Check for overlaps with all existing obstacles including the first planet
       this.ensureNoOverlap(secondPlanet);
     }
   }
@@ -201,7 +214,7 @@ export class SpawningSystem {
     const maxY = GAME_HEIGHT * 0.8;
     const orbY = minY + Math.random() * (maxY - minY);
     
-    entityManager.createOrb(
+    this.entities.createOrb(
       GAME_WIDTH + radius,
       orbY,
       radius,
@@ -213,57 +226,43 @@ export class SpawningSystem {
    * Ensure no overlap between planet and other obstacles
    */
   private ensureNoOverlap(planet: Planet): void {
-    // Maximum attempts to find a non-overlapping position
     const maxAttempts = 5;
     let attempts = 0;
     let overlapping = false;
     
     do {
       overlapping = false;
+      const obstacles = this.entities.getObstacles();
       
-      // Get all obstacles from entity manager
-      const obstacles = entityManager.getObstacles();
-      
-      // Check if this planet overlaps with any existing obstacles
       for (const obstacle of obstacles) {
-        // Skip checking against self
         if (obstacle === planet) continue;
         
-        // Only check obstacles that are planets and on screen
         if (obstacle instanceof Planet && !obstacle.isOffScreen()) {
           const existingPlanet = obstacle as Planet;
           
           if (this.planetsOverlap(planet, existingPlanet)) {
             overlapping = true;
             
-            // Adjust vertical position to avoid overlap
             if (planet.y < existingPlanet.y) {
-              // New planet is above existing, move it further up
               planet.y = Math.max(
-                planet.radius, // Keep within game bounds
-                existingPlanet.y - existingPlanet.radius - planet.radius - 20 // Add spacing
+                planet.radius,
+                existingPlanet.y - existingPlanet.radius - planet.radius - 20
               );
             } else {
-              // New planet is below existing, move it further down
               planet.y = Math.min(
-                GAME_HEIGHT - planet.radius, // Keep within game bounds
-                existingPlanet.y + existingPlanet.radius + planet.radius + 20 // Add spacing
+                GAME_HEIGHT - planet.radius,
+                existingPlanet.y + existingPlanet.radius + planet.radius + 20
               );
             }
             
-            // If we've made too many attempts, try changing horizontal position
             if (attempts > 2) {
-              // Move the planet a bit further to the right
               planet.x += planet.radius * 1.2;
             }
             
-            // Update graphics position
             planet.graphics.y = planet.y;
             planet.glowGraphics.y = planet.y;
             planet.graphics.x = planet.x;
             planet.glowGraphics.x = planet.x;
-            
-            // Break to recheck with the new position
             break;
           }
         }
@@ -277,24 +276,23 @@ export class SpawningSystem {
    * Check if two planets overlap
    */
   private planetsOverlap(planet1: Planet, planet2: Planet): boolean {
-    // Calculate the distance between planet centers
     const dx = planet2.x - planet1.x;
     const dy = planet2.y - planet1.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // If the distance is less than the sum of radii (plus some buffer space)
-    // then planets overlap
-    const minSeparation = planet1.radius + planet2.radius + 10; // 10px buffer
-    
+    const minSeparation = planet1.radius + planet2.radius + 10;
     return distance < minSeparation;
   }
   
   /**
-   * Get current level index
+   * Get current level index from supplied state, injected state, or default 0
    */
-  private getCurrentLevelIndex(): number {
-    // This should come from level configuration service or similar
-    // For now, just hardcode level 0 (which is level 1 in the UI)
+  private getCurrentLevelIndex(gameState?: GameState): number {
+    if (gameState && typeof gameState.level === 'number') {
+      return Math.max(0, gameState.level - 1);
+    }
+    if (this.state) {
+      return Math.max(0, this.state.getState().level - 1);
+    }
     return 0;
   }
   
@@ -302,10 +300,11 @@ export class SpawningSystem {
    * Clean up resources when the system is no longer needed
    */
   public dispose(): void {
+    this.pendingOrbSpawnRemainingMs = 0;
     this.initialized = false;
     logger.info('SpawningSystem disposed');
   }
 }
 
 // Export a default instance for convenient imports
-export const spawningSystem = SpawningSystem.getInstance(); 
+export const spawningSystem = SpawningSystem.getInstance();

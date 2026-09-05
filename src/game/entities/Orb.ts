@@ -2,7 +2,6 @@ import * as PIXI from 'pixi.js';
 import { Obstacle } from './Obstacle';
 import { Astronaut } from './Astronaut';
 import { rectanglesIntersect } from './utils';
-import { eventBus, GameEvent } from '../eventBus';
 import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('Orb');
@@ -131,29 +130,16 @@ export class Orb extends Obstacle {
         this.glowGraphics.alpha = 0.3 + 0.2 * Math.sin(time * this.glowPulseSpeed * 1.5 + this.timeOffset);
     }
     
-    collect() {
-        if (this.collected) return 0;
+    collect(): void {
+        if (this.collected) return;
         
         this.collected = true;
         logger.info(`Orb collected at ${this.x}, ${this.y}`);
-        
-        // Emit event for audio/visual feedback and scoring
-        // Include all necessary information for the UI system to handle animations
-        eventBus.emit(GameEvent.ORB_COLLECTED, { 
-            x: this.x, 
-            y: this.y,
-            radius: this.radius,
-            graphics: this.graphics,
-            glowGraphics: this.glowGraphics,
-            speed: this.speed
-        });
         
         // Make graphics invisible immediately to avoid flickering
         // The UI system will handle all visual animation
         this.graphics.visible = false;
         this.glowGraphics.visible = false;
-        
-        return 50; // Points awarded for collecting this orb
     }
     
     isOffScreen(): boolean {

@@ -1,4 +1,7 @@
 import * as PIXI from 'pixi.js';
+import { getLogger } from '../utils/logger';
+
+const logger = getLogger('Scoreboard');
 
 export class Scoreboard {
   private container!: PIXI.Container;
@@ -12,11 +15,10 @@ export class Scoreboard {
 
   constructor() {
     try {
-      console.log('Scoreboard: Constructor started');
+      logger.debug('Constructor started');
       this.container = new PIXI.Container();
       this.container.x = 10;
       this.container.y = 10;
-      console.log('Scoreboard: Container created', this.container);
 
       // Create text style
       this.style = new PIXI.TextStyle({
@@ -29,53 +31,43 @@ export class Scoreboard {
           width: 4
         }
       });
-      console.log('Scoreboard: Style created');
 
       // Create score text
       this.scoreText = new PIXI.Text('Score: 0', this.style);
       this.scoreText.y = 0;
       this.container.addChild(this.scoreText);
-      console.log('Scoreboard: Score text added');
 
       // Create level text
       this.levelText = new PIXI.Text('Level: 1', this.style);
       this.levelText.y = 20;
       this.container.addChild(this.levelText);
-      console.log('Scoreboard: Level text added');
 
       // Create orbs text
       this.orbsText = new PIXI.Text('Orbs: 0/0', this.style);
       this.orbsText.y = 40;
       this.container.addChild(this.orbsText);
-      console.log('Scoreboard: Orbs text added');
 
       // Create time text
       this.timeText = new PIXI.Text('Time: 0:0', this.style);
       this.timeText.y = 60;
       this.container.addChild(this.timeText);
-      console.log('Scoreboard: Time text added');
 
       // Create progress bar background
       this.progressBar = new PIXI.Graphics();
-      this.progressBar.beginFill(0x333333);
-      this.progressBar.drawRect(0, 85, 200, 10);
-      this.progressBar.endFill();
+      this.progressBar.rect(0, 85, 200, 10).fill(0x333333);
       this.container.addChild(this.progressBar);
-      console.log('Scoreboard: Progress bar added');
 
       // Create progress bar fill
       this.progressFill = new PIXI.Graphics();
-      this.progressFill.beginFill(0x66AAFF);
-      this.progressFill.drawRect(0, 85, 0, 10);
-      this.progressFill.endFill();
+      this.progressFill.rect(0, 85, 0, 10).fill(0x66AAFF);
       this.container.addChild(this.progressFill);
-      console.log('Scoreboard: Progress fill added');
       
-      console.log('Scoreboard: UI elements created successfully');
+      logger.debug('UI elements created successfully');
     } catch (error) {
-      console.error('Scoreboard: Error during construction', error);
+      logger.error('Error during construction', error);
     }
   }
+
 
   update(score: number, level: number, orbsCollected: number, orbsRequired: number, timeRemaining: number) {
     // Update score
@@ -114,9 +106,7 @@ export class Scoreboard {
       progressColor = 0x00FF00; // Bright green when complete
     }
     
-    this.progressFill.beginFill(progressColor);
-    this.progressFill.drawRect(0, 85, progress * 2, 10);
-    this.progressFill.endFill();
+    this.progressFill.rect(0, 85, progress * 2, 10).fill(progressColor);
 
     // Update time color based on remaining time
     if (timeRemaining <= 5000) {
@@ -142,12 +132,12 @@ export class Scoreboard {
   }
 
   getContainer(): PIXI.Container {
-    console.log('Scoreboard: getContainer called', this.container);
     if (!this.container) {
-      console.error('Scoreboard: Container is undefined!');
+      logger.error('Container is undefined!');
       // Return an empty container rather than undefined
       return new PIXI.Container();
     }
     return this.container;
   }
-} 
+}
+ 

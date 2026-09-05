@@ -1,9 +1,11 @@
 import * as PIXI from 'pixi.js';
-import { gameStateService, GameState } from '../gameStateService';
+import { GameStateService, gameStateService, GameState } from '../gameStateService';
 import { Scoreboard } from '../scoreboard';
-import { eventBus, GameEvent } from '../eventBus';
+import { EventBus, eventBus, GameEvent } from '../eventBus';
 import { Subscription } from 'rxjs';
-import { getLogger } from 'loglevel';
+import { getLogger } from '../../utils/logger';
+
+const logger = getLogger('UISystem');
 
 // Interface for our particle data
 interface ParticleData {
@@ -27,55 +29,74 @@ declare module 'pixi.js' {
  */
 export class UISystem {
   private static instance: UISystem;
-  private app!: PIXI.Application;
+  private app?: PIXI.Application;
   private scoreboard!: Scoreboard;
   private initialized: boolean = false;
   private orbEffects!: PIXI.Container;
+  private uiContainer!: PIXI.Container;
   private gameState: GameState;
   private subscriptions: Subscription[] = [];
   private orbCollectionSubscription: Subscription | null = null;
-  private logger = getLogger('UISystem');
-  private constructor() {
-    this.gameState = gameStateService.getState();
-    
-    // Subscribe to game state changes
-    this.subscribeToStateChanges();
+  private readonly events: EventBus;
+  private readonly state: GameStateService;
+
+  public constructor(
+    app?: PIXI.Application,
+    events: EventBus = eventBus,
+    state: GameStateService = gameStateService
+  ) {
+    this.app = app;
+    this.events = events;
+    this.state = state;
+    this.gameState = this.state.getState();
   }
   
   private subscribeToStateChanges(): void {
+    // Clean up any existing subscriptions first
+    this.unsubscribeFromStateChanges();
+
     // Track all important game state changes
     this.subscriptions.push(
-      gameStateService.select(state => state.score).subscribe(() => {
+      this.state.select(s => s.score).subscribe(() => {
         this.updateScoreboard();
       })
     );
     
     this.subscriptions.push(
-      gameStateService.select(state => state.orbsCollected).subscribe(() => {
+      this.state.select(s => s.orbsCollected).subscribe(() => {
         this.updateScoreboard();
       })
     );
     
     this.subscriptions.push(
-      gameStateService.select(state => state.timeRemaining).subscribe(() => {
+      this.state.select(s => s.timeRemaining).subscribe(() => {
         this.updateScoreboard();
       })
     );
 
     // Subscribe to orb collection events for visual feedback
-    this.orbCollectionSubscription = eventBus.on<{
-      x: number, 
-      y: number,
-      radius?: number,
-      graphics?: PIXI.Graphics,
-      glowGraphics?: PIXI.Graphics,
-      speed?: number
+    this.orbCollectionSubscription = this.events.on<{
+      x: number;
+      y: number;
+      radius?: number;
+      graphics?: PIXI.Graphics;
+      glowGraphics?: PIXI.Graphics;
+      speed?: number;
     }>(GameEvent.ORB_COLLECTED).subscribe(data => {
-      this.logger.debug('orbCollectionSubscription', data);
+      logger.debug('orbCollectionSubscription', data);
       if (data && typeof data === 'object' && 'x' in data && 'y' in data) {
         this.createOrbCollectionEffect(data.x, data.y, data.radius, data.speed);
       }
     });
+  }
+
+  private unsubscribeFromStateChanges(): void {
+    if (this.orbCollectionSubscription) {
+      this.orbCollectionSubscription.unsubscribe();
+      this.orbCollectionSubscription = null;
+    }
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.subscriptions = [];
   }
   
   public static getInstance(): UISystem {
@@ -87,48 +108,50 @@ export class UISystem {
   
   /**
    * Initialize the UISystem
-   * @param app - Either a PIXI.Application or a PIXI.Container (stage)
+   * @param appOrStage - Either a PIXI.Application or a PIXI.Container (stage)
    */
-  public initialize(app: PIXI.Application | PIXI.Container): void {
-    console.log('UISystem: Initialization started', app);
+  public initialize(appOrStage?: PIXI.Application | PIXI.Container): void {
+    logger.info('UISystem: Initialization started', appOrStage ?? this.app);
     
     try {
+      const target = appOrStage ?? this.app;
+      if (!target) {
+        throw new Error('UISystem: No PIXI.Application or PIXI.Container provided for initialization');
+      }
+
       // Determine whether we received an app or a stage
-      const stage = 'stage' in app ? app.stage : app;
+      const stage = 'stage' in target ? target.stage : target;
       
-      console.log('UISystem: Using stage', stage);
-      
-      // Store reference to parent container
-      if ('stage' in app) {
-        this.app = app;
-        console.log('UISystem: Stored app reference');
+      if ('stage' in target) {
+        this.app = target;
       }
       
       // Create UI layer
-      const uiContainer = new PIXI.Container();
-      stage.addChild(uiContainer);
-      console.log('UISystem: Created UI container');
+      this.uiContainer = new PIXI.Container();
+      stage.addChild(this.uiContainer);
+      logger.debug('UISystem: Created UI container');
       
       // Create scoreboard
-      console.log('UISystem: Creating scoreboard');
+      logger.debug('UISystem: Creating scoreboard');
       this.scoreboard = new Scoreboard();
       if (this.scoreboard) {
         const container = this.scoreboard.getContainer();
-        console.log('UISystem: Adding scoreboard container to stage', container);
         stage.addChild(container);
       } else {
-        console.warn('UISystem: Scoreboard could not be created');
+        logger.warn('UISystem: Scoreboard could not be created');
       }
       
       // Create container for orb collection effects
-      console.log('UISystem: Creating orb effects container');
       this.orbEffects = new PIXI.Container();
       stage.addChild(this.orbEffects);
+
+      // Subscribe to events and state updates
+      this.subscribeToStateChanges();
       
       this.initialized = true;
-      console.log('UISystem: Initialized successfully');
+      logger.info('UISystem: Initialized successfully');
     } catch (error) {
-      console.error('UISystem: Error during initialization', error);
+      logger.error('UISystem: Error during initialization', error);
       throw error;
     }
   }
@@ -147,7 +170,7 @@ export class UISystem {
   private updateScoreboard(): void {
     if (!this.initialized || !this.scoreboard) return;
     
-    const state = gameStateService.getState();
+    const state = this.state.getState();
     this.scoreboard.update(
       state.score,
       state.level,
@@ -162,14 +185,14 @@ export class UISystem {
    */
   private createOrbCollectionEffect(x: number, y: number, radius?: number, speed?: number): void {
     if (!this.initialized || !this.orbEffects) {
-      this.logger.warn('Cannot create orb collection effect - not initialized');
+      logger.warn('Cannot create orb collection effect - not initialized');
       return;
     }
     
-    this.logger.debug(`Creating orb collection effect at ${x},${y}`);
+    logger.debug(`Creating orb collection effect at ${x},${y}`);
     
     // Get current level's speed factor for animation timing
-    const currentLevel = gameStateService.getState().level;
+    const currentLevel = this.state.getState().level;
     const levelIndex = Math.max(0, currentLevel - 1);
     
     // Use a more direct way to get level multiplier
@@ -365,7 +388,7 @@ export class UISystem {
         }
       } catch (error) {
         // Handle any errors safely
-        this.logger.error(`Animation error: ${error}`);
+        logger.error(`Animation error: ${error}`);
         ticker.remove(animate);
         if (this.orbEffects && containerRef && this.orbEffects.children.includes(containerRef)) {
           this.orbEffects.removeChild(containerRef);
@@ -381,21 +404,14 @@ export class UISystem {
    */
   public dispose(): void {
     if (this.initialized) {
-      // Unsubscribe from events
-      if (this.orbCollectionSubscription) {
-        this.orbCollectionSubscription.unsubscribe();
-      }
-      
-      // Unsubscribe from all state changes
-      this.subscriptions.forEach(subscription => subscription.unsubscribe());
-      this.subscriptions = [];
+      this.unsubscribeFromStateChanges();
       
       // Clean up
       this.initialized = false;
-      console.log('UISystem: Disposed');
+      logger.info('UISystem: Disposed');
     }
   }
 }
 
 // Export a default instance for convenient imports
-export const uiSystem = UISystem.getInstance(); 
+export const uiSystem = UISystem.getInstance();

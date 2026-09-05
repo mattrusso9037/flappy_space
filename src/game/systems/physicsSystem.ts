@@ -1,8 +1,7 @@
-import { Astronaut } from '../entities/Astronaut';
 import { Obstacle } from '../entities/Obstacle';
-import { gameStateService } from '../gameStateService';
-import { entityManager } from './entitySystem';
-import { eventBus, GameEvent } from '../eventBus';
+import { GameStateService, gameStateService } from '../gameStateService';
+import { EntitySystem, entityManager } from './entitySystem';
+import { EventBus, eventBus, GameEvent } from '../eventBus';
 import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('PhysicsSystem');
@@ -17,9 +16,11 @@ export class PhysicsSystem {
   private lastSpeedDiagnosticTime: number = 0;
   private speedDiagnosticInterval: number = 5000; // Log all speeds every 5 seconds
   
-  private constructor() {
-    // Private constructor for singleton
-  }
+  public constructor(
+    private readonly entities: EntitySystem = entityManager,
+    private readonly state: GameStateService = gameStateService,
+    private readonly events: EventBus = eventBus
+  ) {}
   
   public static getInstance(): PhysicsSystem {
     if (!PhysicsSystem.instance) {
@@ -62,13 +63,13 @@ export class PhysicsSystem {
    * Log diagnostic information about all obstacle speeds
    */
   public logObstacleSpeedDiagnostics(): void {
-    const obstacles = entityManager.getObstacles();
+    const obstacles = this.entities.getObstacles();
     if (obstacles.length === 0) {
       logger.info('No obstacles to analyze');
       return;
     }
     
-    const orbs = entityManager.getOrbs();
+    const orbs = this.entities.getOrbs();
     const totalEntities = obstacles.length + orbs.length;
     
     // Calculate speed stats for obstacles
@@ -115,21 +116,12 @@ export class PhysicsSystem {
   public update(deltaTime: number, _entities?: unknown[]): void {
     if (!this.initialized) return;
     
-    const astronaut = entityManager.getAstronaut();
+    const astronaut = this.entities.getAstronaut();
     
     // Skip physics update if game is over or not started
-    if (!gameStateService.getState().isStarted || 
-        gameStateService.getState().isGameOver) {
+    if (!this.state.getState().isStarted || 
+        this.state.getState().isGameOver) {
       return;
-    }
-    
-    // Log physics updates occasionally to avoid console spam
-    if (Math.random() < 0.01) {
-      logger.debug(`Update called with deltaTime: ${deltaTime}`);
-      if (astronaut) {
-        logger.debug(`Astronaut position: x=${astronaut.sprite.x}, y=${astronaut.sprite.y}, vel=${astronaut.velocity}`);
-      }
-      logger.debug(`Active entities - obstacles: ${entityManager.getObstacles().length}, orbs: ${entityManager.getOrbs().length}`);
     }
     
     // Periodic speed diagnostics if enabled
@@ -148,12 +140,12 @@ export class PhysicsSystem {
       // Check if astronaut died from physics (e.g., hitting bottom of screen)
       if (astronaut.dead) {
         logger.info('PhysicsSystem: Astronaut died from physics (hit boundary)');
-        eventBus.emit(GameEvent.COLLISION_DETECTED, null);
+        this.events.emit(GameEvent.COLLISION_DETECTED, null);
       }
     }
     
     // Update obstacles and check for collisions
-    const obstacles = entityManager.getObstacles();
+    const obstacles = this.entities.getObstacles();
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const obstacle = obstacles[i];
       
@@ -163,10 +155,10 @@ export class PhysicsSystem {
       // Check if astronaut has passed the obstacle
       if (astronaut && obstacle.isPassed(astronaut.sprite.x)) {
         // Emit obstacle passed event
-        eventBus.emit(GameEvent.OBSTACLE_PASSED, obstacle);
+        this.events.emit(GameEvent.OBSTACLE_PASSED, obstacle);
         
         // Update score via gameStateService
-        gameStateService.incrementScore(10); // SCORE_PER_OBSTACLE from config
+        this.state.incrementScore(10); // SCORE_PER_OBSTACLE from config
       }
       
       // Check for collision with astronaut
@@ -175,7 +167,7 @@ export class PhysicsSystem {
         astronaut.die();
         
         // Emit collision event
-        eventBus.emit(GameEvent.COLLISION_DETECTED, {
+        this.events.emit(GameEvent.COLLISION_DETECTED, {
           astronaut,
           obstacle
         });
@@ -183,12 +175,12 @@ export class PhysicsSystem {
       
       // Remove obstacles that are off screen
       if (obstacle.isOffScreen()) {
-        entityManager.removeObstacle(obstacle);
+        this.entities.removeObstacle(obstacle);
       }
     }
     
     // Update orbs and check for collisions
-    const orbs = entityManager.getOrbs();
+    const orbs = this.entities.getOrbs();
     for (let i = orbs.length - 1; i >= 0; i--) {
       const orb = orbs[i];
       
@@ -200,53 +192,26 @@ export class PhysicsSystem {
         // Mark orb as collected
         orb.collect();
         
-        // Update game state
-        gameStateService.collectOrb();
+        // Update game state (awards ORB_POINTS exactly once)
+        this.state.collectOrb();
         
-        // Increment score for orb collection
-        gameStateService.incrementScore(50); // ORB_POINTS from config
+        // Emit presentation event for audio and visual feedback
+        this.events.emit(GameEvent.ORB_COLLECTED, {
+          x: orb.x,
+          y: orb.y,
+          radius: orb.radius,
+          speed: orb.speed
+        });
       }
       
       // Remove orbs that are off screen or collected
       if (orb.isOffScreen() || orb.collected) {
-        entityManager.removeOrb(orb);
+        this.entities.removeOrb(orb);
       }
     }
-    
-    // Update stars (parallax effect)
-    const stars = entityManager.getStars();
-    stars.forEach(star => star.update());
   }
   
-  /**
-   * Check for all collisions
-   */
-  private checkCollisions(astronaut: Astronaut): void {
-    if (!astronaut || astronaut.dead) return;
-    
-    // Check collisions with obstacles
-    const obstacles = entityManager.getObstacles();
-    for (const obstacle of obstacles) {
-      if (obstacle.checkCollision(astronaut)) {
-        astronaut.die();
-        eventBus.emit(GameEvent.COLLISION_DETECTED, {
-          astronaut,
-          obstacle
-        });
-        return; // Exit after first collision
-      }
-    }
-    
-    // Check collisions with orbs
-    const orbs = entityManager.getOrbs();
-    for (const orb of orbs) {
-      if (!orb.collected && orb.checkCollision(astronaut)) {
-        orb.collect();
-        gameStateService.collectOrb();
-        gameStateService.incrementScore(50); // ORB_POINTS from config
-      }
-    }
-  }
+
   
   /**
    * Clean up resources when the system is no longer needed

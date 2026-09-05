@@ -8,9 +8,13 @@ describe('GameStateService', () => {
     gameStateService.resetGame();
   });
 
-  it('provides a singleton instance', () => {
-    const instance = GameStateService.getInstance();
-    expect(instance).toBe(gameStateService);
+  it('isolates separate state service instances', () => {
+    const state1 = new GameStateService();
+    const state2 = new GameStateService();
+
+    state1.incrementScore(100);
+    expect(state1.getState().score).toBe(100);
+    expect(state2.getState().score).toBe(0);
   });
 
   it('initializes with default Level 1 state', () => {
@@ -60,10 +64,7 @@ describe('GameStateService', () => {
     sub.unsubscribe();
   });
 
-  it('collects orbs, increases score by 10, and detects level completion threshold', () => {
-    const orbHandler = vi.fn();
-    const sub = eventBus.on<number>(GameEvent.ORB_COLLECTED).subscribe(orbHandler);
-
+  it('collects orbs, increases score by ORB_POINTS (50), and detects level completion threshold', () => {
     const required = gameStateService.getState().orbsRequired;
     for (let i = 1; i < required; i++) {
       gameStateService.collectOrb();
@@ -75,10 +76,7 @@ describe('GameStateService', () => {
     gameStateService.collectOrb();
     expect(gameStateService.getState().orbsCollected).toBe(required);
     expect(gameStateService.getState().isLevelComplete).toBe(true);
-    expect(gameStateService.getState().score).toBe(required * 10);
-    expect(orbHandler).toHaveBeenCalledWith(required);
-
-    sub.unsubscribe();
+    expect(gameStateService.getState().score).toBe(required * 50);
   });
 
   it('transitions to next level on levelComplete()', () => {

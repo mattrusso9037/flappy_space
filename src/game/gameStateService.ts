@@ -1,7 +1,7 @@
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map, distinctUntilChanged } from 'rxjs/operators';
-import { LEVELS } from './config';
-import { eventBus, GameEvent } from './eventBus';
+import { LEVELS, ORB_POINTS } from './config';
+import { eventBus, EventBus, GameEvent } from './eventBus';
 // The core game state interface
 export interface GameState {
   score: number;
@@ -23,6 +23,7 @@ export class GameStateService {
 
   // The main state BehaviorSubject
   private state$: BehaviorSubject<GameState>;
+  private readonly events: EventBus;
   
   // Get initial state from level config 
   private getInitialState(): GameState {
@@ -43,32 +44,36 @@ export class GameStateService {
     };
   }
   
-  private constructor() {
-    this.state$ = new BehaviorSubject<GameState>(this.getInitialState());
+  public constructor(initialState?: Partial<GameState>, events: EventBus = eventBus) {
+    this.events = events;
+    const baseState = this.getInitialState();
+    this.state$ = new BehaviorSubject<GameState>({
+      ...baseState,
+      ...initialState
+    });
     
     // Setup subscribers to publish state changes to the event bus
-      this.setupEventPublishers();
-
+    this.setupEventPublishers();
   }
   
   private setupEventPublishers(): void {
     // Track score changes and publish events
     this.select(state => state.score)
       .subscribe(score => {
-        eventBus.emit(GameEvent.SCORE_CHANGED, score);
+        this.events.emit(GameEvent.SCORE_CHANGED, score);
       });
       
     // Track level changes and publish events  
     this.select(state => state.level)
       .subscribe(level => {
-        eventBus.emit(GameEvent.LEVEL_CHANGED, level);
+        this.events.emit(GameEvent.LEVEL_CHANGED, level);
       });
       
     // Track game over state
     this.select(state => state.isGameOver)
       .subscribe(isGameOver => {
         if (isGameOver) {
-          eventBus.emit(GameEvent.GAME_OVER, null);
+          this.events.emit(GameEvent.GAME_OVER, null);
         }
       });
       
@@ -76,12 +81,12 @@ export class GameStateService {
     this.select(state => state.isLevelComplete)
       .subscribe(isLevelComplete => {
         if (isLevelComplete) {
-          eventBus.emit(GameEvent.LEVEL_COMPLETE, this.getState().level);
+          this.events.emit(GameEvent.LEVEL_COMPLETE, this.getState().level);
         }
       });
   }
   
-  // Get the singleton instance
+  // Get the singleton instance (retained during transition)
   public static getInstance(): GameStateService {
     if (!GameStateService.instance) {
       GameStateService.instance = new GameStateService();
@@ -115,9 +120,6 @@ export class GameStateService {
   // --- Public API methods ---
   
   public startGame(): void {
-    console.log('GameStateService: startGame() called');
-    console.log(`GameStateService: Current state before starting - isStarted: ${this.getState().isStarted}, isGameOver: ${this.getState().isGameOver}, isLevelComplete: ${this.getState().isLevelComplete}`);
-
     this.setState(state => ({
       ...state,
       isStarted: true,
@@ -125,10 +127,7 @@ export class GameStateService {
       isLevelComplete: false
     }));
     
-    console.log(`GameStateService: State updated - isStarted: ${this.getState().isStarted}, isGameOver: ${this.getState().isGameOver}, isLevelComplete: ${this.getState().isLevelComplete}`);
-    console.log('GameStateService: Emitting GAME_STARTED event');
-    eventBus.emit(GameEvent.GAME_STARTED, null);
-    console.log('GameStateService: startGame() complete');
+    this.events.emit(GameEvent.GAME_STARTED, null);
   }
   
   public gameOver(): void {
@@ -140,14 +139,11 @@ export class GameStateService {
   }
   
   public resetGame(): void {
-    console.log('GameStateService: Resetting game state to initial values');
     const initialState = this.getInitialState();
-    console.log('GameStateService: Initial state:', initialState);
     this.state$.next(initialState);
-    console.log('GameStateService: State reset complete - time:', this.getState().time);
     
     // Emit state reset event
-    eventBus.emit(GameEvent.GAME_RESET, null);
+    this.events.emit(GameEvent.GAME_RESET, null);
   }
   
   public incrementScore(amount: number): void {
@@ -162,13 +158,10 @@ export class GameStateService {
       const newOrbsCollected = state.orbsCollected + 1;
       const isLevelComplete = newOrbsCollected >= state.orbsRequired;
       
-      // Publish the orb collected event with the new count
-      eventBus.emit(GameEvent.ORB_COLLECTED, newOrbsCollected);
-      
       return {
         ...state,
         orbsCollected: newOrbsCollected,
-        score: state.score + 10, // Assuming orbs are worth 10 points
+        score: state.score + ORB_POINTS,
         isLevelComplete: isLevelComplete
       };
     });
@@ -203,7 +196,6 @@ export class GameStateService {
   }
   
   public updateTime(deltaMS: number): void {
-    console.log('GameStateService: updateTime() called with deltaMS:', deltaMS);
     this.setState(state => {
       // Update global time counter and time remaining for level
       const time = state.time + deltaMS;
@@ -212,7 +204,7 @@ export class GameStateService {
       // Check if time ran out
       const timeRanOut = state.timeRemaining > 0 && timeRemaining <= 0;
       if (timeRanOut) {
-        eventBus.emit(GameEvent.TIME_UPDATED, { time, timeRemaining, timeRanOut });
+        this.events.emit(GameEvent.TIME_UPDATED, { time, timeRemaining, timeRanOut });
       }
       
       return {
@@ -228,7 +220,7 @@ export class GameStateService {
   public toggleDebugMode(): void {
     this.setState(state => {
       const newDebugMode = !state.debugMode;
-      eventBus.emit(GameEvent.DEBUG_TOGGLED, newDebugMode);
+      this.events.emit(GameEvent.DEBUG_TOGGLED, newDebugMode);
       
       return {
         ...state,

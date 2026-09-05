@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as PIXI from 'pixi.js';
 import { Astronaut } from './Astronaut';
-import { eventBus, GameEvent } from '../eventBus';
 import { GAME_HEIGHT, GAME_WIDTH, GRAVITY, JUMP_VELOCITY, MAX_VELOCITY } from '../config';
 
 describe('Astronaut Entity', () => {
@@ -36,22 +35,17 @@ describe('Astronaut Entity', () => {
     expect(astronaut.velocity).toBe(JUMP_VELOCITY);
   });
 
-  it('responds to JUMP_ACTION event from EventBus', () => {
-    eventBus.emit(GameEvent.JUMP_ACTION, null);
-    expect(astronaut.velocity).toBe(JUMP_VELOCITY);
-  });
-
-  it('responds to directional move actions from EventBus', () => {
-    eventBus.emit(GameEvent.MOVE_LEFT_ACTION, null);
+  it('responds to directional move actions', () => {
+    astronaut.moveLeft();
     expect(astronaut.horizontalVelocity).toBe(-5);
 
-    eventBus.emit(GameEvent.MOVE_RIGHT_ACTION, null);
+    astronaut.moveRight();
     expect(astronaut.horizontalVelocity).toBe(5);
 
-    eventBus.emit(GameEvent.MOVE_UP_ACTION, null);
+    astronaut.moveUp();
     expect(astronaut.velocity).toBe(-5);
 
-    eventBus.emit(GameEvent.MOVE_DOWN_ACTION, null);
+    astronaut.moveDown();
     expect(astronaut.velocity).toBe(5);
   });
 

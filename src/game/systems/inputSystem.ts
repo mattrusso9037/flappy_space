@@ -1,6 +1,7 @@
-import { eventBus, GameEvent } from '../eventBus';
-import { gameStateService } from '../gameStateService';
-import inputManager, { InputEvent, TouchData, Direction } from '../inputManager';
+import { EventBus, eventBus, GameEvent } from '../eventBus';
+import { GameStateService, gameStateService } from '../gameStateService';
+import defaultInputManager, { InputEvent, TouchData, Direction } from '../inputManager';
+import { EntitySystem, entityManager } from './entitySystem';
 import { Subscription } from 'rxjs';
 import { getLogger } from '../../utils/logger';
 
@@ -17,9 +18,21 @@ export class InputSystem {
   private enabled: boolean = false;
   private inTransition: boolean = false;
   private lastTouchCoordinates: { x: number, y: number } | null = null;
+  private readonly events: EventBus;
+  private readonly state: GameStateService;
+  private readonly inputMgr: typeof defaultInputManager;
+  private readonly entities: EntitySystem;
   
-  private constructor() {
-    // Private constructor for singleton
+  public constructor(
+    events: EventBus = eventBus,
+    state: GameStateService = gameStateService,
+    inputMgr: typeof defaultInputManager = defaultInputManager,
+    entities: EntitySystem = entityManager
+  ) {
+    this.events = events;
+    this.state = state;
+    this.inputMgr = inputMgr;
+    this.entities = entities;
     logger.info('Instance created');
   }
   
@@ -43,22 +56,22 @@ export class InputSystem {
     
     // Add jump event listener
     logger.debug('Registering JUMP event handler');
-    inputManager.on(InputEvent.JUMP, this.handleJumpAction);
+    this.inputMgr.on(InputEvent.JUMP, this.handleJumpAction);
 
     // Add movement event listeners
     logger.debug('Registering directional movement handlers');
-    inputManager.on(InputEvent.MOVE_UP, this.handleMoveUpAction);
-    inputManager.on(InputEvent.MOVE_DOWN, this.handleMoveDownAction);
-    inputManager.on(InputEvent.MOVE_LEFT, this.handleMoveLeftAction);
-    inputManager.on(InputEvent.MOVE_RIGHT, this.handleMoveRightAction);
+    this.inputMgr.on(InputEvent.MOVE_UP, this.handleMoveUpAction);
+    this.inputMgr.on(InputEvent.MOVE_DOWN, this.handleMoveDownAction);
+    this.inputMgr.on(InputEvent.MOVE_LEFT, this.handleMoveLeftAction);
+    this.inputMgr.on(InputEvent.MOVE_RIGHT, this.handleMoveRightAction);
 
     // Add start game event listener
     logger.debug('Registering START_GAME event handler');
-    inputManager.on(InputEvent.START_GAME, this.handleStartGame);
+    this.inputMgr.on(InputEvent.START_GAME, this.handleStartGame);
     
     // Add touch event listener
     logger.debug('Registering TOUCH event handler');
-    inputManager.on(InputEvent.TOUCH, this.handleTouchAction);
+    this.inputMgr.on(InputEvent.TOUCH, this.handleTouchAction);
     
     // Add keyboard event listener for game start and debug mode
     logger.debug('Adding keydown event listener');
@@ -66,7 +79,7 @@ export class InputSystem {
     
     // Subscribe to game state changes to enable/disable input appropriately
     this.subscriptions.push(
-      gameStateService.select(state => state.isGameOver).subscribe(isGameOver => {
+      this.state.select(state => state.isGameOver).subscribe(isGameOver => {
         if (isGameOver) {
           logger.info('Game over detected, disabling input');
           this.disable();
@@ -75,7 +88,7 @@ export class InputSystem {
     );
     
     this.subscriptions.push(
-      gameStateService.select(state => state.isStarted).subscribe(isStarted => {
+      this.state.select(state => state.isStarted).subscribe(isStarted => {
         logger.debug(`isStarted changed to ${isStarted}`);
         if (isStarted) {
           logger.info('Game started, enabling input');
@@ -98,13 +111,13 @@ export class InputSystem {
     logger.info('Disposing...');
     
     // Remove input manager listeners
-    inputManager.off(InputEvent.JUMP, this.handleJumpAction);
-    inputManager.off(InputEvent.MOVE_UP, this.handleMoveUpAction);
-    inputManager.off(InputEvent.MOVE_DOWN, this.handleMoveDownAction);
-    inputManager.off(InputEvent.MOVE_LEFT, this.handleMoveLeftAction);
-    inputManager.off(InputEvent.MOVE_RIGHT, this.handleMoveRightAction);
-    inputManager.off(InputEvent.START_GAME, this.handleStartGame);
-    inputManager.off(InputEvent.TOUCH, this.handleTouchAction);
+    this.inputMgr.off(InputEvent.JUMP, this.handleJumpAction);
+    this.inputMgr.off(InputEvent.MOVE_UP, this.handleMoveUpAction);
+    this.inputMgr.off(InputEvent.MOVE_DOWN, this.handleMoveDownAction);
+    this.inputMgr.off(InputEvent.MOVE_LEFT, this.handleMoveLeftAction);
+    this.inputMgr.off(InputEvent.MOVE_RIGHT, this.handleMoveRightAction);
+    this.inputMgr.off(InputEvent.START_GAME, this.handleStartGame);
+    this.inputMgr.off(InputEvent.TOUCH, this.handleTouchAction);
     
     // Remove keyboard event listener
     document.removeEventListener('keydown', this.handleKeyDown);
@@ -121,7 +134,7 @@ export class InputSystem {
    * Enable input processing
    */
   public enable(): void {
-    inputManager.enable();
+    this.inputMgr.enable();
     this.enabled = true;
     logger.info('Input enabled');
   }
@@ -130,7 +143,7 @@ export class InputSystem {
    * Disable input processing
    */
   public disable(): void {
-    inputManager.disable();
+    this.inputMgr.disable();
     this.enabled = false;
     logger.info('Input disabled');
   }
@@ -147,7 +160,8 @@ export class InputSystem {
     
     // Dispatch jump event to the event bus
     logger.debug('Emitting JUMP_ACTION event');
-    eventBus.emit(GameEvent.JUMP_ACTION, null);
+    this.events.emit(GameEvent.JUMP_ACTION, null);
+    this.entities.getAstronaut()?.flap();
   }
 
   /**
@@ -162,7 +176,8 @@ export class InputSystem {
     
     // Dispatch move up event to the event bus
     logger.debug('Emitting MOVE_UP_ACTION event');
-    eventBus.emit(GameEvent.MOVE_UP_ACTION, null);
+    this.events.emit(GameEvent.MOVE_UP_ACTION, null);
+    this.entities.getAstronaut()?.moveUp();
   }
 
   /**
@@ -177,7 +192,8 @@ export class InputSystem {
     
     // Dispatch move down event to the event bus
     logger.debug('Emitting MOVE_DOWN_ACTION event');
-    eventBus.emit(GameEvent.MOVE_DOWN_ACTION, null);
+    this.events.emit(GameEvent.MOVE_DOWN_ACTION, null);
+    this.entities.getAstronaut()?.moveDown();
   }
 
   /**
@@ -192,7 +208,8 @@ export class InputSystem {
     
     // Dispatch move left event to the event bus
     logger.debug('Emitting MOVE_LEFT_ACTION event');
-    eventBus.emit(GameEvent.MOVE_LEFT_ACTION, null);
+    this.events.emit(GameEvent.MOVE_LEFT_ACTION, null);
+    this.entities.getAstronaut()?.moveLeft();
   }
 
   /**
@@ -207,7 +224,8 @@ export class InputSystem {
     
     // Dispatch move right event to the event bus
     logger.debug('Emitting MOVE_RIGHT_ACTION event');
-    eventBus.emit(GameEvent.MOVE_RIGHT_ACTION, null);
+    this.events.emit(GameEvent.MOVE_RIGHT_ACTION, null);
+    this.entities.getAstronaut()?.moveRight();
   }
 
   /**
@@ -215,7 +233,7 @@ export class InputSystem {
    */
   private handleTouchAction = (): void => {
     // Get touch data from input manager
-    const touchData = inputManager.getLastEventData() as TouchData;
+    const touchData = this.inputMgr.getLastEventData() as TouchData;
     if (!touchData) {
       logger.warn('Touch event received without touch data');
       return;
@@ -233,7 +251,7 @@ export class InputSystem {
 
   private handleRestartGame = (): void => {
     logger.info('Emitting RESTART_GAME event');
-    eventBus.emit(GameEvent.RESTART_GAME, null);
+    this.events.emit(GameEvent.RESTART_GAME, null);
   }
   
   /**
@@ -258,7 +276,7 @@ export class InputSystem {
     }
 
     // Get current game state
-    const state = gameStateService.getState();
+    const state = this.state.getState();
     logger.info(`Current game state - isStarted: ${state.isStarted}, isGameOver: ${state.isGameOver}`);
     
     try {
@@ -267,12 +285,12 @@ export class InputSystem {
       // If game is over, reset everything first
       if (state.isGameOver) {
         logger.info('Game was over - emitting RESTART_GAME event');
-        eventBus.emit(GameEvent.RESTART_GAME, null);
+        this.events.emit(GameEvent.RESTART_GAME, null);
         
         // Wait a short time before starting
         setTimeout(() => {
           logger.info('Starting game after reset');
-          eventBus.emit(GameEvent.START_GAME, null);
+          this.events.emit(GameEvent.START_GAME, null);
           this.inTransition = false;
         }, 200);
         
@@ -281,7 +299,7 @@ export class InputSystem {
       // If game is not started and not in game over state, just start it
       else if (!state.isStarted) {
         logger.info('Starting new game');
-        eventBus.emit(GameEvent.START_GAME, null);
+        this.events.emit(GameEvent.START_GAME, null);
         this.inTransition = false;
         return true;
       }
@@ -315,13 +333,14 @@ export class InputSystem {
     this.lastTouchCoordinates = { x, y };
     
     // If not in gameplay yet, attempt to start the game
-    if (!gameStateService.getState().isStarted || gameStateService.getState().isGameOver) {
+    if (!this.state.getState().isStarted || this.state.getState().isGameOver) {
       logger.info('Direct touch triggering game start');
       this.startOrResetGame();
     } else {
       // Otherwise trigger a jump
       logger.debug('Direct touch triggering jump in active game');
-      eventBus.emit(GameEvent.JUMP_ACTION, null);
+      this.events.emit(GameEvent.JUMP_ACTION, null);
+      this.entities.getAstronaut()?.flap();
     }
   }
   
@@ -329,20 +348,24 @@ export class InputSystem {
    * Handle keyboard events
    */
   private handleKeyDown = (e: KeyboardEvent): void => {
-    logger.debug(`KeyDown event - ${e.key}, isStarted: ${gameStateService.getState().isStarted}`);
+    logger.debug(`KeyDown event - ${e.key}, isStarted: ${this.state.getState().isStarted}`);
     
     // Handle spacebar for game start/reset
     if (e.key === ' ' || e.code === 'Space') {
-      logger.info('Spacebar pressed');
-      this.startOrResetGame();
+      const state = this.state.getState();
+      if (!state.isStarted || state.isGameOver) {
+        logger.info('Spacebar pressed - starting or resetting game');
+        this.startOrResetGame();
+      }
     } 
+
     // Handle debug mode toggle
     else if (e.key === 'd' || e.key === 'D') {
       logger.info('Debug mode toggle');
-      gameStateService.toggleDebugMode();
+      this.state.toggleDebugMode();
     } else if (e.key === 'r' || e.key === 'R') {
       logger.info('Restart game');
-      eventBus.emit(GameEvent.RESTART_GAME, null);
+      this.events.emit(GameEvent.RESTART_GAME, null);
     }
   }
   
@@ -351,7 +374,7 @@ export class InputSystem {
    * This can be used by systems that need continuous input rather than events
    */
   public getDirectionalInput(): Record<Direction, boolean> {
-    return inputManager.getDirectionalInput();
+    return this.inputMgr.getDirectionalInput();
   }
   
   /**

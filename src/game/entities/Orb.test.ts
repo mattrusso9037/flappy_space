@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Orb } from './Orb';
 import { Astronaut } from './Astronaut';
 import * as PIXI from 'pixi.js';
-import { eventBus, GameEvent } from '../eventBus';
 
 describe('Orb Entity', () => {
   let orb: Orb;
@@ -44,21 +43,11 @@ describe('Orb Entity', () => {
     expect(orb.checkCollision(astronaut)).toBe(false);
   });
 
-  it('collects the orb, awards 50 points, hides graphics, and emits event', () => {
-    const orbHandler = vi.fn();
-    const sub = eventBus.on(GameEvent.ORB_COLLECTED).subscribe(orbHandler);
-
-    const points = orb.collect();
-    expect(points).toBe(50);
+  it('collects the orb and hides graphics', () => {
+    orb.collect();
     expect(orb.collected).toBe(true);
     expect(orb.graphics.visible).toBe(false);
     expect(orb.glowGraphics.visible).toBe(false);
-    expect(orbHandler).toHaveBeenCalled();
-
-    // Calling collect again should yield 0
-    expect(orb.collect()).toBe(0);
-
-    sub.unsubscribe();
   });
 
   it('detects off-screen status accurately', () => {

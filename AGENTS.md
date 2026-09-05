@@ -6,7 +6,13 @@ This document establishes the mandatory guardrails, architectural standards, and
 
 ---
 
-## 1. The Universal Verification Command
+## 1. Scope Discipline
+
+> **This repository uses a lightweight system-oriented game architecture. Do not introduce a generic ECS, custom physics engine, plugin framework, dependency injection container, or reusable npm engine package without a concrete second use case.**
+
+---
+
+## 2. The Universal Verification Command
 
 Before submitting any code changes, creating a commit, or completing a task, **you MUST run**:
 
@@ -23,7 +29,7 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 
 ---
 
-## 2. Essential Development Commands
+## 3. Essential Development Commands
 
 | Command | Description |
 | :--- | :--- |
@@ -38,45 +44,46 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 
 ---
 
-## 3. Architecture & Separation of Concerns (ECS Pattern)
+## 4. Architecture & Separation of Concerns
 
-The game engine follows an **Entity-Component-System (ECS)** architecture with an event-driven messaging layer:
+### A. React / Pixi.js Boundary
+- **React owns the application shell**: Mounting, menus, overlays, dialogs, loading/error screens, and non-realtime presentation.
+- **Pixi.js owns realtime rendering**: The stage canvas, scene graph, sprites, particles, and render loop.
+- **RULE**: Never push per-frame entity simulation state through React. Realtime movement stays inside the Pixi canvas and systems.
 
-### A. Entities (`src/game/entities/`)
-- Game entities represent state and display objects (`Astronaut`, `Planet`, `Orb`, `Star`).
-- **RULE**: Entity classes must only store data, state, and visual representations. Complex business logic or direct system interactions DO NOT belong inside entity classes.
+### B. Runtime Ownership & Composition Root
+- Every mounted game session is owned by an independent `GameRuntime` instance.
+- **No runtime-owned singletons**: Systems (`EntitySystem`, `PhysicsSystem`, `SpawningSystem`, `RenderSystem`, `InputSystem`, `AudioSystem`, `UISystem`), `EventBus`, and `GameStateService` are normal, instantiable classes.
+- Dependencies are wired in one composition root: `createFlappySpaceRuntime(app)`.
+- Cleanup is deterministic: when the React component unmounts, `runtime.dispose()` tears down all systems, detaches the ticker callback, and unsubscribes all listeners.
 
-### B. Systems (`src/game/systems/`)
-- Systems contain the processing logic:
-  - `physicsSystem.ts`: Movement, velocity, gravity, boundary checks, and collision detection.
-  - `spawningSystem.ts`: Obstacle and orb generation, difficulty scaling, intervals.
-  - `renderSystem.ts`: Visual rendering, background star parallax, debug hitbox overlays.
-  - `audioSystem.ts`: Sound effects and background music.
-  - `inputSystem.ts`: Processing raw inputs from keyboard and touch into game actions.
-  - `uiSystem.ts`: Particle effects, floating scores, HUD animations.
-  - `entitySystem.ts`: Entity lifecycle tracking, addition, and cleanup.
-- **RULE**: Systems must remain focused and modular. Inter-system communication must happen via the `EventBus`.
-
-### C. EventBus (`src/game/eventBus.ts`)
-- Communication between decoupled systems flows through `eventBus`:
+### C. Typed Event Rules
+- Communication between decoupled systems flows through `EventBus`:
   ```typescript
-  // Emitting an event
-  eventBus.emit(GameEvent.SCORE_CHANGED, newScore);
+  // Emitting a typed event
+  events.emit(GameEvent.SCORE_CHANGED, newScore);
 
   // Subscribing to an event
-  const sub = eventBus.on<number>(GameEvent.SCORE_CHANGED).subscribe(score => { ... });
+  const sub = events.on<number>(GameEvent.SCORE_CHANGED).subscribe(score => { ... });
   // Always clean up subscriptions when disposing:
   sub.unsubscribe();
   ```
-- **RULE**: When adding new events, always register them in the `GameEvent` enum in `src/game/eventBus.ts`.
+- **RULE**: Events are strongly typed with consistent payload contracts.
+- **RULE**: Entities (`Astronaut`, `Orb`, `Planet`, `Star`) must NOT subscribe to global runtime events directly in their constructors. Action methods on entities are called by their respective systems.
 
-### D. Game State Management (`src/game/gameStateService.ts`)
-- `gameStateService` is the **single source of truth** for all global gameplay data (score, level, warps, time, orbs collected, isGameOver, isStarted).
-- **RULE**: Do not duplicate or store divergent game state in React components or systems. Systems read state via `gameStateService.getState()` or observe via `gameStateService.getState$()`.
+### D. Single-Source Rule Ownership
+- Gameplay rules have a single authoritative owner.
+  - **Orb scoring**: When physics detects an orb collection, `state.collectOrb()` updates orb count and awards `ORB_POINTS` (50 points) exactly once.
+  - **Level progression**: State owns level transitions; `SpawningSystem` applies the configured speed and spawn interval for the current level.
+  - **UI reacts to state/events**: UI never independently mutates score or gameplay rules.
+
+### E. Simulation Time Over Real Timers
+- Avoid unmanaged `setTimeout` or `setInterval` for gameplay sequencing.
+- Use simulation time delta countdowns inside `update(deltaSeconds)` so pause, resume, reset, and test clocks work deterministically.
 
 ---
 
-## 4. Code Quality & Guardrail Rules
+## 5. Code Quality & Guardrail Rules
 
 1. **No `any` Types**:
    - Strict typing is enforced. Use explicit TypeScript interfaces, unions, generics, or `unknown` with proper type guards.
@@ -91,65 +98,51 @@ The game engine follows an **Entity-Component-System (ECS)** architecture with a
      logger.warn('Warning condition');
      logger.error('Error encountered', error);
      ```
+   - Avoid high-frequency logging inside per-frame update loops.
 3. **Headless & CI Safe**:
    - Pixi.js runs in both the browser, Electron, and headless test runners (Node.js/JSDOM).
-   - In `src/test/setup.ts`, Canvas 2D contexts are mocked so headless tests execute instantly without needing a physical GPU or display server.
+   - In `src/test/setup.ts`, Canvas 2D contexts and Web Audio APIs are mocked so headless tests execute instantly without needing a physical GPU or audio device.
 4. **Mandatory Tests for New Features**:
    - Whenever adding a new entity, helper function, collision math, or system:
      - Always create or update the corresponding `*.test.ts` file in the same directory.
+     - Behavioral contracts take priority over implementation-shape tests.
      - Verify tests pass with `npm test`.
 
 ---
 
-## 5. PixiJS v8 Skills & Reference Guidance
+## 6. PixiJS v8 Reference Guidance
 
-Comprehensive PixiJS v8 reference skills and cheatsheets are maintained for AI agents assisting with this project.
-
-### Locations
-- **Global / Machine**: `~/.agents/skills/` (symlinked to `~/.gemini/config/skills/` for Antigravity discovery).
-- **Workspace (Project-Local)**: `.agents/skills/` (optional, for direct workspace access).
-
-### Available PixiJS Skills
-- **Router / Entry Point**: `pixijs` (`SKILL.md` routes to all specialized skills below).
-- **Foundations & Core**: `pixijs-application`, `pixijs-core-concepts`, `pixijs-create`, `pixijs-environments`.
-- **Scene Graph & Display**: `pixijs-scene-container`, `pixijs-scene-core-concepts`, `pixijs-scene-graphics`, `pixijs-scene-sprite`, `pixijs-scene-mesh`, `pixijs-scene-text`, `pixijs-scene-particle-container`, `pixijs-scene-dom-container`, `pixijs-scene-gif`.
-- **Rendering & Shaders**: `pixijs-custom-rendering`, `pixijs-filters`, `pixijs-blend-modes`, `pixijs-color`.
-- **Interactions & Pipeline**: `pixijs-events`, `pixijs-assets`, `pixijs-ticker`, `pixijs-math`, `pixijs-accessibility`.
-- **Optimization & Upgrades**: `pixijs-performance`, `pixijs-migration-v8`.
-- **API Reference Fallback**: For APIs not covered directly in a sub-skill, reference `https://pixijs.download/release/docs/llms.txt`.
-
-### Agent Guidelines for PixiJS
-1. **Always Target Pixi.js v8**: Never use deprecated v7 APIs (e.g., synchronous `new Application()` without `await app.init()`, old `@pixi/*` sub-packages, or legacy `beginFill()`/`endFill()`).
-2. **Consult Relevant Sub-Skill**: Before implementing complex rendering, particle systems, filters, or custom shaders, consult the corresponding skill instructions or references.
-3. **Preserve Headless Testing**: Ensure all Pixi display code remains compatible with the canvas mocks in `src/test/setup.ts`.
+Comprehensive PixiJS v8 reference skills and cheatsheets are maintained for AI agents assisting with this project:
+- Always target Pixi.js v8 modern APIs (e.g., `app.init()`, `app.canvas`, shape-then-fill Graphics).
+- Preserve headless testing compatibility.
+- Do not add `@pixi/react`.
 
 ---
 
-## 6. File & Directory Layout
+## 7. File & Directory Layout
 
 ```
 flappy_space/
-├── .agents/skills/            # Optional project-local agent skills
-├── .cursor/rules/             # Cursor-specific rule configurations
+├── .cursor/rules/             # Cursor rules (project-info points to AGENTS.md)
 ├── .github/workflows/         # GitHub Actions CI automation
 ├── electron/                  # Electron main & preload scripts
 ├── public/                    # Static assets (sprites, icons)
 ├── src/
-│   ├── components/            # React UI components (Scoreboard, Controls, etc.)
-│   ├── controllers/           # Orchestration layer (GameController)
-│   ├── game/                  # Core game engine
+│   ├── components/            # React UI components (GameDisplay, Scoreboard, LevelMessage)
+│   ├── engine/                # Runtime-agnostic engine primitives (GameRuntime, EventBus, types)
+│   ├── games/flappy-space/    # Flappy Space composition root (createFlappySpaceRuntime)
+│   ├── game/                  # Core game logic and systems
 │   │   ├── config.ts          # Game constants, physics values, level configs
-│   │   ├── eventBus.ts        # Reactive EventBus (RxJS)
-│   │   ├── gameStateService.ts# Centralized state management
+│   │   ├── eventBus.ts        # Instantiable, typed EventBus
+│   │   ├── gameStateService.ts# Centralized state management store
 │   │   ├── inputManager.ts    # Low-level keyboard and touch events
-│   │   ├── entities/          # ECS Entities (Astronaut, Planet, Orb, Star)
-│   │   └── systems/           # ECS Systems (Physics, Render, Spawning, Audio, UI)
+│   │   ├── entities/          # Entities (Astronaut, Planet, Orb, Star)
+│   │   └── systems/           # Systems (Physics, Render, Spawning, Audio, UI, Entity)
 │   ├── test/                  # Test setup and Canvas mocks
 │   └── utils/                 # Logger and diagnostic utilities
-├── AGENTS.md                  # This AI Agent Guardrails Guide
+├── AGENTS.md                  # Primary AI Agent Guardrails Guide (Source of Truth)
 ├── eslint.config.js           # ESLint configuration
 ├── package.json               # Scripts, dependencies, and metadata
 ├── tsconfig.json              # TypeScript root configuration
 └── vite.config.ts             # Vite bundler & Vitest test runner configuration
 ```
-

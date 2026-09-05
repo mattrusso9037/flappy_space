@@ -34,30 +34,75 @@ export enum GameEvent {
   ASSETS_LOADED = 'ASSETS_LOADED'
 }
 
+// Typed event map for Flappy Space
+export interface FlappyGameEvents {
+  SCORE_CHANGED: number;
+  LEVEL_CHANGED: number;
+  GAME_OVER: null | { reason?: string };
+  LEVEL_COMPLETE: number;
+  GAME_STARTED: null | void;
+  GAME_RESET: null | void;
+  ORB_COLLECTED: number | { x: number; y: number; radius?: number; graphics?: unknown; glowGraphics?: unknown; speed?: number; orbId?: string };
+  OBSTACLE_PASSED: unknown;
+  COLLISION_DETECTED: unknown;
+  JUMP_ACTION: null | void;
+  MOVE_UP_ACTION: null | void;
+  MOVE_DOWN_ACTION: null | void;
+  MOVE_LEFT_ACTION: null | void;
+  MOVE_RIGHT_ACTION: null | void;
+  DEBUG_TOGGLED: boolean;
+  ENTITY_CREATED: unknown;
+  ENTITY_DESTROYED: unknown;
+  TIME_UPDATED: { time?: number; timeRemaining?: number; timeRanOut?: boolean };
+  START_GAME: null | void;
+  SHOW_START_PROMPT: null | void;
+  HIDE_START_PROMPT: null | void;
+  RESTART_GAME: null | void;
+  PLAYER_DEATH: unknown;
+  COLLECT_ORB: unknown;
+  PLAYER_HIT_OBSTACLE: unknown;
+  ASSETS_LOADED: string[];
+
+  // Typed game event contracts
+  gameStarted: void;
+  gameReset: void;
+  jumpRequested: void;
+  moveLeftRequested: void;
+  moveRightRequested: void;
+  moveUpRequested: void;
+  moveDownRequested: void;
+  playerDied: { reason: 'obstacle' | 'boundary' | 'timeout' };
+  obstaclePassed: { obstacleId: string };
+  orbCollected: { orbId: string; x: number; y: number; radius: number };
+  scoreChanged: { score: number };
+  levelChanged: { level: number };
+  levelComplete: { level: number };
+}
+
 // Type for event payloads
 export interface EventPayload<T = unknown> {
-  type: GameEvent;
+  type: string;
   data: T;
 }
 
-// The EventBus singleton
-export class EventBus {
-  private static instance: EventBus;
+// The EventBus class (can be instantiated per runtime or used via singleton during transition)
+export class EventBus<TEvents extends object = FlappyGameEvents> {
+  private static instance: EventBus<FlappyGameEvents>;
   
   // The main subject that all events flow through
-  private eventSubject: Subject<EventPayload>;
+  private eventSubject: Subject<EventPayload<unknown>>;
   
   // Debug flag to control verbose logging
   private debug: boolean = false;
   
-  private constructor() {
-    this.eventSubject = new Subject<EventPayload>();
+  public constructor() {
+    this.eventSubject = new Subject<EventPayload<unknown>>();
   }
   
-  // Get the singleton instance
-  public static getInstance(): EventBus {
+  // Get the singleton instance (retained during transition)
+  public static getInstance(): EventBus<FlappyGameEvents> {
     if (!EventBus.instance) {
-      EventBus.instance = new EventBus();
+      EventBus.instance = new EventBus<FlappyGameEvents>();
     }
     return EventBus.instance;
   }
@@ -75,35 +120,39 @@ export class EventBus {
   }
   
   // Publish an event to the bus
-  public emit<T>(type: GameEvent, data: T): void {
-    // More detailed logging in debug mode
+  public emit<K extends keyof TEvents>(type: K, data: TEvents[K]): void;
+  public emit<T = unknown>(type: string | GameEvent, data: T): void;
+  public emit(type: unknown, data: unknown): void {
+    const eventType = String(type);
     if (this.debug) {
-      logger.debug(`EMIT: ${type}`, data);
+      logger.debug(`EMIT: ${eventType}`, data);
     } else {
-      // Basic logging otherwise
-      logger.debug(`${type}`, data);
+      logger.debug(`${eventType}`, data);
     }
-    this.eventSubject.next({ type, data });
+    this.eventSubject.next({ type: eventType, data });
   }
   
   // Subscribe to a specific event type
-  public on<T>(eventType: GameEvent): Observable<T> {
+  public on<K extends keyof TEvents, TResult = TEvents[K]>(eventType: K): Observable<TResult>;
+  public on<T = unknown>(eventType: string | GameEvent): Observable<T>;
+  public on(eventType: unknown): Observable<unknown> {
+    const targetType = String(eventType);
     if (this.debug) {
-      logger.debug(`SUBSCRIBE: ${eventType}`);
+      logger.debug(`SUBSCRIBE: ${targetType}`);
     } else {
-      logger.debug(`Subscribing to ${eventType}`);
+      logger.debug(`Subscribing to ${targetType}`);
     }
     return this.eventSubject.pipe(
-      filter(event => event.type === eventType),
-      map(event => event.data as T)
+      filter(event => event.type === targetType),
+      map(event => event.data)
     );
   }
   
   // Get the raw event stream (for advanced use cases)
-  public getEventStream(): Observable<EventPayload> {
+  public getEventStream(): Observable<EventPayload<unknown>> {
     return this.eventSubject.asObservable();
   }
 }
 
 // Export a default instance for convenient imports
-export const eventBus = EventBus.getInstance(); 
+export const eventBus = EventBus.getInstance();

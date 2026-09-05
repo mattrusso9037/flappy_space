@@ -44,3 +44,28 @@ if (typeof HTMLCanvasElement !== 'undefined') {
     };
   };
 }
+
+// Provide basic AudioContext mock for jsdom environment
+if (typeof window !== 'undefined' && !window.AudioContext) {
+  // @ts-expect-error - Mock AudioContext for jsdom
+  window.AudioContext = class {
+    sampleRate = 44100;
+    createBuffer() {
+      return {
+        getChannelData: () => new Float32Array(100),
+        length: 100,
+      };
+    }
+    createBufferSource() {
+      return {
+        buffer: null,
+        connect: () => {},
+        start: () => {},
+        stop: () => {},
+      };
+    }
+    get destination() {
+      return {};
+    }
+  };
+}
