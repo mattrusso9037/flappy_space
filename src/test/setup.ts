@@ -40,27 +40,128 @@ if (typeof HTMLCanvasElement !== 'undefined') {
   };
 }
 
-// Provide basic AudioContext mock for jsdom environment
-if (typeof window !== 'undefined' && !window.AudioContext) {
-  // @ts-expect-error - Mock AudioContext for jsdom
-  window.AudioContext = class {
-    sampleRate = 44100;
-    createBuffer() {
-      return {
-        getChannelData: () => new Float32Array(100),
-        length: 100,
-      };
-    }
-    createBufferSource() {
-      return {
-        buffer: null,
-        connect: () => {},
-        start: () => {},
-        stop: () => {},
-      };
-    }
-    get destination() {
-      return {};
-    }
-  };
+// Provide comprehensive AudioContext and Audio mocks for jsdom environment
+if (typeof window !== 'undefined') {
+  const createMockAudioParam = (defaultValue = 1) => ({
+    value: defaultValue,
+    defaultValue,
+    minValue: -1000,
+    maxValue: 1000,
+    setValueAtTime: () => {},
+    linearRampToValueAtTime: () => {},
+    exponentialRampToValueAtTime: () => {},
+    setTargetAtTime: () => {},
+    setValueCurveAtTime: () => {},
+    cancelScheduledValues: () => {},
+  });
+
+  const createMockNode = () => ({
+    connect: () => {},
+    disconnect: () => {},
+  });
+
+  if (!window.AudioContext) {
+    // @ts-expect-error - Mock AudioContext for jsdom
+    window.AudioContext = class {
+      sampleRate = 44100;
+      currentTime = 0;
+      state: AudioContextState = 'running';
+
+      get destination() {
+        return createMockNode();
+      }
+
+      resume() {
+        this.state = 'running';
+        return Promise.resolve();
+      }
+
+      suspend() {
+        this.state = 'suspended';
+        return Promise.resolve();
+      }
+
+      close() {
+        this.state = 'closed';
+        return Promise.resolve();
+      }
+
+      createBuffer(numberOfChannels: number, length: number, sampleRate: number) {
+        const channels = Array.from({ length: numberOfChannels }, () => new Float32Array(length));
+        return {
+          numberOfChannels,
+          length,
+          sampleRate,
+          duration: length / sampleRate,
+          getChannelData: (channel: number) => channels[channel] || new Float32Array(length),
+        };
+      }
+
+      createBufferSource() {
+        return {
+          ...createMockNode(),
+          buffer: null,
+          playbackRate: createMockAudioParam(1),
+          detune: createMockAudioParam(0),
+          loop: false,
+          loopStart: 0,
+          loopEnd: 0,
+          start: () => {},
+          stop: () => {},
+          onended: null,
+        };
+      }
+
+      createGain() {
+        return {
+          ...createMockNode(),
+          gain: createMockAudioParam(1),
+        };
+      }
+
+      createOscillator() {
+        return {
+          ...createMockNode(),
+          type: 'sine' as OscillatorType,
+          frequency: createMockAudioParam(440),
+          detune: createMockAudioParam(0),
+          start: () => {},
+          stop: () => {},
+          onended: null,
+        };
+      }
+
+      createBiquadFilter() {
+        return {
+          ...createMockNode(),
+          type: 'lowpass' as BiquadFilterType,
+          frequency: createMockAudioParam(350),
+          detune: createMockAudioParam(0),
+          Q: createMockAudioParam(1),
+          gain: createMockAudioParam(0),
+        };
+      }
+
+      decodeAudioData(
+        _audioData: ArrayBuffer,
+        successCallback?: (decodedData: AudioBuffer) => void
+      ) {
+        const buffer = this.createBuffer(2, 44100, 44100) as unknown as AudioBuffer;
+        successCallback?.(buffer);
+        return Promise.resolve(buffer);
+      }
+    };
+  }
+
+  // JSDOM has a stub HTMLMediaElement that does not simulate play/pause state transitions
+  if (typeof window.HTMLMediaElement !== 'undefined') {
+    window.HTMLMediaElement.prototype.play = function () {
+      Object.defineProperty(this, 'paused', { value: false, configurable: true });
+      return Promise.resolve();
+    };
+    window.HTMLMediaElement.prototype.pause = function () {
+      Object.defineProperty(this, 'paused', { value: true, configurable: true });
+    };
+    window.HTMLMediaElement.prototype.load = function () {};
+  }
 }

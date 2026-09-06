@@ -171,4 +171,62 @@
   .touch-overlay {
     display: none;
   }
-} 
+}
+
+/* Audio toggle control */
+.audio-toggle-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(7, 9, 19, 0.75);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 4px;
+  color: #00e5ff;
+  font-family: 'Space Mono', 'Courier New', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 229, 255, 0.1);
+  user-select: none;
+}
+
+.audio-toggle-btn:hover {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: #00e5ff;
+  box-shadow: 0 2px 12px rgba(0, 229, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.audio-toggle-btn:active {
+  transform: translateY(0);
+}
+
+.audio-toggle-btn.muted {
+  color: #ff5252;
+  border-color: rgba(255, 82, 82, 0.4);
+  background: rgba(26, 10, 15, 0.75);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 82, 82, 0.1);
+}
+
+.audio-toggle-btn.muted:hover {
+  background: rgba(255, 82, 82, 0.18);
+  border-color: #ff5252;
+  box-shadow: 0 2px 12px rgba(255, 82, 82, 0.3);
+}
+
+.audio-toggle-btn svg {
+  flex-shrink: 0;
+}
+
+.audio-toggle-label {
+  line-height: 1;
+}

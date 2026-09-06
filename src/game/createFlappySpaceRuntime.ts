@@ -7,6 +7,7 @@ import { SpawningSystem } from './systems/spawningSystem';
 import { RenderSystem } from './systems/renderSystem';
 import { InputSystem } from './systems/inputSystem';
 import { AudioSystem } from './systems/audioSystem';
+import { AudioManager } from './audio';
 import { UISystem } from './systems/uiSystem';
 import { InputManager } from './inputManager';
 import { GameRuntime } from './GameRuntime';
@@ -30,7 +31,8 @@ export function createFlappySpaceRuntime(app: PIXI.Application): GameRuntime {
   const spawning = new SpawningSystem(entities, state);
   const rendering = new RenderSystem(app, entities, state);
   const input = new InputSystem(events, state, inputMgr, entities);
-  const audio = new AudioSystem(events);
+  const audioManager = new AudioManager();
+  const audio = new AudioSystem(events, audioManager);
 
   const ui = new UISystem(app, events, state, entities);
 
