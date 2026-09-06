@@ -4,6 +4,8 @@ import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('Astronaut');
 
+import { damp, MOTION } from '../visuals/tokens';
+
 const HORIZONTAL_SPEED = 5;
 const VERTICAL_SPEED = 5;
 
@@ -18,6 +20,8 @@ export class Astronaut {
   horizontalVelocity: number = 0;
   rotation: number;
   dead: boolean;
+  thrustRemaining = 0;
+  private deathElapsed = 0;
 
   constructor(texture: PIXI.Texture, x: number, y: number) {
     this.sprite = new PIXI.Sprite(texture);
@@ -59,7 +63,7 @@ export class Astronaut {
 
     // Update rotation based on velocity
     const targetRotation = (this.velocity / MAX_VELOCITY) * (Math.PI / 6); // 30 degrees max
-    this.rotation = this.rotation * 0.9 + targetRotation * 0.1;
+    this.rotation = damp(this.rotation, targetRotation, deltaMS / 1000);
     this.sprite.rotation = this.rotation;
 
     // Check vertical boundaries
@@ -111,6 +115,7 @@ export class Astronaut {
     }
     logger.debug(`Flap! Setting velocity to ${JUMP_VELOCITY}`);
     this.velocity = JUMP_VELOCITY;
+    this.thrustRemaining = MOTION.thrust;
   }
 
   moveLeft(): void {
@@ -138,6 +143,7 @@ export class Astronaut {
     }
     logger.debug(`Move up! Setting vertical velocity to -${VERTICAL_SPEED}`);
     this.velocity = -VERTICAL_SPEED;
+    this.thrustRemaining = MOTION.thrust;
   }
 
   moveDown(): void {
@@ -155,6 +161,17 @@ export class Astronaut {
     this.sprite.tint = 0xFF5555;
   }
 
+  /** Presentation only; no collision dimensions, physics, or source texture changes. */
+  updatePresentation(seconds: number): void {
+    this.thrustRemaining = Math.max(0, this.thrustRemaining - seconds);
+    if (this.dead && this.deathElapsed < MOTION.impact) {
+      const step = Math.min(seconds, MOTION.impact - this.deathElapsed);
+      this.deathElapsed += step;
+      this.sprite.rotation += step * 2.5;
+      this.sprite.alpha = 1 - this.deathElapsed / MOTION.impact * 0.45;
+    }
+  }
+
   reset(x: number, y: number): void {
     this.sprite.x = x;
     this.sprite.y = y;
@@ -163,5 +180,9 @@ export class Astronaut {
     this.rotation = 0;
     this.dead = false;
     this.sprite.tint = 0xFFFFFF;
+    this.sprite.rotation = 0;
+    this.sprite.alpha = 1;
+    this.thrustRemaining = 0;
+    this.deathElapsed = 0;
   }
 }

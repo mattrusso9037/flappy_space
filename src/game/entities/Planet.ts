@@ -62,58 +62,25 @@ export class Planet extends Obstacle {
     
     drawPlanet() {
         const g = this.graphics;
+        const r = this.radius;
+        const color = this.planetType.color;
         g.clear();
-        
-        // Get the base planet color
-        const planetColor = this.planetType.color;
-        
-        // Draw outer glow
-        this.drawGlow(planetColor);
-        
-        // Draw rings if this planet has them
-        if (this.hasRings) {
-            this.drawRings(planetColor);
-        }
-        
-        // Draw the main planet body
-        g.fill({ color: planetColor });
-        g.circle(0, 0, this.radius);
-        
-        // Add gradient overlay for depth
-        const gradMatrix = new PIXI.Matrix();
-        gradMatrix.translate(-this.radius * 0.5, -this.radius * 0.5);
-        
-        // Convert color values properly using bitwise operations to ensure they're valid
-        const lighterColor = this.adjustColor(planetColor, 1.2);
-        
-        // Lighter side gradient (light source from top-left)
-        const gradientLight = new PIXI.FillGradient({
-            type: 'linear',
-            start: { x: 0, y: 0 },
-            end: { x: this.radius * 2, y: this.radius * 2 },
+        this.drawGlow(color);
+        if (this.hasRings) this.drawRings(color);
+        const light = new PIXI.FillGradient({
+            start: { x: 0, y: 0 }, end: { x: 1, y: 0.8 },
             colorStops: [
-                { offset: 0, color: lighterColor },  // Lighter at top-left
-                { offset: 1, color: planetColor }    // Normal at bottom-right
+                { offset: 0, color: this.adjustColor(color, 1.3) },
+                { offset: 0.5, color },
+                { offset: 1, color: this.adjustColor(color, 0.22) },
             ],
-            textureSpace: 'local'
         });
-        
-        // Use fill with gradient
-        g.fill({ fill: gradientLight, alpha: 0.6 });
-        g.circle(0, 0, this.radius);
-        
-        // Darker border for depth
-        g.setStrokeStyle({
-            width: this.radius * 0.05,
-            color: this.adjustColor(planetColor, 0.7)
-        });
-        g.stroke();
-        g.circle(0, 0, this.radius);
-        
-        // Draw surface details
-        this.drawSurfaceDetails(planetColor);
+        g.once('destroyed', () => light.destroy());
+        g.circle(0, 0, r).fill(light).stroke({ color, width: 1.5 });
+        this.drawSurfaceDetails(color);
+        g.arc(0, 0, r * 0.96, -2.8, -1).stroke({ color: 0xe2f8ff, alpha: 0.6, width: 1 });
     }
-    
+
     // Helper method to safely adjust color
     adjustColor(color: number, factor: number): number {
         // Extract RGB components
@@ -131,135 +98,30 @@ export class Planet extends Obstacle {
     }
     
     drawGlow(baseColor: number) {
-        const glow = this.glowGraphics;
-        glow.clear();
-        
-        // Create a subtle glow/aura effect
-        const outerGlowRadius = this.radius + this.glowSize;
-        
-        // Safely adjust colors
-        const brighterColor = this.adjustColor(baseColor, 1.2);
-        
-        // Use gradient for glow
-        const glowGradient = new PIXI.FillGradient({
-            type: 'radial',
-            center: { x: 0, y: 0 },
-            innerRadius: 0,
-            outerRadius: outerGlowRadius,
-            colorStops: [
-                { offset: 0, color: brighterColor },
-                { offset: 0.5, color: baseColor },
-                { offset: 1, color: baseColor }
-            ],
-            textureSpace: 'local'
-        });
-        
-        glow.fill({ fill: glowGradient, alpha: 0.15 });
-        glow.circle(0, 0, outerGlowRadius);
+        this.glowGraphics.clear();
+        for (let i = 4; i > 0; i--) {
+            this.glowGraphics.circle(0, 0, this.radius + i * 2.5)
+                .fill({ color: baseColor, alpha: 0.035 });
+        }
     }
-    
+
     drawRings(baseColor: number) {
-        const g = this.graphics;
-        
-        // Save current angle for animation
-        const ringTilt = Math.sin(this.ringAngle) * 0.6;
-        
-        // Draw the rings
-        const ringOuterRadius = this.radius * 1.8;
-        const ringInnerRadius = this.radius * 1.1;
-        
-        // Create a matrix for the elliptical transform
-        const ringMatrix = new PIXI.Matrix();
-        ringMatrix.translate(0, 0);
-        ringMatrix.scale(1, ringTilt); // Flatten to create oval
-        
-        // Draw the ring with elliptical transform - use safer color adjustment
-        g.fill({ color: this.adjustColor(baseColor, 1.1), alpha: 0.6 });
-        
-        // Draw ring as donut (outer circle - inner circle)
-        g.circle(0, 0, ringOuterRadius);
-        g.circle(0, 0, ringInnerRadius); // Use circle instead of drawCircle
-        
-        // Add some ring detail (bands)
-        const numBands = Math.floor(Math.random() * 3) + 2;
-        for (let i = 0; i < numBands; i++) {
-            const bandRadius = ringInnerRadius + 
-                (ringOuterRadius - ringInnerRadius) * (i + 0.5) / numBands;
-            
-            // Calculate color safely
-            const bandColorFactor = 0.9 + Math.random() * 0.3;
-            
-            // Use setStrokeStyle instead of lineStyle
-            g.setStrokeStyle({
-                width: (ringOuterRadius - ringInnerRadius) * 0.1,
-                color: this.adjustColor(baseColor, bandColorFactor),
-                alpha: 0.7
-            });
-            
-            // Draw an elliptical arc
-            g.ellipse(0, 0, bandRadius, bandRadius * ringTilt);
-        }
-        
-        // Reset line style
-        g.setStrokeStyle({width: 0});
+        this.graphics.ellipse(0, 0, this.radius * 1.5, this.radius * 0.32)
+            .stroke({ color: baseColor, alpha: 0.5, width: 3 });
     }
-    
+
     drawSurfaceDetails(baseColor: number) {
-        const g = this.graphics;
-        
-        // Draw some craters or features on the planet
-        const craterColor = this.adjustColor(baseColor, 0.8);
-        const highlightColor = this.adjustColor(baseColor, 1.2);
-        const numFeatures = Math.floor(Math.random() * 5) + 3;
-        
-        for (let i = 0; i < numFeatures; i++) {
-            // Random position within the planet
+        for (let i = 0; i < 5; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * this.radius * 0.7;
-            const craterX = Math.cos(angle) * distance;
-            const craterY = Math.sin(angle) * distance;
-            const craterRadius = this.radius * (Math.random() * 0.15 + 0.05);
-            
-            // Draw crater with highlight on one side
-            g.fill({ color: craterColor });
-            g.circle(craterX, craterY, craterRadius);
-            
-            // Add a small highlight on one side
-            const highlightAngle = angle + Math.PI / 4;
-            const highlightX = craterX + Math.cos(highlightAngle) * (craterRadius * 0.5);
-            const highlightY = craterY + Math.sin(highlightAngle) * (craterRadius * 0.5);
-            const highlightRadius = craterRadius * 0.4;
-            
-            g.fill({ color: highlightColor, alpha: 0.5 });
-            g.circle(highlightX, highlightY, highlightRadius);
-        }
-        
-        // Add some swirls or gas cloud details for gas giants (larger planets)
-        if (this.radius > 30) {
-            const numSwirls = Math.floor(Math.random() * 3) + 2;
-            for (let i = 0; i < numSwirls; i++) {
-                const swirl = new PIXI.Graphics();
-                
-                // Swirl parameters
-                const swirlX = (Math.random() * 2 - 1) * this.radius * 0.5;
-                const swirlY = (Math.random() * 2 - 1) * this.radius * 0.6;
-                const swirlWidth = this.radius * (0.4 + Math.random() * 0.3);
-                const swirlHeight = this.radius * (0.1 + Math.random() * 0.1);
-                const swirlRotation = Math.random() * Math.PI * 2;
-                
-                // Use safe color calculation
-                const swirlColorFactor = 0.9 + Math.random() * 0.2;
-                
-                // Draw the swirl
-                swirl.fill({ color: this.adjustColor(baseColor, swirlColorFactor), alpha: 0.5 });
-                swirl.ellipse(swirlX, swirlY, swirlWidth, swirlHeight);
-                swirl.rotation = swirlRotation;
-                
-                g.addChild(swirl);
-            }
+            const distance = Math.random() * this.radius * 0.65;
+            const x = Math.cos(angle) * distance;
+            const y = Math.sin(angle) * distance;
+            const r = this.radius * (0.06 + Math.random() * 0.12);
+            this.graphics.circle(x, y, r).fill({ color: this.adjustColor(baseColor, 0.4), alpha: 0.4 })
+                .arc(x, y, r, 0.2, 2.8).stroke({ color: baseColor, alpha: 0.6, width: 0.8 });
         }
     }
-    
+
     update(deltaTime: number = 1/60) {
         // Track speed for diagnostics
         this.trackSpeed();
@@ -270,28 +132,10 @@ export class Planet extends Obstacle {
         this.graphics.x = this.x;
         this.glowGraphics.x = this.x;
         
-        // Update animation time
-        const time = performance.now() * 0.001;
-        
-        // Add rotation for visual effect
-        this.graphics.rotation += this.rotationSpeed;
-        
-        // Animate rings if present
-        if (this.hasRings) {
-            this.ringAngle += this.ringRotationSpeed;
-        }
-        
-        // Pulse glow effect
-        const pulseFactor = 0.2 * Math.sin(time * this.glowPulseSpeed + this.timeOffset) + 1;
-        this.glowGraphics.scale.set(pulseFactor);
-        
-        // Update glow opacity subtly
-        this.glowGraphics.alpha = 0.6 + 0.1 * Math.sin(time * this.glowPulseSpeed * 1.5 + this.timeOffset);
-        
-        // Redraw if necessary for animated features
-        if (this.hasRings && Math.abs(this.ringRotationSpeed) > 0.001) {
-            this.drawPlanet();
-        }
+        // Stable geometry; only transforms change during flight.
+        this.timeOffset += deltaTime;
+        this.graphics.rotation += this.rotationSpeed * deltaTime * 6;
+        this.glowGraphics.alpha = 0.8 + 0.1 * Math.sin(this.timeOffset);
     }
     
     isOffScreen(): boolean {

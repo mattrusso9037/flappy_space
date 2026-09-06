@@ -1,0 +1,30 @@
+@import './visual-tokens.css';
+
+:root { font-family: var(--font-display); color: var(--space-ice); background: var(--space-void); color-scheme: dark; }
+.App { background: var(--space-void); height: 100dvh; }
+.App-header { display: flex; align-items: center; padding: 12px 22px; background: var(--space-void); border-bottom: 1px solid var(--space-outline); box-shadow: none; }
+.App-header h1 { font-family: var(--font-telemetry); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--space-muted); text-shadow: none; }
+.App-header h1::before { content: '●'; margin-right: 10px; color: var(--space-cyan); }
+.App-main { padding: 0; }
+.game-container { border-radius: 0; box-shadow: none; background: var(--space-void); }
+.game-display { background: var(--space-void); touch-action: manipulation; }
+.game-display-wrapper::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: radial-gradient(ellipse at center, transparent 60%, rgb(7 9 19 / 40%) 100%);
+  border: 1px solid rgb(0 240 255 / 10%);
+}
+.start-overlay { background: rgb(7 9 19 / 65%); padding: 24px; animation: none; z-index: 20; }
+.start-overlay h2 { font-family: var(--font-display); font-size: clamp(30px, 5vw, 58px); line-height: 1.05; letter-spacing: -.04em; max-width: 650px; margin: 20px 0 26px; color: var(--space-ice); text-shadow: 0 0 30px rgb(0 240 255 / 16%); }
+.start-overlay p { font-size: 13px; color: var(--space-muted); margin: 6px 0; }
+.start-overlay .mission-eyebrow { font: 10px var(--font-telemetry); letter-spacing: .12em; color: var(--space-cyan); }
+.start-overlay button { font: 400 12px var(--font-telemetry); letter-spacing: .03em; margin: 0 0 18px; padding: 17px 24px; border-radius: 4px; border: 1px solid var(--space-cyan); background: rgb(0 240 255 / 12%); color: var(--space-ice); transition: background .12s ease-out; }
+.start-overlay button:hover { background: rgb(0 240 255 / 24%); }
+.start-overlay button:focus-visible { outline: 2px solid var(--space-ice); outline-offset: 4px; }
+.start-overlay .mission-goal { color: var(--space-cyan) !important; font-weight: 400; }
+.start-overlay .game-over-reason { color: var(--space-hazard) !important; }
+.start-overlay .mobile-instruction { animation: none; font-size: 12px; }
+@media (max-width: 620px) {
+  .App-header { padding: 10px 12px; }
+  .start-overlay .mission-eyebrow { font-size: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .loading-spinner { animation: none; } }

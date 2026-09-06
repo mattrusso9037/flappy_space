@@ -1,399 +1,125 @@
 import * as PIXI from 'pixi.js';
-import { GameStateService, GameState } from '../gameStateService';
+import { Subscription } from 'rxjs';
+import { GameStateService } from '../gameStateService';
 import { Scoreboard } from '../scoreboard';
 import { EventBus, GameEvent } from '../eventBus';
-import { Subscription } from 'rxjs';
-import { getLogger } from '../../utils/logger';
+import { FlightEffects } from '../visuals/FlightEffects';
+import { DEPTH, FONT, INK, MOTION, easeOut } from '../visuals/tokens';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { EntitySystem } from './entitySystem';
 
-const logger = getLogger('UISystem');
-
-// Interface for our particle data
-interface ParticleData {
-  vx?: number;
-  vy?: number;
-  alpha?: number;
-  rotation?: number;
-  isOrb?: boolean;
-  isGlow?: boolean;
-}
-
-// Add userdata to PIXI Graphics
-declare module 'pixi.js' {
-  interface Graphics {
-    userData: ParticleData;
-  }
-}
-
-/**
- * UISystem manages all UI elements in the game.
- */
+/** Pixi HUD and world effects, advanced by GameRuntime. React owns menus/overlays. */
 export class UISystem {
-  private app?: PIXI.Application;
-  private scoreboard!: Scoreboard;
-  private initialized: boolean = false;
-  private orbEffects!: PIXI.Container;
-  private uiContainer!: PIXI.Container;
-  private gameState: GameState;
+  private initialized = false;
+  private scoreboard?: Scoreboard;
+  private effects?: FlightEffects;
+  private hud?: PIXI.Container;
+  private banner?: PIXI.Container;
+  private bannerPlate?: PIXI.Graphics;
+  private bannerTitle?: PIXI.Text;
+  private bannerDetail?: PIXI.Text;
+  private bannerAge: number = MOTION.warp;
+  private thrustElapsed = 0;
+  private width = 0;
+  private height = 0;
   private subscriptions: Subscription[] = [];
-  private orbCollectionSubscription: Subscription | null = null;
-  private readonly events: EventBus;
-  private readonly state: GameStateService;
 
-  public constructor(
-    app: PIXI.Application | undefined,
-    events: EventBus,
-    state: GameStateService
-  ) {
-    this.app = app;
-    this.events = events;
-    this.state = state;
-    this.gameState = this.state.getState();
+  constructor(private app: PIXI.Application | undefined, private readonly events: EventBus,
+    private readonly state: GameStateService, private readonly entities?: EntitySystem) {}
+
+  initialize(target: PIXI.Application | PIXI.Container | undefined = this.app): void {
+    if (this.initialized) return;
+    if (!target) throw new Error('UISystem needs a stage');
+    const stage = 'stage' in target ? target.stage : target;
+    if ('stage' in target) this.app = target;
+    stage.sortableChildren = true;
+    this.hud = new PIXI.Container({ label: 'hud', zIndex: DEPTH.hud, eventMode: 'none' });
+    this.scoreboard = new Scoreboard();
+    this.hud.addChild(this.scoreboard.getContainer());
+    this.effects = new FlightEffects();
+    this.effects.container.zIndex = DEPTH.effects;
+    stage.addChild(this.effects.container, this.hud);
+    this.banner = new PIXI.Container({ visible: false });
+    this.bannerPlate = new PIXI.Graphics();
+    this.banner.addChild(this.bannerPlate);
+    this.bannerTitle = new PIXI.Text({ text: '', style: { fontFamily: FONT.display, fontWeight: '700', fontSize: 32, fill: INK.ice } });
+    this.bannerDetail = new PIXI.Text({ text: 'ENERGY LOCKED  /  ENGAGING WARP', style: { fontFamily: FONT.telemetry, fontSize: 10, fill: INK.cyan } });
+    this.bannerTitle.anchor.set(0.5);
+    this.bannerDetail.anchor.set(0.5); this.bannerDetail.y = 34;
+    this.banner.addChild(this.bannerTitle, this.bannerDetail);
+    this.hud.addChild(this.banner);
+    this.initialized = true;
+    this.subscriptions.push(this.state.getState$().subscribe(s => {
+      this.scoreboard?.setStatus(s.isLevelComplete ? 'ENERGY LOCKED' : s.isGameOver ? 'SIGNAL LOST' : s.isStarted ? 'MISSION / LIVE' : 'FLIGHT READY');
+      this.scoreboard?.update(s.score, s.level, s.orbsCollected, s.orbsRequired, s.timeRemaining);
+    }));
+    this.subscriptions.push(this.events.on(GameEvent.ORB_COLLECTED).subscribe(data => {
+      this.effects?.burst(data.x, data.y, 'collection');
+    }));
+    this.subscriptions.push(this.events.on(GameEvent.GAME_OVER).subscribe(() => {
+      const pilot = this.entities?.getAstronaut();
+      if (pilot) this.effects?.burst(pilot.sprite.x, pilot.sprite.y, 'impact');
+    }));
+    this.subscriptions.push(this.events.on(GameEvent.LEVEL_COMPLETE).subscribe(({ level }) => {
+      this.bannerAge = 0;
+      if (this.bannerTitle) this.bannerTitle.text = `SECTOR ${String(level).padStart(2, '0')} CLEARED`;
+      if (this.bannerDetail) this.bannerDetail.text = this.state.getState().isGameOver
+        ? 'ALL SECTORS COMPLETE' : 'ENERGY LOCKED  /  ENGAGING WARP';
+      this.effects?.burst(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'warp');
+    }));
+    this.update(0);
   }
-  
-  private subscribeToStateChanges(): void {
-    // Clean up any existing subscriptions first
-    this.unsubscribeFromStateChanges();
 
-    // Track all important game state changes
-    this.subscriptions.push(
-      this.state.select(s => s.score).subscribe(() => {
-        this.updateScoreboard();
-      })
-    );
-    
-    this.subscriptions.push(
-      this.state.select(s => s.orbsCollected).subscribe(() => {
-        this.updateScoreboard();
-      })
-    );
-    
-    this.subscriptions.push(
-      this.state.select(s => s.timeRemaining).subscribe(() => {
-        this.updateScoreboard();
-      })
-    );
-
-    // Subscribe to orb collection events for visual feedback
-    this.orbCollectionSubscription = this.events.on(GameEvent.ORB_COLLECTED).subscribe(data => {
-      logger.debug('orbCollectionSubscription', data);
-      if (data && typeof data === 'object' && 'x' in data && 'y' in data) {
-        this.createOrbCollectionEffect(data.x, data.y, data.radius, data.speed);
-      }
-    });
-  }
-
-  private unsubscribeFromStateChanges(): void {
-    if (this.orbCollectionSubscription) {
-      this.orbCollectionSubscription.unsubscribe();
-      this.orbCollectionSubscription = null;
-    }
-    this.subscriptions.forEach(sub => sub.unsubscribe());
-    this.subscriptions = [];
-  }
-  
-  /**
-   * Initialize the UISystem
-   * @param appOrStage - Either a PIXI.Application or a PIXI.Container (stage)
-   */
-  public initialize(appOrStage?: PIXI.Application | PIXI.Container): void {
-    logger.info('UISystem: Initialization started', appOrStage ?? this.app);
-    
-    try {
-      const target = appOrStage ?? this.app;
-      if (!target) {
-        throw new Error('UISystem: No PIXI.Application or PIXI.Container provided for initialization');
-      }
-
-      // Determine whether we received an app or a stage
-      const stage = 'stage' in target ? target.stage : target;
-      
-      if ('stage' in target) {
-        this.app = target;
-      }
-      
-      // Create UI layer
-      this.uiContainer = new PIXI.Container();
-      stage.addChild(this.uiContainer);
-      logger.debug('UISystem: Created UI container');
-      
-      // Create scoreboard
-      logger.debug('UISystem: Creating scoreboard');
-      this.scoreboard = new Scoreboard();
-      if (this.scoreboard) {
-        const container = this.scoreboard.getContainer();
-        stage.addChild(container);
-      } else {
-        logger.warn('UISystem: Scoreboard could not be created');
-      }
-      
-      // Create container for orb collection effects
-      this.orbEffects = new PIXI.Container();
-      stage.addChild(this.orbEffects);
-
-      // Subscribe to events and state updates
-      this.subscribeToStateChanges();
-      
-      this.initialized = true;
-      logger.info('UISystem: Initialized successfully');
-    } catch (error) {
-      logger.error('UISystem: Error during initialization', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Update the UI for each frame
-   */
-  public update(): void {
+  update(seconds = 0): void {
     if (!this.initialized) return;
-    // No additional processing needed as updates happen via subscriptions
-  }
-  
-  /**
-   * Update the scoreboard with current game state
-   */
-  private updateScoreboard(): void {
-    if (!this.initialized || !this.scoreboard) return;
-    
+    const screen = this.app?.renderer?.screen;
+    const width = screen?.width ?? GAME_WIDTH, height = screen?.height ?? GAME_HEIGHT;
+    if (this.hud && this.app) {
+      const scale = this.app.stage.scale.x || 1;
+      this.hud.scale.set(1 / scale);
+      this.hud.position.set(-this.app.stage.x / scale, -this.app.stage.y / scale);
+    }
+    if (width !== this.width || height !== this.height) {
+      this.width = width; this.height = height;
+      this.scoreboard?.layout(width, height);
+      if (this.banner) this.banner.position.set(width / 2, height / 2);
+      if (this.bannerTitle) this.bannerTitle.style.fontSize = width < 620 ? 24 : 36;
+      const plateWidth = Math.min(width - 24, 480);
+      this.bannerPlate?.clear().roundRect(-plateWidth / 2, -52, plateWidth, 110, 4)
+        .fill({ color: INK.hull, alpha: 0.92 }).stroke({ color: INK.cyan, alpha: 0.5, width: 1 })
+        .moveTo(-plateWidth / 2, -36).lineTo(-plateWidth / 2, -52).lineTo(-plateWidth / 2 + 24, -52)
+        .stroke({ color: INK.cyan, width: 2 });
+    }
+    this.effects?.update(seconds);
+    const pilot = this.entities?.getAstronaut();
     const state = this.state.getState();
-    this.scoreboard.update(
-      state.score,
-      state.level,
-      state.orbsCollected,
-      state.orbsRequired,
-      state.timeRemaining
-    );
+    if (pilot && !pilot.dead && state.isStarted && !state.isLevelComplete && pilot.thrustRemaining > 0) {
+      this.thrustElapsed += seconds;
+      if (this.thrustElapsed >= 1 / 45) {
+        this.effects?.thrust(pilot.sprite.x - 12, pilot.sprite.y + 13);
+        this.thrustElapsed %= 1 / 45;
+      }
+    } else this.thrustElapsed = 0;
+    if (this.banner) {
+      this.bannerAge = Math.min(MOTION.warp, this.bannerAge + seconds);
+      this.banner.visible = this.bannerAge < MOTION.warp;
+      this.banner.alpha = Math.min(easeOut(this.bannerAge / 0.18), (MOTION.warp - this.bannerAge) / 0.3);
+      this.banner.scale.set(0.96 + easeOut(this.bannerAge / 0.3) * 0.04);
+    }
   }
-  
-  /**
-   * Create a visual effect when an orb is collected
-   */
-  private createOrbCollectionEffect(x: number, y: number, radius?: number, speed?: number): void {
-    if (!this.initialized || !this.orbEffects) {
-      logger.warn('Cannot create orb collection effect - not initialized');
-      return;
-    }
-    
-    logger.debug(`Creating orb collection effect at ${x},${y}`);
-    
-    // Get current level's speed factor for animation timing
-    const currentLevel = this.state.getState().level;
-    const levelIndex = Math.max(0, currentLevel - 1);
-    
-    // Use a more direct way to get level multiplier
-    const LEVEL_MULTIPLIERS = [1.0, 1.25, 1.5, 1.8, 2.0]; // Hardcoded to avoid import issues
-    const speedFactor = LEVEL_MULTIPLIERS[levelIndex] || 1.0;
-    
-    // Use the orb's speed if provided, otherwise calculate from level
-    const orbSpeed = speed || speedFactor;
-    
-    // Adjust animation parameters based on speed
-    const baseAnimationDuration = 2.5; // seconds
-    // Animation duration is longer when speed is higher
-    const animationDuration = baseAnimationDuration * Math.max(1.0, Math.sqrt(orbSpeed));
-    
-    // Create a particle burst effect container
-    const effectsContainer = new PIXI.Container();
-    effectsContainer.x = x;
-    effectsContainer.y = y;
-    this.orbEffects.addChild(effectsContainer);
-    
-    // Recreate a visual orb effect if radius is provided
-    if (radius) {
-      const orbEffect = new PIXI.Graphics();
-      const glowEffect = new PIXI.Graphics();
-      
-      // Draw the main orb
-      orbEffect.beginFill(0x00AAFF);
-      orbEffect.drawCircle(0, 0, radius);
-      orbEffect.endFill();
-      
-      // Add highlight
-      orbEffect.beginFill(0xFFFFFF, 0.5);
-      orbEffect.drawCircle(-radius * 0.3, -radius * 0.3, radius * 0.3);
-      orbEffect.endFill();
-      
-      // Draw glow
-      const glowRadius = radius * 1.5;
-      glowEffect.beginFill(0x00AAFF, 0.3);
-      glowEffect.drawCircle(0, 0, glowRadius);
-      glowEffect.endFill();
-      
-      // Add to container
-      effectsContainer.addChild(glowEffect);
-      effectsContainer.addChild(orbEffect);
-      
-      // These will be animated
-      orbEffect.userData = { isOrb: true };
-      glowEffect.userData = { isGlow: true };
-    }
-    
-    // Number of particles
-    const count = 12;
-    
-    // Create particles
-    for (let i = 0; i < count; i++) {
-      const particle = new PIXI.Graphics();
-       
-      // Randomly colored particles
-      const colors = [0x00FFFF, 0x00CCFF, 0xFFFFFF, 0x88DDFF];
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      
-      // Draw particle
-      particle.beginFill(color);
-      particle.drawCircle(0, 0, 3 + Math.random() * 3);
-      particle.endFill();
-      
-      // Random direction
-      const angle = (i / count) * Math.PI * 2;
-      const distance = 30 + Math.random() * 50;
-      
-      // Store velocity - slow down particles when game speed is higher
-      const velocityScale = 0.1 / Math.sqrt(speedFactor);
-      particle.userData = {
-        vx: Math.cos(angle) * distance * velocityScale,
-        vy: Math.sin(angle) * distance * velocityScale,
-        alpha: 1,
-        rotation: Math.random() * 0.2 - 0.1
-      };
-      
-      effectsContainer.addChild(particle);
-    }
-    
-    // Create score popup (+50)
-    const scoreText = new PIXI.Text('+50', {
-      fontFamily: 'Arial',
-      fontSize: 20,
-      fill: 0xFFFFFF,
-      align: 'center',
-      stroke: {
-        color: 0x0066AA,
-        width: 3
-      }
-    });
-    scoreText.anchor.set(0.5);
-    scoreText.x = 0;
-    scoreText.y = -20;
-    effectsContainer.addChild(scoreText);
-    
-    // Store a reference to the effects container
-    const containerRef = effectsContainer;
-    
-    // Animate particles
-    let elapsed = 0;
-    const ticker = PIXI.Ticker.shared;
-    
-    const animate = () => {
-      // Add a safety check
-      if (!containerRef || !containerRef.parent) {
-        ticker.remove(animate);
-        return;
-      }
-      
-      try {
-        elapsed += ticker.deltaMS / 1000;
-        const progress = Math.min(elapsed / animationDuration, 1);
-        
-        // Update each child in the container
-        for (let i = 0; i < containerRef.children.length; i++) {
-          const child = containerRef.children[i];
-          if (!child) continue;
-          
-          const data = (child as unknown as {
-            userData?: {
-              isOrb?: boolean;
-              isGlow?: boolean;
-              vx?: number;
-              vy?: number;
-              alpha?: number;
-              rotation?: number;
-            };
-          }).userData;
-          if (!data) continue;
-          
-          // Handle orb/glow effects specially
-          if (data.isOrb) {
-            // Scale up the orb
-            const scaleValue = 1 + progress * 1.0;  // Scale to 2x
-            child.scale.set(scaleValue);
-            // Fade out
-            child.alpha = Math.max(0, 1 - progress * 1.2);  // Fade slightly faster than progress
-            continue;
-          }
-          
-          if (data.isGlow) {
-            // Scale up the glow more
-            const scaleValue = 1 + progress * 1.5;  // Scale to 2.5x
-            child.scale.set(scaleValue);
-            // Fade out
-            child.alpha = Math.max(0, 0.3 - progress * 0.3);  // Start at 0.3 alpha
-            continue;
-          }
-          
-          // Handle score text specially
-          if (child instanceof PIXI.Text) {
-            // Slower rise with higher speed
-            const textRiseSpeed = 1.5 / Math.sqrt(speedFactor);
-            child.y -= textRiseSpeed;
-            child.alpha = Math.max(0, 1 - progress * 1.2);  // Fade slightly faster than progress
-            continue;
-          }
-          
-          // Otherwise it's a particle
-          // Move based on velocity
-          if (typeof data.vx === 'number' && typeof data.vy === 'number') {
-            child.x += data.vx;
-            child.y += data.vy;
-            
-            // Slow down
-            data.vx *= 0.95;
-            data.vy *= 0.95;
-            
-            // Fade out more slowly with higher speeds
-            const alphaReduction = 0.02 / Math.sqrt(speedFactor);
-            if (typeof data.alpha === 'number') {
-              data.alpha -= alphaReduction;
-              child.alpha = Math.max(0, data.alpha);
-            }
-            
-            // Add a little rotation
-            if (typeof data.rotation === 'number') {
-              child.rotation += data.rotation;
-            }
-          }
-        }
-        
-        // Remove when animation completes
-        if (elapsed >= animationDuration) {
-          ticker.remove(animate);
-          if (this.orbEffects && this.orbEffects.children.includes(containerRef)) {
-            this.orbEffects.removeChild(containerRef);
-            containerRef.destroy({ children: true });
-          }
-        }
-      } catch (error) {
-        // Handle any errors safely
-        logger.error(`Animation error: ${error}`);
-        ticker.remove(animate);
-        if (this.orbEffects && containerRef && this.orbEffects.children.includes(containerRef)) {
-          this.orbEffects.removeChild(containerRef);
-        }
-      }
-    };
-    
-    ticker.add(animate);
+
+  reset(): void {
+    this.effects?.reset();
+    this.bannerAge = MOTION.warp;
+    this.thrustElapsed = 0;
+    if (this.banner) this.banner.visible = false;
   }
-  
-  /**
-   * Clean up resources when the system is no longer needed
-   */
-  public dispose(): void {
-    if (this.initialized) {
-      this.unsubscribeFromStateChanges();
-      
-      // Clean up
-      this.initialized = false;
-      logger.info('UISystem: Disposed');
-    }
+
+  dispose(): void {
+    if (!this.initialized) return;
+    this.subscriptions.forEach(sub => sub.unsubscribe()); this.subscriptions = [];
+    this.effects?.dispose();
+    this.hud?.destroy({ children: true });
+    this.initialized = false;
   }
 }

@@ -9,6 +9,7 @@ import { RenderSystem } from './systems/renderSystem';
 import { InputSystem } from './systems/inputSystem';
 import { AudioSystem } from './systems/audioSystem';
 import { UISystem } from './systems/uiSystem';
+import { MOTION } from './visuals/tokens';
 import { LEVELS } from './config';
 import { getLogger } from '../utils/logger';
 
@@ -100,6 +101,8 @@ export class GameRuntime {
   public reset(): void {
     logger.info('Resetting GameRuntime session...');
     this.levelTransitionCountdown = null;
+    this.systems.ui.reset();
+    this.systems.rendering.reset();
     this.systems.entities.clearAll();
     this.systems.spawning.resetSpawning();
     this.state.resetGame();
@@ -172,6 +175,10 @@ export class GameRuntime {
     // Convert deltaMS to normalized deltaSeconds
     const deltaSeconds = ticker.deltaMS / 1000;
 
+    // Pause gates every visual clock, including ambient motion and existing bursts.
+    if (this.isPaused) return;
+    this.systems.ui.update(deltaSeconds);
+
     // 1. Update background/stars regardless of game active state
     try {
       this.systems.rendering.updateBackground(deltaSeconds);
@@ -181,7 +188,8 @@ export class GameRuntime {
 
     // Skip simulation updates if paused, not started, or game over
     const gameState = this.state.getState();
-    if (this.isPaused || !gameState.isStarted || gameState.isGameOver) {
+    if (!gameState.isStarted || gameState.isGameOver) {
+      this.systems.rendering.update(deltaSeconds);
       return;
     }
 
@@ -195,6 +203,7 @@ export class GameRuntime {
           this.systems.entities.clearAll();
           this.systems.spawning.resetSpawning();
           this.initializeLevel(nextLevel);
+          this.state.finishLevelTransition();
         }
       }
       return;
@@ -231,7 +240,7 @@ export class GameRuntime {
 
     // 6. Update UI (scoreboards, particle bursts)
     try {
-      this.systems.ui.update();
+      this.systems.ui.update(0);
     } catch (err) {
       logger.error('Error updating UI system', err);
     }
@@ -332,6 +341,7 @@ export class GameRuntime {
     this.events.emit(GameEvent.LEVEL_COMPLETE, { level: currentLevel });
 
     // Transition to next level after brief celebration via simulation time countdown
-    this.levelTransitionCountdown = 2.0;
+    this.systems.rendering.beginWarp();
+    this.levelTransitionCountdown = MOTION.warp;
   }
 }

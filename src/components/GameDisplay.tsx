@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
-import { Subscription } from 'rxjs';
+import { Subscription, distinctUntilChanged } from 'rxjs';
+import '../styles/GameDisplay.css';
 import { GAME_WIDTH, GAME_HEIGHT } from '../game/config';
 import assetManager from '../game/assetManager';
 import { GameState, getInitialGameState } from '../game/gameStateService';
@@ -67,7 +68,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
 
     if (appRef.current) {
       logger.debug('Destroying PIXI application');
-      appRef.current.destroy(true, { children: true, texture: true });
+      appRef.current.destroy(true, { children: true });
       appRef.current = null;
     }
   }, []);
@@ -110,7 +111,11 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
       runtimeRef.current = runtime;
 
       // Subscribe to runtime state changes for React presentation
-      runtimeSubRef.current = runtime.state.getState$().subscribe(state => {
+      runtimeSubRef.current = runtime.state.getState$().pipe(distinctUntilChanged((a, b) =>
+        a.isStarted === b.isStarted && a.isGameOver === b.isGameOver &&
+        a.isLevelComplete === b.isLevelComplete && a.score === b.score &&
+        a.level === b.level && a.orbsCollected === b.orbsCollected
+      )).subscribe(state => {
         setIsGameOver(state.isGameOver);
         setGameStarted(state.isStarted);
         setCurrentState(state);
@@ -140,9 +145,10 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
         
         const app = new PIXI.Application();
         await app.init({
-          background: '#1A1A1A',
+          background: '#070913',
           antialias: true,
-          resolution: window.devicePixelRatio || 1,
+          resolution: Math.min(window.devicePixelRatio || 1, 2),
+          autoDensity: true,
         });
 
         if (isCancelled) {
@@ -193,7 +199,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
         }
         
         if (isCancelled) return;
-        initializeRuntime();
+        // Bundle fonts locally and load before Pixi rasterizes telemetry.
+        if (document.fonts) await Promise.all([
+          document.fonts.load('400 16px "Space Mono"'),
+          document.fonts.load('700 32px "Space Grotesk"'),
+        ]);
+        if (!isCancelled) initializeRuntime();
       } catch (error) {
         if (isCancelled) return;
         logger.error('Error initializing Pixi application:', error);
@@ -270,7 +281,8 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
             handleStartOrReset();
           }}
         >
-          <h2>{isGameOver ? 'Game Over!' : 'Flappy Spaceman'}</h2>
+          <span className="mission-eyebrow">{isGameOver ? 'FLIGHT RECORDER / SESSION ENDED' : 'ORBITAL EXPEDITION / FLIGHT READY'}</span>
+          <h2>{isGameOver ? (currentState.isLevelComplete ? 'Mission complete!' : 'Game Over!') : 'Flappy Spaceman'}</h2>
           {isGameOver && (
             <>
               <p>Score: {currentState.score}</p>
@@ -281,7 +293,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
               )}
             </>
           )}
-          <p>{isGameOver ? 'Press SPACE to try again' : 'Press SPACE to start'}</p>
+          <button type="button" onClick={e => { e.stopPropagation(); handleStartOrReset(); }}>{isGameOver ? 'Press SPACE to try again' : 'Press SPACE to start'}</button>
           <p>Use SPACE, Up Arrow, or W to fly!</p>
           {isTouchDevice && (
             <p className="mobile-instruction">Tap anywhere to jump!</p>

@@ -1,143 +1,99 @@
-import * as PIXI from 'pixi.js';
-import { getLogger } from '../utils/logger';
+import { Container, Graphics, Text } from 'pixi.js';
+import { FONT, INK } from './visuals/tokens';
 
-const logger = getLogger('Scoreboard');
-
+/** Viewport-space telemetry. Values are updated only when their displayed string changes. */
 export class Scoreboard {
-  private container!: PIXI.Container;
-  private scoreText!: PIXI.Text;
-  private levelText!: PIXI.Text;
-  private orbsText!: PIXI.Text;
-  private timeText!: PIXI.Text;
-  private progressBar!: PIXI.Graphics;
-  private progressFill!: PIXI.Graphics;
-  private style!: PIXI.TextStyle;
+  private readonly container = new Container({ label: 'telemetry', eventMode: 'none' });
+  private readonly frame = new Graphics();
+  private readonly segments = new Graphics();
+  private readonly scoreText = this.text('0', 36, INK.ice);
+  private readonly levelText = this.text('Level: 1', 16, INK.cyan);
+  private readonly orbsText = this.text('Orbs: 0/5', 16, INK.ice);
+  private readonly timeText = this.text('1:00.0', 24, INK.ice);
+  private readonly scoreLabel = this.text('FLIGHT SCORE', 9, INK.muted);
+  private readonly levelLabel = this.text('MISSION / LIVE', 9, INK.muted);
+  private readonly orbLabel = this.text('ENERGY RECOVERED', 9, INK.violet);
+  private readonly timerLabel = this.text('TIME REMAINING', 9, INK.muted);
+  private readonly hint = this.text('SPACE / TAP  ·  THRUST', 10, INK.muted);
+  private width = 800;
+  private height = 600;
+  private progress = -1;
 
   constructor() {
-    try {
-      logger.debug('Constructor started');
-      this.container = new PIXI.Container();
-      this.container.x = 10;
-      this.container.y = 10;
+    this.container.addChild(this.frame, this.segments, this.scoreLabel, this.levelLabel, this.orbLabel,
+      this.timerLabel, this.scoreText, this.levelText, this.orbsText, this.timeText, this.hint);
+    this.scoreText.label = 'score'; this.levelText.label = 'level';
+    this.orbsText.label = 'orbs'; this.timeText.label = 'time';
+    this.scoreText.style.fontFamily = FONT.display; this.scoreText.style.fontWeight = '700';
+    this.layout(800, 600);
+  }
 
-      // Create text style
-      this.style = new PIXI.TextStyle({
-        fontFamily: 'Arial',
-        fontSize: 16,
-        fill: '#0ff',
-        align: 'left',
-        stroke: {
-          color: '#000',
-          width: 4
-        }
-      });
+  private text(value: string, size: number, color: number): Text {
+    return new Text({ text: value, style: { fontFamily: FONT.telemetry, fontSize: size, fill: color } });
+  }
 
-      // Create score text
-      this.scoreText = new PIXI.Text('Score: 0', this.style);
-      this.scoreText.y = 0;
-      this.container.addChild(this.scoreText);
+  layout(width: number, height: number): void {
+    this.width = width; this.height = height;
+    const compact = width < 620;
+    const edge = compact ? 12 : 22;
+    const scoreX = compact ? edge : width / 2 - 104;
+    const timerX = compact ? width - 155 : width - 214;
+    this.frame.clear();
+    const panel = (x: number, y: number, w: number, h: number) => {
+      this.frame.roundRect(x, y, w, h, 5).fill({ color: INK.hull, alpha: 0.8 })
+        .stroke({ color: INK.cyan, alpha: 0.24, width: 1 });
+      this.frame.moveTo(x, y + 10).lineTo(x, y).lineTo(x + 16, y).stroke({ color: INK.cyan, width: 1 });
+    };
+    panel(scoreX, edge, compact ? 154 : 208, compact ? 65 : 80);
+    panel(timerX, edge, compact ? 143 : 192, compact ? 65 : 70);
+    if (!compact) panel(edge, edge, 150, 62);
+    panel(edge, height - edge - 70, compact ? 170 : 215, 70);
+    this.scoreLabel.position.set(scoreX + 12, edge + 10);
+    this.scoreText.position.set(scoreX + 12, edge + 25);
+    this.scoreText.style.fontSize = compact ? 26 : 36;
+    this.levelLabel.visible = !compact;
+    this.levelLabel.position.set(edge + 12, edge + 10);
+    this.levelText.position.set(compact ? edge + 12 : edge + 12, compact ? edge + 78 : edge + 28);
+    this.levelText.style.fontSize = compact ? 12 : 16;
+    this.timeText.style.fontSize = compact ? 19 : 24;
+    this.timerLabel.position.set(timerX + 12, edge + 10);
+    this.timeText.position.set(timerX + 12, edge + 28);
+    this.orbLabel.position.set(edge + 12, height - edge - 59);
+    this.orbsText.position.set(edge + 12, height - edge - 42);
+    this.hint.position.set(compact ? width - 136 : width - 225, height - edge - 20);
+    this.hint.text = compact ? 'TAP TO THRUST' : 'SPACE / TAP  ·  THRUST';
+    const previous = this.progress; this.progress = -1; this.drawProgress(previous < 0 ? 0 : previous);
+  }
 
-      // Create level text
-      this.levelText = new PIXI.Text('Level: 1', this.style);
-      this.levelText.y = 20;
-      this.container.addChild(this.levelText);
-
-      // Create orbs text
-      this.orbsText = new PIXI.Text('Orbs: 0/0', this.style);
-      this.orbsText.y = 40;
-      this.container.addChild(this.orbsText);
-
-      // Create time text
-      this.timeText = new PIXI.Text('Time: 0:0', this.style);
-      this.timeText.y = 60;
-      this.container.addChild(this.timeText);
-
-      // Create progress bar background
-      this.progressBar = new PIXI.Graphics();
-      this.progressBar.rect(0, 85, 200, 10).fill(0x333333);
-      this.container.addChild(this.progressBar);
-
-      // Create progress bar fill
-      this.progressFill = new PIXI.Graphics();
-      this.progressFill.rect(0, 85, 0, 10).fill(0x66AAFF);
-      this.container.addChild(this.progressFill);
-      
-      logger.debug('UI elements created successfully');
-    } catch (error) {
-      logger.error('Error during construction', error);
+  private drawProgress(progress: number): void {
+    if (progress === this.progress) return;
+    this.progress = progress;
+    const compact = this.width < 620;
+    const edge = compact ? 12 : 22;
+    const segmentWidth = compact ? 12.5 : 17;
+    this.segments.clear();
+    for (let i = 0; i < 10; i++) {
+      this.segments.rect(edge + 12 + i * (segmentWidth + 2), this.height - edge - 17, segmentWidth, 5)
+        .fill({ color: i < progress * 10 ? INK.cyan : INK.muted, alpha: i < progress * 10 ? 0.9 : 0.15 });
     }
   }
 
-
-  update(score: number, level: number, orbsCollected: number, orbsRequired: number, timeRemaining: number) {
-    // Update score
-    this.scoreText.text = `Score: ${score}`;
-
-    // Update level
-    this.levelText.text = `Level: ${level}`;
-
-    // Update orbs
-    this.orbsText.text = `Orbs: ${orbsCollected}/${orbsRequired}`;
-
-    // Update time with better formatting
-    const minutes = Math.floor(timeRemaining / 60000);
-    const seconds = Math.floor((timeRemaining % 60000) / 1000);
-    const ms = Math.floor((timeRemaining % 1000) / 100); // Get tenths of a second
-    
-    // Format time as M:SS.T for better readability
-    const timeDisplay = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}.${ms}`;
-    this.timeText.text = timeDisplay;
-
-    // Update progress bar
-    const progress = Math.min(100, (orbsCollected / orbsRequired) * 100);
-    this.progressFill.clear();
-    
-    // Use color to indicate progress - from blue to green as progress increases
-    let progressColor = 0x66AAFF;
-    if (progress >= 75) {
-      progressColor = 0x00FF88; // Light green at 75%+
-    } else if (progress >= 50) {
-      progressColor = 0x88FF00; // Yellow-green at 50%+
-    } else if (progress >= 25) {
-      progressColor = 0xFFCC00; // Orange at 25%+
-    }
-    
-    if (progress >= 100) {
-      progressColor = 0x00FF00; // Bright green when complete
-    }
-    
-    this.progressFill.rect(0, 85, progress * 2, 10).fill(progressColor);
-
-    // Update time color based on remaining time
-    if (timeRemaining <= 5000) {
-      // Critical time - flashing red
-      this.timeText.style.fill = '#FF0000';
-      
-      // Add pulsing effect for critical time
-      const pulseScale = 1 + 0.1 * Math.sin(Date.now() * 0.01);
-      this.timeText.scale.set(pulseScale);
-    } else if (timeRemaining <= 10000) {
-      // Warning time - red
-      this.timeText.style.fill = '#FF0000';
-      this.timeText.scale.set(1); // Reset scale
-    } else if (timeRemaining <= 30000) {
-      // Caution time - orange
-      this.timeText.style.fill = '#FFAA00';
-      this.timeText.scale.set(1); // Reset scale
-    } else {
-      // Normal time - cyan
-      this.timeText.style.fill = '#00FFFF';
-      this.timeText.scale.set(1); // Reset scale
-    }
+  update(score: number, level: number, collected: number, required: number, remaining: number): void {
+    const set = (text: Text, value: string) => { if (text.text !== value) text.text = value; };
+    set(this.scoreText, score.toLocaleString('en-US'));
+    set(this.levelText, `Level: ${level}`);
+    set(this.orbsText, `Orbs: ${collected}/${required}`);
+    const tenths = Math.max(0, Math.floor(remaining / 100));
+    set(this.timeText, `${Math.floor(tenths / 600)}:${Math.floor(tenths / 10 % 60).toString().padStart(2, '0')}.${tenths % 10}`);
+    const color = remaining <= 10000 ? INK.hazard : remaining <= 30000 ? INK.amber : INK.cyan;
+    if (this.timeText.style.fill !== color) this.timeText.style.fill = color;
+    this.drawProgress(required > 0 ? Math.min(1, Math.max(0, collected / required)) : 0);
   }
 
-  getContainer(): PIXI.Container {
-    if (!this.container) {
-      logger.error('Container is undefined!');
-      // Return an empty container rather than undefined
-      return new PIXI.Container();
-    }
-    return this.container;
+  setStatus(status: string): void {
+    if (this.levelLabel.text !== status) this.levelLabel.text = status;
   }
+
+  getContainer(): Container { return this.container; }
+  dispose(): void { this.container.destroy({ children: true }); }
 }
- 

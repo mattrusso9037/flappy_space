@@ -1,14 +1,8 @@
-import { useState } from 'react'
 import GameDisplay from './components/GameDisplay'
-import LevelMessage from './components/LevelMessage'
 import './App.css'
-import { GameState } from './game/gameStateService'
+import './styles/visual-foundation.css'
 
 function App() {
-  // Game state pushed from runtime through GameDisplay
-  const [gameState, setGameState] = useState<GameState | null>(null)
-
-
   return (
     <div className="App">
       <header className="App-header">
@@ -17,16 +11,11 @@ function App() {
       
       <main className="App-main">
         <div className="game-container">
-          <GameDisplay onGameStateChange={setGameState} />
+          <GameDisplay />
         </div>
       </main>
       
-      {gameState?.isLevelComplete && (
-        <LevelMessage 
-          level={gameState.level} 
-          isVisible={gameState.isLevelComplete}
-        />
-      )}
+
 
     </div>
   )

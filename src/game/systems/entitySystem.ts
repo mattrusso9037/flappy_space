@@ -7,6 +7,7 @@ import { Star } from '../entities/Star';
 import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { EventBus, GameEvent } from '../eventBus';
 import defaultAssetManager from '../assetManager';
+import { DEPTH } from '../visuals/tokens';
 import { getLogger } from '../../utils/logger';
 
 /**
@@ -19,6 +20,9 @@ export class EntitySystem {
   private orbs: Orb[] = [];
   private stars: Star[] = [];
   private initialized: boolean = false;
+  private readonly starLayer = new PIXI.Container({ label: 'stars', zIndex: DEPTH.stars, eventMode: 'none' });
+  private readonly worldLayer = new PIXI.Container({ label: 'world', zIndex: DEPTH.world, eventMode: 'none' });
+  private readonly pilotLayer = new PIXI.Container({ label: 'pilot', zIndex: DEPTH.pilot, eventMode: 'none' });
   private logger = getLogger('EntityManager');
   private assetMgr: typeof defaultAssetManager;
   private events?: EventBus;
@@ -43,6 +47,10 @@ export class EntitySystem {
       this.app = app;
     }
     
+    if (this.app) {
+      this.app.stage.sortableChildren = true;
+      this.app.stage.addChild(this.starLayer, this.worldLayer, this.pilotLayer);
+    }
     this.initialized = true;
     this.logger.info('EntityManager initialized');
   }
@@ -103,7 +111,7 @@ export class EntitySystem {
     }
     
     this.astronaut = new Astronaut(astronautTexture, ASTRONAUT.startX, ASTRONAUT.startY);
-    this.app.stage.addChild(this.astronaut.sprite);
+    this.pilotLayer.addChild(this.astronaut.sprite);
     this.logger.info('Astronaut created and added to stage');
     
     // Emit entity created event
@@ -126,8 +134,8 @@ export class EntitySystem {
     const planet = new Planet(x, y, radius, speed);
     
     // Add to stage (both graphics and glow)
-    this.app.stage.addChild(planet.glowGraphics);
-    this.app.stage.addChild(planet.graphics);
+    this.worldLayer.addChild(planet.glowGraphics);
+    this.worldLayer.addChild(planet.graphics);
     
     // Add to obstacles array
     this.obstacles.push(planet);
@@ -154,8 +162,8 @@ export class EntitySystem {
     const orb = new Orb(x, y, radius, speed);
     
     // Add to stage (both graphics and glow)
-    this.app.stage.addChild(orb.glowGraphics);
-    this.app.stage.addChild(orb.graphics);
+    this.worldLayer.addChild(orb.glowGraphics);
+    this.worldLayer.addChild(orb.graphics);
     
     // Add to orbs array
     this.orbs.push(orb);
@@ -180,7 +188,7 @@ export class EntitySystem {
     const star = new Star(x, y, size, alpha, layer);
     
     // Add to stage
-    this.app.stage.addChild(star.graphics);
+    this.starLayer.addChild(star.graphics);
     
     // Add to stars array
     this.stars.push(star);
@@ -203,7 +211,7 @@ export class EntitySystem {
       this.createStar(
         Math.random() * GAME_WIDTH,
         Math.random() * GAME_HEIGHT,
-        Math.random() * 1 + 0.5,
+        Math.random() * 0.5 + 0.3,
         Math.random() * 0.5 + 0.2,
         0
       );
@@ -214,7 +222,7 @@ export class EntitySystem {
       this.createStar(
         Math.random() * GAME_WIDTH,
         Math.random() * GAME_HEIGHT,
-        Math.random() * 1.5 + 1,
+        Math.random() * 0.7 + 0.5,
         Math.random() * 0.6 + 0.3,
         1
       );
@@ -225,7 +233,7 @@ export class EntitySystem {
       this.createStar(
         Math.random() * GAME_WIDTH,
         Math.random() * GAME_HEIGHT,
-        Math.random() * 2 + 1.5,
+        Math.random() * 0.8 + 0.7,
         Math.random() * 0.7 + 0.4,
         2
       );
@@ -424,6 +432,9 @@ export class EntitySystem {
    */
   public dispose(): void {
     this.clearAll();
+    this.starLayer.destroy({ children: true });
+    this.worldLayer.destroy({ children: true });
+    this.pilotLayer.destroy({ children: true });
     this.initialized = false;
     this.logger.info('EntityManager disposed');
   }

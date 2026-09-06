@@ -136,6 +136,10 @@ export class GameStateService {
     });
   }
 
+  public finishLevelTransition(): void {
+    this.setState(state => ({ ...state, isLevelComplete: false }));
+  }
+
   public updateTime(deltaMS: number): GameState {
     const currentState = this.getState();
     const time = currentState.time + deltaMS;

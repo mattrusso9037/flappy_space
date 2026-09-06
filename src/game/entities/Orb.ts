@@ -2,6 +2,7 @@ import * as PIXI from 'pixi.js';
 import { Obstacle } from './Obstacle';
 import { Astronaut } from './Astronaut';
 import { rectanglesIntersect } from './utils';
+import { INK, MOTION } from '../visuals/tokens';
 import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('Orb');
@@ -44,66 +45,25 @@ export class Orb extends Obstacle {
     }
     
     drawOrb() {
-        const g = this.graphics;
-        g.clear();
-        
-        // Draw outer glow
+        const r = this.radius;
+        this.graphics.clear()
+            .circle(0, 0, r).fill(INK.void).stroke({ color: INK.cyan, width: 1.5 })
+            .circle(0, 0, r * 0.7).fill(INK.violet)
+            .circle(-r * 0.18, -r * 0.16, r * 0.47).fill(0x747cff)
+            .circle(-r * 0.32, -r * 0.3, r * 0.2).fill(INK.ice)
+            .arc(0, 0, r * 1.22, -0.5, 1.2).stroke({ color: INK.cyan, width: 1 })
+            .arc(0, 0, r * 1.22, 2.6, 4.3).stroke({ color: INK.violet, width: 1 });
         this.drawGlow();
-        
-        // Draw the main orb body - blue color
-        const orbColor = 0x00AAFF;
-        
-        g.beginFill(orbColor);
-        g.drawCircle(0, 0, this.radius);
-        g.fill();
-        
-        // Add gradient overlay for depth
-        const gradientLight = new PIXI.FillGradient({
-            type: 'linear',
-            start: { x: 0, y: 0 },
-            end: { x: this.radius * 2, y: this.radius * 2 },
-            colorStops: [
-                { offset: 0, color: 0x00DDFF },  // Lighter at top-left
-                { offset: 1, color: 0x0066AA }   // Darker at bottom-right
-            ],
-            textureSpace: 'local'
-        });
-        
-        // Use fill with gradient
-        g.fill({ fill: gradientLight, alpha: 0.6 });
-        g.drawCircle(0, 0, this.radius);
-        
-        // Add inner highlight
-        g.beginFill(0xFFFFFF, 0.5);
-        g.drawCircle(-this.radius * 0.3, -this.radius * 0.3, this.radius * 0.2);
-        g.fill();
     }
-    
+
     drawGlow() {
-        const glow = this.glowGraphics;
-        glow.clear();
-        
-        // Create a bright glowing effect
-        const outerGlowRadius = this.radius + this.glowSize;
-        
-        // Use gradient for glow
-        const glowGradient = new PIXI.FillGradient({
-            type: 'radial',
-            center: { x: 0, y: 0 },
-            innerRadius: 0,
-            outerRadius: outerGlowRadius,
-            colorStops: [
-                { offset: 0, color: 0x66DDFF },
-                { offset: 0.5, color: 0x00AAFF },
-                { offset: 1, color: 0x0066AA }
-            ],
-            textureSpace: 'local'
-        });
-        
-        glow.fill({ fill: glowGradient, alpha: 0.4 });
-        glow.drawCircle(0, 0, outerGlowRadius);
+        this.glowGraphics.clear();
+        for (let i = 5; i > 0; i--) {
+            this.glowGraphics.circle(0, 0, this.radius * (1 + i * 0.2))
+                .fill({ color: i % 2 ? INK.violet : INK.cyan, alpha: 0.035 });
+        }
     }
-    
+
     update(deltaTime: number = 1/60) {
         if (this.collected) return;
         
@@ -117,17 +77,16 @@ export class Orb extends Obstacle {
         this.glowGraphics.x = this.x;
         
         // Update animation time
-        const time = performance.now() * 0.001;
+        this.timeOffset += deltaTime;
+        const time = this.timeOffset;
         
         // Add rotation for visual effect
-        this.graphics.rotation += this.rotationSpeed;
+        this.graphics.rotation += deltaTime * 0.45;
         
         // Pulse glow effect
-        const pulseFactor = 0.3 * Math.sin(time * this.glowPulseSpeed + this.timeOffset) + 1.2;
-        this.glowGraphics.scale.set(pulseFactor);
-        
-        // Update glow opacity subtly
-        this.glowGraphics.alpha = 0.3 + 0.2 * Math.sin(time * this.glowPulseSpeed * 1.5 + this.timeOffset);
+        const pulse = Math.sin(time * Math.PI * 2 / MOTION.pulse);
+        this.glowGraphics.scale.set(1 + pulse * 0.12);
+        this.glowGraphics.alpha = 0.8 + pulse * 0.2;
     }
     
     collect(): void {

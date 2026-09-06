@@ -115,6 +115,22 @@ describe('Astronaut Entity', () => {
     expect(astronaut.sprite.tint).toBe(0xFFFFFF);
   });
 
+  it('keeps thrust immediate and restores presentation on reset', () => {
+    const texture = astronaut.sprite.texture;
+    const hitbox = astronaut.getHitbox();
+    astronaut.flap();
+    expect(astronaut.thrustRemaining).toBeGreaterThan(0);
+    astronaut.updatePresentation(0.3);
+    expect(astronaut.thrustRemaining).toBe(0);
+    expect(astronaut.getHitbox()).toEqual(hitbox);
+    astronaut.die(); astronaut.updatePresentation(0.3);
+    expect(astronaut.sprite.rotation).not.toBe(0);
+    astronaut.reset(200, 300);
+    expect(astronaut.sprite.rotation).toBe(0);
+    expect(astronaut.sprite.alpha).toBe(1);
+    expect(astronaut.sprite.texture).toBe(texture);
+  });
+
   it('does not update movement or accept actions when dead', () => {
     astronaut.die();
     const startY = astronaut.sprite.y;

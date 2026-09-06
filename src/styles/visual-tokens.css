@@ -1,0 +1,15 @@
+@font-face { font-family: 'Space Grotesk'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/space-grotesk-regular.ttf') format('truetype'); }
+@font-face { font-family: 'Space Grotesk'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/space-grotesk-bold.ttf') format('truetype'); }
+@font-face { font-family: 'Space Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/space-mono-regular.ttf') format('truetype'); }
+:root {
+  --space-void: #070913;
+  --space-hull: #0b1021;
+  --space-cyan: #00f0ff;
+  --space-ice: #e2f8ff;
+  --space-muted: #8aa6be;
+  --space-violet: #a855f7;
+  --space-hazard: #ff5533;
+  --space-outline: rgb(0 240 255 / 24%);
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-telemetry: 'Space Mono', monospace;
+}

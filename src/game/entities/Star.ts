@@ -32,7 +32,7 @@ export class Star {
     // Draw the circle FIRST
     this.graphics.circle(0, 0, size);
     // THEN fill it
-    this.graphics.fill({ color, alpha: alpha });
+    this.graphics.fill({ color, alpha: 1 });
     this.graphics.x = x;
     this.graphics.y = y;
     
@@ -41,12 +41,12 @@ export class Star {
     this.alpha = alpha;
   }
 
-  update() {
+  update(seconds = 1 / 60) {
     // Movement is now handled in renderSystem.updateBackground
     // for more precise speed control
     
     // Handle blinking effect
-    this.alpha += this.blinkSpeed * this.blinkDirection;
+    this.alpha += this.blinkSpeed * this.blinkDirection * seconds * 60;
     
     if (this.alpha > 1) {
       this.alpha = 1;

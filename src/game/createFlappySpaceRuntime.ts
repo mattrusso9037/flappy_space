@@ -32,7 +32,7 @@ export function createFlappySpaceRuntime(app: PIXI.Application): GameRuntime {
   const input = new InputSystem(events, state, inputMgr, entities);
   const audio = new AudioSystem(events);
 
-  const ui = new UISystem(app, events, state);
+  const ui = new UISystem(app, events, state, entities);
 
   return new GameRuntime({
     app,

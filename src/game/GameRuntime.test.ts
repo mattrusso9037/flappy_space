@@ -176,6 +176,8 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     // Advance remaining 1.0 second (total 2.0s)
     runtime.onTick({ deltaMS: 1000 } as PIXI.Ticker);
 
+    expect(runtime.state.getState().isLevelComplete).toBe(false);
+
     // Level 2 should now be fully initialized
     const astronaut = runtime.systems.entities.getAstronaut();
     expect(astronaut).toBeDefined();
@@ -226,6 +228,28 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     expect(runtime.state.getState().isGameOver).toBe(true);
 
     runtime.dispose();
+  });
+
+  it('freezes all presentation while paused and clears owned layers and tickers', () => {
+    const sharedAdd = vi.spyOn(PIXI.Ticker.shared, 'add');
+    const runtime = createFlappySpaceRuntime(app);
+    const initialTickerCount = app.ticker.count;
+    runtime.initialize(); runtime.reset(); runtime.start();
+    const star = runtime.systems.entities.getStars()[0];
+    runtime.events.emit(GameEvent.ORB_COLLECTED, { x: 100, y: 100 });
+    const effects = app.stage.getChildByLabel('flight-effects')!;
+    const spark = effects.children.find(child => child.visible)!;
+    runtime.pause();
+    const x = star.graphics.x, sparkX = spark.x, alpha = spark.alpha;
+    runtime.onTick({ deltaMS: 500 } as PIXI.Ticker);
+    expect(star.graphics.x).toBe(x); expect(spark.x).toBe(sparkX); expect(spark.alpha).toBe(alpha);
+    runtime.resume(); runtime.onTick({ deltaMS: 100 } as PIXI.Ticker);
+    expect(star.graphics.x).not.toBe(x); expect(spark.alpha).toBeLessThan(alpha);
+    runtime.reset(); expect(effects.children.every(child => !child.visible)).toBe(true);
+    runtime.dispose();
+    expect(app.stage.children).toHaveLength(0);
+    expect(app.ticker.count).toBe(initialTickerCount);
+    expect(sharedAdd).not.toHaveBeenCalled(); sharedAdd.mockRestore();
   });
 
   it('isolates multiple concurrent runtimes completely', () => {

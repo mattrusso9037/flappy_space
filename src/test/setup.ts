@@ -2,16 +2,11 @@ import '@testing-library/jest-dom/vitest';
 
 // Provide basic canvas 2D context mock for jsdom environment if needed by Pixi.js
 if (typeof HTMLCanvasElement !== 'undefined') {
-  const originalGetContext = HTMLCanvasElement.prototype.getContext;
   // @ts-expect-error - Mocking getContext for jsdom test environment
   HTMLCanvasElement.prototype.getContext = function (
     this: HTMLCanvasElement,
-    contextId: string,
-    options?: unknown
+    _contextId: string
   ) {
-    const ctx = originalGetContext ? (originalGetContext as (id: string, opts?: unknown) => unknown).call(this, contextId, options) : null;
-    if (ctx) return ctx;
-
     return {
       fillRect: () => {},
       clearRect: () => {},
