@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Application, Container, Ticker } from 'pixi.js';
 import { createFlappySpaceRuntime } from '../createFlappySpaceRuntime';
 import { GameRuntime } from '../GameRuntime';
-import { SECTOR_02, SECTOR_03 } from '../campaign/defaultCampaign';
+import { SECTOR_02, SECTOR_04 } from '../campaign/defaultCampaign';
 import { Astronaut } from '../entities/Astronaut';
 
 describe('Shovel and authored terrain through the production runtime', () => {
@@ -118,7 +118,7 @@ describe('Shovel and authored terrain through the production runtime', () => {
     runtime.reset();
     expect(roof.graphics.destroyed).toBe(true);
     expect(entities.getTerrainBlocks()).toHaveLength(2);
-    runtime.loadLevel(SECTOR_03);
+    runtime.loadLevel(SECTOR_04);
     expect(entities.getTerrainBlocks()).toHaveLength(0);
     expect(entities.getSolidBounds()).toHaveLength(0);
     expect(tools.select('shovel')).toBe(false);

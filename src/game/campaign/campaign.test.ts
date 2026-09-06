@@ -25,13 +25,14 @@ describe('Campaign Definition & Data Migration', () => {
     }
   });
 
-  it('faithfully preserves the 5 legacy level gameplay and difficulty parameters', () => {
+  it('preserves unchanged campaign sectors and sequencing', () => {
     const levelIds = ['sector-01', 'sector-02', 'sector-03', 'sector-04', 'sector-05'];
     expect(levelIds).toHaveLength(LEVELS.length);
 
     levelIds.forEach((id, index) => {
       const levelDef = DEFAULT_CAMPAIGN.levels[id];
       const legacyConfig = LEVELS[index];
+      if (id === 'sector-03') return; // The authored demo has its own traversal tests.
 
       expect(levelDef).toBeDefined();
       expect(levelDef.gameplay.speeds.planet).toBe(legacyConfig.speeds.planet);

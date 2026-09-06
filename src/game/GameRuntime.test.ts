@@ -438,9 +438,9 @@ it('cleanly transitions between groundless and ground-enabled levels without cap
   expect(astro2.isGrounded).toBe(true);
   expect(astro2.getThrustCharges()).toBe(1);
 
-  // 3. Load groundless level again (sector-03)
-  const sector03 = DEFAULT_CAMPAIGN.levels['sector-03'];
-  runtime.loadLevel(sector03);
+  // 3. Load groundless level again (sector-04)
+  const sector04 = DEFAULT_CAMPAIGN.levels['sector-04'];
+  runtime.loadLevel(sector04);
   runtime.start();
 
   expect(runtime.systems.entities.getGround()).toBeNull();
@@ -452,7 +452,7 @@ it('cleanly transitions between groundless and ground-enabled levels without cap
   expect(astro3.getThrustCharges()).toBe(Infinity);
   expect(runtime.systems.spawning.getLevelConfig().obstacles?.enabled).not.toBe(false);
 
-  // Bottom boundary must be lethal again in sector-03
+  // Bottom boundary must be lethal again in sector-04
   astro3.sprite.y = 600 - 25;
   astro3.velocity = 10;
   astro3.update(16.667);
@@ -497,7 +497,7 @@ it('keeps looping terrain, sky, and thrust aligned beyond both world boundaries 
     expect(ground.container.children.length).toBe(childCount);
     runtime.systems.ui.reset();
   }
-  runtime.reset(DEFAULT_CAMPAIGN.levels['sector-03']);
+  runtime.reset(DEFAULT_CAMPAIGN.levels['sector-04']);
   expect(camera.x).toBe(0);
   expect(camera.getChildByLabel('atmosphere')!.x).toBe(0);
   expect(camera.getChildByLabel('stars')!.x).toBe(0);

@@ -41,3 +41,7 @@
   min-height: 0;
   flex: 1;
 }
+
+.demo-brief { max-width: 760px; margin: 0 auto 16px; padding: 0 20px; color: #8aa6be; font-size: 14px; line-height: 1.5; }
+.demo-brief p { margin: 6px 0; }
+.demo-brief small { color: #e2f8ff; }

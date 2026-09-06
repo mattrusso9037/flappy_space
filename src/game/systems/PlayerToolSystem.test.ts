@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Application, Container, Ticker } from 'pixi.js';
 import { createFlappySpaceRuntime } from '../createFlappySpaceRuntime';
 import { GameRuntime } from '../GameRuntime';
-import { SECTOR_01, SECTOR_02, SECTOR_03 } from '../campaign/defaultCampaign';
+import { SECTOR_01, SECTOR_02, SECTOR_04 } from '../campaign/defaultCampaign';
 import { LevelDefinition } from '../campaign/campaignTypes';
 import { Astronaut } from '../entities/Astronaut';
 
@@ -97,7 +97,7 @@ describe('PlayerToolSystem production runtime', () => {
     attach(); press('KeyE'); runtime.reset(); expect(tools.getAttachment()).toBeNull();
     runtime.start(); pilot = runtime.systems.entities.getAstronaut()!; tick();
     expect(tools.getAttachment()).toBeNull();
-    attach(); runtime.loadLevel(SECTOR_03);
+    attach(); runtime.loadLevel(SECTOR_04);
     expect(tools.getAttachment()).toBeNull();
     expect(tools.select('grapple-hook')).toBe(false);
     runtime.loadLevel(testLevel());
@@ -246,7 +246,7 @@ describe('PlayerToolSystem production runtime', () => {
     expect(runtime.systems.entities.getWalls()).toHaveLength(0);
     pilot = runtime.systems.entities.getAstronaut()!; position();
     runtime.systems.tools.use(); const second = runtime.systems.entities.getWalls()[0];
-    runtime.loadLevel(SECTOR_03);
+    runtime.loadLevel(SECTOR_04);
     expect(second.graphics.destroyed).toBe(true);
     expect(runtime.systems.tools.getEquipped()).toBeNull();
     expect(runtime.systems.tools.select('wall-builder')).toBe(false);

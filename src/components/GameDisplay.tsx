@@ -9,7 +9,8 @@ import { GameEvent } from '../game/eventBus';
 import { createFlappySpaceRuntime } from '../game/createFlappySpaceRuntime';
 import { GameRuntime } from '../game/GameRuntime';
 import { GameFlow } from '../game/campaign/GameFlow';
-import { GamePhase } from '../game/campaign/campaignTypes';
+import { CampaignDefinition, GamePhase } from '../game/campaign/campaignTypes';
+import { LocalStorageSaveService } from '../game/campaign/save/LocalStorageSaveService';
 import { DEFAULT_CAMPAIGN } from '../game/campaign/defaultCampaign';
 import { DialogueOverlay } from './story/DialogueOverlay';
 import { VideoCutsceneOverlay } from './story/VideoCutsceneOverlay';
@@ -20,10 +21,12 @@ import { getLogger } from '../utils/logger';
 const logger = getLogger('GameDisplay');
 
 export interface GameDisplayProps {
+  campaign?: CampaignDefinition;
+  storageKey?: string;
   onGameStateChange?: (state: GameState) => void;
 }
 
-const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
+const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange, campaign = DEFAULT_CAMPAIGN, storageKey }) => {
   // Container div holding the PIXI canvas
   const pixiContainerRef = useRef<HTMLDivElement>(null);
   
@@ -221,12 +224,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
       logger.debug('Creating GameRuntime instance via composition root');
       const runtime = createFlappySpaceRuntime(app);
       runtime.initialize();
-      runtime.reset();
+      runtime.reset(campaign.levels[campaign.startingLevelId]);
       runtimeRef.current = runtime;
 
       // Instantiate GameFlow orchestrator
       const gameFlow = new GameFlow({
-        campaign: DEFAULT_CAMPAIGN,
+        campaign,
+        saveService: new LocalStorageSaveService(storageKey),
         runtime,
       });
       gameFlowRef.current = gameFlow;
@@ -261,7 +265,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
       logger.error('Failed to initialize game runtime:', err);
       setLoadError(`Failed to initialize game runtime: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }, []);
+  }, [campaign, storageKey]);
 
   // Initialize Pixi app and attach canvas
   useEffect(() => {
@@ -541,7 +545,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
               ? 'Game Over!'
               : isCredits
               ? 'Mission Accomplished!'
-              : 'Flappy Spaceman'}
+              : campaign === DEFAULT_CAMPAIGN ? 'Flappy Spaceman' : campaign.name}
           </h2>
 
           {isGameOver && (
@@ -596,7 +600,9 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
             )}
           </div>
 
-          <p>Use SPACE, Up Arrow, or W to fly!</p>
+          <p>{campaign.levels[campaign.startingLevelId].gameplay.movement?.mode === 'ground'
+            ? 'A / D to move. SPACE to thrust. E to use your equipped tool.'
+            : 'Use SPACE, Up Arrow, or W to fly!'}</p>
           {isTouchDevice && (
             <p className="mobile-instruction">Tap anywhere to jump!</p>
           )}
