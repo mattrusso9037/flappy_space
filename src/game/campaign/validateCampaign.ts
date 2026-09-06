@@ -1,6 +1,9 @@
-import { CampaignDefinition } from './campaignTypes';
+import { CampaignDefinition, StoryTransition } from './campaignTypes';
 import { isEnvironmentId } from '../environments/environments';
 import { isMusicTrackId } from '../audio/musicCatalog';
+import { hasDialogue } from '../story/dialogue/dialogues';
+import { hasCutscene } from '../story/cutscenes/cutscenes';
+import { hasVideoCutscene } from '../story/video/videoCutscenes';
 
 export interface ValidationResult {
   valid: boolean;
@@ -135,35 +138,52 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
 
     // Story transitions
     if (level.intro) {
-      if (
-        (level.intro.type !== 'dialogue' && level.intro.type !== 'cutscene') ||
-        !level.intro.id
-      ) {
-        errors.push(`${prefix} intro transition must have type 'dialogue' or 'cutscene' and non-empty id.`);
-      }
+      errors.push(...validateStoryTransition(level.intro, `${prefix} intro`));
     }
     if (level.outro) {
-      if (
-        (level.outro.type !== 'dialogue' && level.outro.type !== 'cutscene') ||
-        !level.outro.id
-      ) {
-        errors.push(`${prefix} outro transition must have type 'dialogue' or 'cutscene' and non-empty id.`);
-      }
+      errors.push(...validateStoryTransition(level.outro, `${prefix} outro`));
     }
   }
 
   // Campaign ending
   if (campaign.ending) {
-    if (
-      (campaign.ending.type !== 'dialogue' && campaign.ending.type !== 'cutscene') ||
-      !campaign.ending.id
-    ) {
-      errors.push("Campaign ending transition must have type 'dialogue' or 'cutscene' and non-empty id.");
-    }
+    errors.push(...validateStoryTransition(campaign.ending, 'Campaign ending'));
   }
 
   return {
     valid: errors.length === 0,
     errors,
   };
+}
+
+function validateStoryTransition(transition: StoryTransition, contextDesc: string): string[] {
+  const errors: string[] = [];
+  if (!transition || typeof transition !== 'object') {
+    errors.push(`${contextDesc} transition must be an object.`);
+    return errors;
+  }
+  if (!transition.id || typeof transition.id !== 'string') {
+    errors.push(`${contextDesc} transition must have a non-empty string id.`);
+    return errors;
+  }
+  switch (transition.type) {
+    case 'dialogue':
+      if (!hasDialogue(transition.id)) {
+        errors.push(`${contextDesc} references unregistered dialogue "${transition.id}".`);
+      }
+      break;
+    case 'cutscene':
+      if (!hasCutscene(transition.id)) {
+        errors.push(`${contextDesc} references unregistered cutscene "${transition.id}".`);
+      }
+      break;
+    case 'video':
+      if (!hasVideoCutscene(transition.id)) {
+        errors.push(`${contextDesc} references unregistered video cutscene "${transition.id}".`);
+      }
+      break;
+    default:
+      errors.push(`${contextDesc} transition must have type 'dialogue', 'cutscene', or 'video'.`);
+  }
+  return errors;
 }

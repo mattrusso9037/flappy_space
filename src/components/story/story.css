@@ -1,0 +1,257 @@
+/* ==========================================================================
+   Story & Cutscene Overlays (Mission-Control Avionics Aesthetic)
+   ========================================================================== */
+
+.dialogue-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: var(--space-hud-edge-lg, 1.5rem);
+  background: radial-gradient(ellipse at center, rgba(7, 9, 19, 0.4) 0%, rgba(7, 9, 19, 0.85) 100%);
+  z-index: 100;
+  pointer-events: auto;
+  user-select: none;
+  animation: story-fade-in 0.2s ease-out;
+}
+
+.dialogue-frame {
+  width: 100%;
+  max-width: 680px;
+  background: rgba(11, 16, 33, 0.92);
+  border: 1px solid var(--space-outline, rgba(0, 240, 255, 0.28));
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.12), inset 0 0 16px rgba(0, 240, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dialogue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  background: rgba(0, 240, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+}
+
+.dialogue-speaker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dialogue-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--space-cyan, #00f0ff);
+  box-shadow: 0 0 8px var(--space-cyan, #00f0ff);
+  animation: dialogue-pulse 2s infinite;
+}
+
+.dialogue-speaker {
+  font-family: var(--font-telemetry, 'Space Mono', monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--space-cyan, #00f0ff);
+  text-transform: uppercase;
+}
+
+.dialogue-counter {
+  font-family: var(--font-telemetry, 'Space Mono', monospace);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--space-muted, #8aa6be);
+}
+
+.dialogue-body {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.dialogue-portrait {
+  width: 52px;
+  height: 52px;
+  border-radius: 3px;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: var(--font-telemetry, 'Space Mono', monospace);
+  font-size: 0.65rem;
+  color: var(--space-cyan, #00f0ff);
+  text-transform: uppercase;
+}
+
+.dialogue-text {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--space-ice, #e2f8ff);
+  margin: 0;
+  flex: 1;
+}
+
+.dialogue-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  border-top: 1px solid rgba(0, 240, 255, 0.1);
+  background: rgba(7, 9, 19, 0.5);
+}
+
+.dialogue-advance-prompt {
+  font-family: var(--font-telemetry, 'Space Mono', monospace);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--space-muted, #8aa6be);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.dialogue-advance-prompt kbd {
+  padding: 0.15rem 0.35rem;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 2px;
+  color: var(--space-cyan, #00f0ff);
+  font-size: 0.65rem;
+}
+
+.dialogue-skip-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 85, 51, 0.3);
+  color: var(--space-hazard, #ff5533);
+  font-family: var(--font-telemetry, 'Space Mono', monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.75rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+
+.dialogue-skip-btn:hover {
+  background: rgba(255, 85, 51, 0.15);
+  border-color: var(--space-hazard, #ff5533);
+  box-shadow: 0 0 10px rgba(255, 85, 51, 0.3);
+}
+
+/* ==========================================================================
+   Video Cutscene Overlay
+   ========================================================================== */
+
+.video-overlay {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+  overflow: hidden;
+  user-select: none;
+}
+
+.video-element {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.video-hud-overlay {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 130;
+}
+
+.video-skip-btn {
+  background: rgba(11, 16, 33, 0.75);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--space-cyan, #00f0ff);
+  font-family: var(--font-telemetry, 'Space Mono', monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.45rem 1rem;
+  border-radius: 2px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
+  transition: all 0.15s ease-out;
+}
+
+.video-skip-btn:hover {
+  background: rgba(0, 240, 255, 0.18);
+  border-color: var(--space-cyan, #00f0ff);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+}
+
+.video-error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: rgba(11, 16, 33, 0.95);
+  border: 1px solid var(--space-hazard, #ff5533);
+  box-shadow: 0 0 30px rgba(255, 85, 51, 0.25);
+  border-radius: 4px;
+  max-width: 480px;
+  text-align: center;
+}
+
+.video-error-title {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--space-hazard, #ff5533);
+  margin: 0;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.video-error-msg {
+  font-family: var(--font-telemetry, 'Space Mono', monospace);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--space-ice, #e2f8ff);
+  margin: 0;
+}
+
+/* Animations */
+@keyframes story-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dialogue-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}

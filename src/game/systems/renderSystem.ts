@@ -11,6 +11,7 @@ export class RenderSystem {
   private app: PIXI.Application | null;
   private atmosphere = new PIXI.Container({ label: 'atmosphere', zIndex: DEPTH.atmosphere, eventMode: 'none' });
   private debugGraphics = new PIXI.Graphics({ zIndex: DEPTH.debug });
+  private fadeGraphics = new PIXI.Graphics({ zIndex: DEPTH.hud + 5, eventMode: 'none' });
   private clouds: PIXI.Graphics[] = [];
   private currentEnvironment: EnvironmentDefinition = DEEP_NEBULA;
   private elapsed = 0;
@@ -25,7 +26,7 @@ export class RenderSystem {
     if (this.initialized) return;
     if (app) this.app = app;
     if (!this.app) return;
-    this.app.stage.addChild(this.atmosphere, this.debugGraphics);
+    this.app.stage.addChild(this.atmosphere, this.debugGraphics, this.fadeGraphics);
     this.rebuildAtmosphere();
     this.initialized = true;
   }
@@ -87,7 +88,15 @@ export class RenderSystem {
   beginWarp(): void { this.warpRemaining = MOTION.warp; }
   get warpProgress(): number { return this.warpRemaining > 0 ? 1 - this.warpRemaining / MOTION.warp : 0; }
 
+  setFadeAlpha(alpha: number): void {
+    this.fadeGraphics.clear();
+    if (alpha > 0.001) {
+      this.fadeGraphics.rect(0, 0, GAME_WIDTH, GAME_HEIGHT).fill({ color: 0x070913, alpha: Math.min(1, Math.max(0, alpha)) });
+    }
+  }
+
   reset(): void {
+    this.setFadeAlpha(0);
     this.warpRemaining = 0;
     this.elapsed = 0;
     for (const star of this.entities.getStars()) star.graphics.scale.set(1);
@@ -146,6 +155,7 @@ export class RenderSystem {
     if (!this.initialized) return;
     this.atmosphere.destroy({ children: true });
     this.debugGraphics.destroy();
+    this.fadeGraphics.destroy();
     this.clouds = [];
     this.initialized = false;
   }

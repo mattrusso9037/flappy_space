@@ -190,4 +190,162 @@ describe('GameFlow', () => {
     attachedFlow.dispose();
     runtime.dispose();
   });
+
+  describe('Story Transitions & Continuations', () => {
+    function createStoryCampaign(): typeof DEFAULT_CAMPAIGN {
+      return {
+        id: 'story-campaign',
+        name: 'Story Campaign',
+        startingLevelId: 'lvl-intro',
+        levels: {
+          'lvl-intro': {
+            id: 'lvl-intro',
+            name: 'Intro Level',
+            intro: { type: 'dialogue', id: 'unknown-signal' },
+            gameplay: {
+              speeds: { planet: 3, secondaryPlanet: 2.5, orb: 2 },
+              spawnInterval: 2500,
+              orbSpawnChance: 0.4,
+              orbsRequired: 5,
+              timeLimit: 60000,
+              obstacles: { minPlanetRadius: 20, maxPlanetRadius: 45, secondaryPlanetChance: 0 },
+            },
+            presentation: { environmentId: 'deep-nebula' },
+            outro: { type: 'cutscene', id: 'first-signal' },
+            nextLevelId: 'lvl-video',
+          },
+          'lvl-video': {
+            id: 'lvl-video',
+            name: 'Video Level',
+            intro: { type: 'video', id: 'opening-transmission' },
+            gameplay: {
+              speeds: { planet: 3, secondaryPlanet: 2.5, orb: 2 },
+              spawnInterval: 2500,
+              orbSpawnChance: 0.4,
+              orbsRequired: 5,
+              timeLimit: 60000,
+              obstacles: { minPlanetRadius: 20, maxPlanetRadius: 45, secondaryPlanetChance: 0 },
+            },
+            presentation: { environmentId: 'violet-reach' },
+          },
+        },
+        ending: { type: 'video', id: 'opening-transmission' },
+      };
+    }
+
+    it('enters dialogue intro phase on first arrival to level with dialogue intro', () => {
+      const storyCampaign = createStoryCampaign();
+      const storyFlow = new GameFlow({ campaign: storyCampaign, saveService: mockSaveService });
+
+      storyFlow.startNewGame();
+
+      expect(storyFlow.getPhase()).toEqual({ type: 'dialogue', dialogueId: 'unknown-signal' });
+      expect(storyFlow.hasStoryFlag('seen:lvl-intro:intro')).toBe(true);
+
+      // Complete story phase advances to gameplay
+      storyFlow.completeStoryPhase();
+      expect(storyFlow.getPhase()).toEqual({ type: 'playing', levelId: 'lvl-intro' });
+    });
+
+    it('enters video intro phase on arrival to level with video intro', () => {
+      const storyCampaign = createStoryCampaign();
+      const storyFlow = new GameFlow({ campaign: storyCampaign, saveService: mockSaveService });
+
+      storyFlow.startLevel('lvl-video');
+
+      expect(storyFlow.getPhase()).toEqual({ type: 'video', videoId: 'opening-transmission' });
+      expect(storyFlow.hasStoryFlag('seen:lvl-video:intro')).toBe(true);
+
+      storyFlow.completeStoryPhase();
+      expect(storyFlow.getPhase()).toEqual({ type: 'playing', levelId: 'lvl-video' });
+    });
+
+    it('does NOT replay intro on retry after game over', () => {
+      const storyCampaign = createStoryCampaign();
+      const storyFlow = new GameFlow({ campaign: storyCampaign, saveService: mockSaveService });
+
+      storyFlow.startNewGame();
+      storyFlow.completeStoryPhase(); // In gameplay
+      expect(storyFlow.getPhase()).toEqual({ type: 'playing', levelId: 'lvl-intro' });
+
+      storyFlow.handleGameOver('lvl-intro');
+      expect(storyFlow.getPhase()).toEqual({ type: 'gameOver', levelId: 'lvl-intro' });
+
+      storyFlow.retryLevel();
+      // Should be playing directly without replaying intro dialogue
+      expect(storyFlow.getPhase()).toEqual({ type: 'playing', levelId: 'lvl-intro' });
+    });
+
+    it('enters outro transition on level complete before advancing to next level', () => {
+      const storyCampaign = createStoryCampaign();
+      const storyFlow = new GameFlow({ campaign: storyCampaign, saveService: mockSaveService });
+
+      storyFlow.startNewGame();
+      storyFlow.completeStoryPhase(); // enter playing
+
+      storyFlow.handleLevelCompleted('lvl-intro', 500);
+
+      // Checkpoint was persisted before outro began
+      expect(storyFlow.getProgress().completedLevelIds).toContain('lvl-intro');
+      expect(mockSaveService.savedData?.completedLevelIds).toContain('lvl-intro');
+      expect(storyFlow.hasStoryFlag('seen:lvl-intro:outro')).toBe(true);
+
+      // In outro cutscene phase
+      expect(storyFlow.getPhase()).toEqual({ type: 'cutscene', cutsceneId: 'first-signal' });
+
+      // Completing outro advances to next level's intro (lvl-video has video intro)
+      storyFlow.completeStoryPhase();
+      expect(storyFlow.getPhase()).toEqual({ type: 'video', videoId: 'opening-transmission' });
+
+      // Completing video intro starts lvl-video gameplay
+      storyFlow.completeStoryPhase();
+      expect(storyFlow.getPhase()).toEqual({ type: 'playing', levelId: 'lvl-video' });
+    });
+
+    it('plays campaign ending transition on completing final level before credits', () => {
+      const storyCampaign = createStoryCampaign();
+      const storyFlow = new GameFlow({ campaign: storyCampaign, saveService: mockSaveService });
+
+      storyFlow.startLevel('lvl-video', { skipIntro: true });
+      expect(storyFlow.getPhase()).toEqual({ type: 'playing', levelId: 'lvl-video' });
+
+      storyFlow.handleLevelCompleted('lvl-video', 1000);
+
+      // Should transition to campaign ending video
+      expect(storyFlow.getPhase()).toEqual({ type: 'video', videoId: 'opening-transmission' });
+      expect(storyFlow.hasStoryFlag('seen:campaign:ending')).toBe(true);
+
+      // Completing campaign ending transitions to credits
+      storyFlow.completeStoryPhase();
+      expect(storyFlow.getPhase()).toEqual({ type: 'credits' });
+    });
+
+    it('is strictly idempotent when completeStoryPhase is called multiple times', () => {
+      const storyCampaign = createStoryCampaign();
+      const storyFlow = new GameFlow({ campaign: storyCampaign, saveService: mockSaveService });
+
+      storyFlow.startNewGame();
+      expect(storyFlow.getPhase()).toEqual({ type: 'dialogue', dialogueId: 'unknown-signal' });
+
+      // First call completes dialogue and starts gameplay
+      storyFlow.completeStoryPhase();
+      expect(storyFlow.getPhase()).toEqual({ type: 'playing', levelId: 'lvl-intro' });
+
+      // Second redundant call (e.g. from ended/skip race) does not corrupt state
+      storyFlow.completeStoryPhase();
+      expect(storyFlow.getPhase()).toEqual({ type: 'playing', levelId: 'lvl-intro' });
+    });
+
+    it('persists and restores story flags through saveService', () => {
+      flow.setStoryFlag('custom-story-flag', true);
+      expect(flow.hasStoryFlag('custom-story-flag')).toBe(true);
+      expect(mockSaveService.savedData?.storyFlags['custom-story-flag']).toBe(true);
+
+      const restoredFlow = new GameFlow({
+        campaign: DEFAULT_CAMPAIGN,
+        saveService: mockSaveService,
+      });
+      expect(restoredFlow.hasStoryFlag('custom-story-flag')).toBe(true);
+    });
+  });
 });

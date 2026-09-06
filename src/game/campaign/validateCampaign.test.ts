@@ -153,13 +153,51 @@ describe('validateCampaignDefinition', () => {
     expect(result.errors.some(e => e.includes('timeLimit must be a positive number'))).toBe(true);
   });
 
-  it('validates story transitions when present', () => {
+  it('validates story transitions when present and registered', () => {
     const campaign = createValidCampaign();
-    // @ts-expect-error invalid transition type
-    campaign.levels['lvl-1'].intro = { type: 'invalid_type', id: 'intro-1' };
+    campaign.levels['lvl-1'].intro = { type: 'dialogue', id: 'unknown-signal' };
+    campaign.levels['lvl-1'].outro = { type: 'cutscene', id: 'first-signal' };
+    campaign.levels['lvl-2'].outro = { type: 'video', id: 'opening-transmission' };
+    campaign.ending = { type: 'video', id: 'opening-transmission' };
+
+    const result = validateCampaignDefinition(campaign);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+  });
+
+  it('fails when story transition references unregistered dialogue', () => {
+    const campaign = createValidCampaign();
+    campaign.levels['lvl-1'].intro = { type: 'dialogue', id: 'non-existent-dialogue' };
 
     const result = validateCampaignDefinition(campaign);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('intro transition'))).toBe(true);
+    expect(result.errors.some(e => e.includes('references unregistered dialogue "non-existent-dialogue"'))).toBe(true);
+  });
+
+  it('fails when story transition references unregistered cutscene', () => {
+    const campaign = createValidCampaign();
+    campaign.levels['lvl-1'].outro = { type: 'cutscene', id: 'non-existent-cutscene' };
+
+    const result = validateCampaignDefinition(campaign);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('references unregistered cutscene "non-existent-cutscene"'))).toBe(true);
+  });
+
+  it('fails when story transition references unregistered video', () => {
+    const campaign = createValidCampaign();
+    campaign.levels['lvl-1'].outro = { type: 'video', id: 'non-existent-video' };
+
+    const result = validateCampaignDefinition(campaign);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('references unregistered video cutscene "non-existent-video"'))).toBe(true);
+  });
+
+  it('fails when campaign ending references unregistered content', () => {
+    const campaign = createValidCampaign();
+    campaign.ending = { type: 'cutscene', id: 'missing-ending-cutscene' };
+
+    const result = validateCampaignDefinition(campaign);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('references unregistered cutscene "missing-ending-cutscene"'))).toBe(true);
   });
 });

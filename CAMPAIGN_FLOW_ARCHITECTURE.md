@@ -175,18 +175,15 @@ export type GamePhase =
   | { type: 'playing'; levelId: LevelId }
   | { type: 'levelComplete'; levelId: LevelId }
   | { type: 'gameOver'; levelId: LevelId }
-  | { type: 'dialogue'; dialogueId: string }
-  | { type: 'cutscene'; cutsceneId: string }
+  | { type: 'dialogue'; dialogueId: DialogueId }
+  | { type: 'cutscene'; cutsceneId: CutsceneId }
+  | { type: 'video'; videoId: VideoCutsceneId }
   | { type: 'credits' };
 ```
 
-The first implementation does not need functional dialogue, cutscene, or credits systems.
-
-Those phase types exist so the architecture has a stable extension point.
-
-Do not build a generic state-machine framework.
-
-A small typed `GameFlow` class is sufficient.
+Dialogue, in-engine cutscenes, and video cutscenes are fully supported story phases.
+`GameFlow` coordinates all transitions between gameplay and story phases.
+Consult [STORY_ARCHITECTURE.md](./STORY_ARCHITECTURE.md) for canonical story system contracts.
 
 ---
 
@@ -287,15 +284,16 @@ export interface LevelDefinition {
 5. **Direct Level Preview Tooling**:
    - Fast authoring QA is available at `/visual-preview.html` (supporting dropdown level selection and query parameter `?level=<levelId>`) without needing to play through the campaign.
 
-Story transitions remain declarative references only:
+Story transitions support all three story presentation modes:
 
 ```ts
 export type StoryTransition =
-  | { type: 'dialogue'; id: string }
-  | { type: 'cutscene'; id: string };
+  | { type: 'dialogue'; id: DialogueId }
+  | { type: 'cutscene'; id: CutsceneId }
+  | { type: 'video'; id: VideoCutsceneId };
 ```
 
-Do not implement dialogue or cutscene playback during this architecture pass.
+Level definitions reference registered content by ID without embedding dialogue scripts, video DOM nodes, or Pixi objects directly. See [STORY_ARCHITECTURE.md](./STORY_ARCHITECTURE.md).
 
 ---
 
@@ -534,48 +532,58 @@ Avoid keeping two independent level counters that can drift.
 
 ---
 
-# 15. Story Extension Point
+# 15. Story Architecture & Continuation Ownership
 
-This architecture must make the following possible later:
+Story flow is owned entirely by `GameFlow`. Story renderers report completion, skip, or error back to `GameFlow`, which resolves the pending continuation.
 
 ```text
-Level completed
+Level Intro:
+GameFlow.startLevel('sector-02')
       ↓
-GameFlow reads outro
+intro exists & unseen?
+  YES → beginStoryTransition(intro, { type: 'start-level', levelId: 'sector-02' })
+  NO  → startGameplay('sector-02')
+
+Level Outro:
+LEVEL_COMPLETED reported
       ↓
-phase = dialogue
+commit progression checkpoint & persist save
       ↓
-DialogueRunner completes
+outro exists & unseen?
+  YES → beginStoryTransition(outro, nextContinuation)
+  NO  → advance to nextContinuation (next level / campaign ending / credits)
+
+Campaign Ending:
+final level completed
       ↓
-phase = cutscene
-      ↓
-CutsceneRunner completes
-      ↓
-GameFlow starts next level
+campaign.ending exists & unseen?
+  YES → beginStoryTransition(ending, { type: 'credits' })
+  NO  → setPhase({ type: 'credits' })
 ```
 
-Do not implement `DialogueRunner` or `CutsceneRunner` in this phase.
+### Story Continuations:
+`GameFlow` tracks pending continuations using an explicit discriminated union:
+- `{ type: 'start-level'; levelId: LevelId }`
+- `{ type: 'story'; transition: StoryTransition; continuation: StoryContinuation }`
+- `{ type: 'credits' }`
+- `{ type: 'title' }`
 
-Future story systems should notify `GameFlow` when they finish rather than directly starting gameplay themselves.
+### Story Flags & Seen-State:
+- `seen:<levelId>:intro` ensures intros play only on first arrival, not on retry.
+- `seen:<levelId>:outro` ensures completed level outros are not replayed on retry.
+- `seen:campaign:ending` tracks finale viewing.
+- Save data is always committed before entering outro or ending transitions.
 
 ---
 
-# 16. Future SequenceRunner
+# 16. Story Registries & Renderers
 
-A future cutscene/story system may use declarative steps such as:
+Story content is authored in dedicated registries:
+- **Dialogue**: `src/game/story/dialogue/` (`DialogueOverlay.tsx` in React)
+- **In-Engine Cutscenes**: `src/game/story/cutscenes/` (`CutsceneRunner.ts` in simulation time)
+- **Video Cutscenes**: `src/game/story/video/` (`VideoCutsceneOverlay.tsx` in native HTML `<video>`)
 
-```ts
-type StoryStep =
-  | { type: 'dialogue'; speaker: string; text: string }
-  | { type: 'wait'; seconds: number }
-  | { type: 'music'; track: string }
-  | { type: 'camera'; action: string }
-  | { type: 'fade'; direction: 'in' | 'out' };
-```
-
-This is explicitly future scope.
-
-Do not implement it as part of the GameFlow architecture migration.
+Consult [STORY_ARCHITECTURE.md](./STORY_ARCHITECTURE.md) for full contracts, step schemas, error handling, audio behavior, and preview tooling.
 
 ---
 

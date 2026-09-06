@@ -38,8 +38,8 @@ The visual presentation follows a strict separation of concerns between DOM-leve
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- **React Application Shell**: Owns the DOM overlay hierarchy, start/game-over screens, error/loading states, responsive window resizing, and audio toggles. React **never** receives per-frame entity simulation ticks.
-- **PixiJS Canvas**: Owns all realtime visual rendering, scene graphs, sprites, particles, and render loops.
+- **React Application Shell**: Owns the DOM overlay hierarchy, start/game-over screens, error/loading states, responsive window resizing, audio toggles, dialogue overlays (`DialogueOverlay`), and video cutscene presentation (`VideoCutsceneOverlay`). Story UI strictly adheres to existing mission-control visual tokens (`--space-void`, `--space-hull`, `--space-cyan`, etc.), and video presentation maintains a clean, letterboxed aesthetic without unrelated player chrome. React **never** receives per-frame entity simulation ticks.
+- **PixiJS Canvas**: Owns all realtime visual rendering, scene graphs, sprites, particles, in-engine cutscene visuals/camera transforms, and render loops. The locked astronaut sprite artwork constraint (`public/assets/astro-sprite.png`) strictly applies to in-engine cinematics as well.
 - **HUD Ownership**: The in-game HUD (`Scoreboard`) is owned by `UISystem` inside the Pixi scene graph. It renders in viewport coordinates (inverting `app.stage.scale`) so HUD borders, typography, and gauge ticks remain razor-sharp at native display resolution.
 - **World & Effects Ownership**: `RenderSystem` manages deep-space atmosphere and parallax stars; `FlightEffects` manages bounded particle pools and transient burst rings. Both advance purely via simulation deltas (`deltaSeconds`).
 

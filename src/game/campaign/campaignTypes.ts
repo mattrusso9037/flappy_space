@@ -1,12 +1,22 @@
 import { EnvironmentId } from '../environments/environmentTypes';
 import { MusicTrackId } from '../audio/musicCatalog';
+import { DialogueId } from '../story/dialogue/dialogueTypes';
+import { CutsceneId } from '../story/cutscenes/cutsceneTypes';
+import { VideoCutsceneId } from '../story/video/videoCutsceneTypes';
 
 export type LevelId = string;
 export type CampaignId = string;
 
 export type StoryTransition =
-  | { type: 'dialogue'; id: string }
-  | { type: 'cutscene'; id: string };
+  | { type: 'dialogue'; id: DialogueId }
+  | { type: 'cutscene'; id: CutsceneId }
+  | { type: 'video'; id: VideoCutsceneId };
+
+export type StoryContinuation =
+  | { type: 'start-level'; levelId: LevelId }
+  | { type: 'story'; transition: StoryTransition; continuation: StoryContinuation }
+  | { type: 'credits' }
+  | { type: 'title' };
 
 export interface ObstacleGameplayDefinition {
   minPlanetRadius: number;
@@ -67,8 +77,9 @@ export type GamePhase =
   | { type: 'playing'; levelId: LevelId }
   | { type: 'levelComplete'; levelId: LevelId }
   | { type: 'gameOver'; levelId: LevelId }
-  | { type: 'dialogue'; dialogueId: string }
-  | { type: 'cutscene'; cutsceneId: string }
+  | { type: 'dialogue'; dialogueId: DialogueId }
+  | { type: 'cutscene'; cutsceneId: CutsceneId }
+  | { type: 'video'; videoId: VideoCutsceneId }
   | { type: 'credits' };
 
 export interface CampaignProgress {

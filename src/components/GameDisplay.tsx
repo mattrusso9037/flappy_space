@@ -11,6 +11,10 @@ import { GameRuntime } from '../game/GameRuntime';
 import { GameFlow } from '../game/campaign/GameFlow';
 import { GamePhase } from '../game/campaign/campaignTypes';
 import { DEFAULT_CAMPAIGN } from '../game/campaign/defaultCampaign';
+import { DialogueOverlay } from './story/DialogueOverlay';
+import { VideoCutsceneOverlay } from './story/VideoCutsceneOverlay';
+import { CutsceneRunner } from '../game/story/cutscenes/CutsceneRunner';
+import { getCutscene } from '../game/story/cutscenes/cutscenes';
 import { getLogger } from '../utils/logger';
 
 const logger = getLogger('GameDisplay');
@@ -29,6 +33,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
   const runtimeSubRef = useRef<Subscription | null>(null);
   const flowSubRef = useRef<Subscription | null>(null);
   const gameFlowRef = useRef<GameFlow | null>(null);
+  const cutsceneRunnerRef = useRef<CutsceneRunner | null>(null);
   
   // Stabilize onGameStateChange callback with a ref to avoid recreating runtime
   const onGameStateChangeRef = useRef(onGameStateChange);
@@ -45,6 +50,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
   const [currentState, setCurrentState] = useState<GameState>(getInitialGameState);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [cutsceneDialogueId, setCutsceneDialogueId] = useState<string | null>(null);
 
   // Check if device supports touch events
   useEffect(() => {
@@ -71,6 +77,70 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Handle in-engine cutscene lifecycle
+  useEffect(() => {
+    if (gamePhase.type === 'cutscene') {
+      const def = getCutscene(gamePhase.cutsceneId);
+      if (!def || !runtimeRef.current) {
+        logger.warn(`Cutscene "${gamePhase.cutsceneId}" could not be loaded, completing phase`);
+        gameFlowRef.current?.completeStoryPhase();
+        return;
+      }
+      const runtime = runtimeRef.current;
+      const runner = new CutsceneRunner({
+        onComplete: () => {
+          runtime.setCutsceneRunner(null);
+          runtime.systems.rendering.setFadeAlpha(0);
+          setCutsceneDialogueId(null);
+          gameFlowRef.current?.completeStoryPhase();
+        },
+        onDialogueStart: (dId) => {
+          setCutsceneDialogueId(dId);
+        },
+        onMusicChange: (musicId) => {
+          runtime.systems.audio.loadMusicTrack(musicId);
+          runtime.systems.audio.startMusic();
+        },
+        onFadeChange: (alpha) => {
+          runtime.systems.rendering.setFadeAlpha(alpha);
+        },
+      });
+      cutsceneRunnerRef.current = runner;
+      runtime.setCutsceneRunner(runner);
+      runner.start(def);
+
+      return () => {
+        runtime.setCutsceneRunner(null);
+        runtime.systems.rendering.setFadeAlpha(0);
+        cutsceneRunnerRef.current = null;
+        setCutsceneDialogueId(null);
+      };
+    }
+  }, [gamePhase]);
+
+  // Handle cutscene skip via Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && gamePhase.type === 'cutscene') {
+        e.preventDefault();
+        e.stopPropagation();
+        cutsceneRunnerRef.current?.skip();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [gamePhase]);
+
+  // Duck / pause background music during video playback
+  useEffect(() => {
+    if (gamePhase.type === 'video') {
+      runtimeRef.current?.systems.audio.pauseMusic();
+      return () => {
+        runtimeRef.current?.systems.audio.resumeMusic();
+      };
+    }
+  }, [gamePhase]);
 
   // Clean up function called on unmount or re-initialization
   const cleanupPixi = useCallback(() => {
@@ -334,7 +404,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
     if (phase.type === 'playing') {
       runtimeRef.current.events.emit(GameEvent.JUMP_ACTION, null);
       runtimeRef.current.systems.entities.getAstronaut()?.flap();
-    } else {
+    } else if (phase.type === 'title' || phase.type === 'gameOver' || phase.type === 'credits') {
       handleStartOrContinue();
     }
   };
@@ -342,7 +412,12 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
   const isPlaying = gamePhase.type === 'playing';
   const isGameOver = gamePhase.type === 'gameOver';
   const isCredits = gamePhase.type === 'credits';
-  const showOverlay = isLoaded && (!isPlaying || isGameOver || isCredits);
+  const isTitle = gamePhase.type === 'title';
+  const isDialogue = gamePhase.type === 'dialogue';
+  const isCutscene = gamePhase.type === 'cutscene';
+  const isVideo = gamePhase.type === 'video';
+
+  const showStartOverlay = isLoaded && (isTitle || isGameOver || isCredits);
 
   return (
     <div className="game-display-wrapper">
@@ -397,8 +472,44 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
           <div className="loading-spinner"></div>
         </div>
       )}
-      
-      {showOverlay && (
+
+      {isDialogue && (
+        <DialogueOverlay
+          dialogueId={gamePhase.dialogueId}
+          onComplete={() => gameFlowRef.current?.completeStoryPhase()}
+        />
+      )}
+
+      {isVideo && (
+        <VideoCutsceneOverlay
+          videoId={gamePhase.videoId}
+          isMuted={isMuted}
+          onComplete={() => gameFlowRef.current?.completeStoryPhase()}
+        />
+      )}
+
+      {isCutscene && (
+        <>
+          {cutsceneDialogueId ? (
+            <DialogueOverlay
+              dialogueId={cutsceneDialogueId}
+              onComplete={() => cutsceneRunnerRef.current?.completeDialogue()}
+            />
+          ) : (
+            <div className="video-hud-overlay">
+              <button
+                type="button"
+                className="video-skip-btn"
+                onClick={() => cutsceneRunnerRef.current?.skip()}
+              >
+                Skip Cutscene (ESC)
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {showStartOverlay && (
         <div 
           className="start-overlay" 
           onClick={handleStartOrContinue}

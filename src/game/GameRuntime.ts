@@ -12,6 +12,7 @@ import { UISystem } from './systems/uiSystem';
 import { MOTION } from './visuals/tokens';
 import { LevelDefinition } from './campaign/campaignTypes';
 import { DEFAULT_CAMPAIGN } from './campaign/defaultCampaign';
+import { CutsceneRunner } from './story/cutscenes/CutsceneRunner';
 import { getLogger } from '../utils/logger';
 
 const logger = getLogger('GameRuntime');
@@ -49,6 +50,7 @@ export class GameRuntime {
   private disposed: boolean = false;
   private isPaused: boolean = false;
   private levelTransitionCountdown: number | null = null;
+  private cutsceneRunner: CutsceneRunner | null = null;
   private subscriptions: Subscription[] = [];
   private onTickBound: (ticker: PIXI.Ticker) => void;
 
@@ -105,6 +107,7 @@ export class GameRuntime {
   public reset(levelDefinition?: LevelDefinition): void {
     logger.info('Resetting GameRuntime session...');
     this.levelTransitionCountdown = null;
+    this.cutsceneRunner = null;
     this.systems.ui.reset();
     this.systems.rendering.reset();
     this.systems.entities.clearAll();
@@ -174,6 +177,14 @@ export class GameRuntime {
     return this.currentLevelDefinition;
   }
 
+  public setCutsceneRunner(runner: CutsceneRunner | null): void {
+    this.cutsceneRunner = runner;
+  }
+
+  public getCutsceneRunner(): CutsceneRunner | null {
+    return this.cutsceneRunner;
+  }
+
   /**
    * Start gameplay.
    */
@@ -222,6 +233,19 @@ export class GameRuntime {
 
     // Pause gates every visual clock, including ambient motion and existing bursts.
     if (this.isPaused) return;
+
+    // If cutscene runner is active, update in simulation time
+    if (this.cutsceneRunner && this.cutsceneRunner.isActive()) {
+      this.cutsceneRunner.update(deltaSeconds);
+      try {
+        this.systems.rendering.updateBackground(deltaSeconds);
+      } catch (err) {
+        logger.error('Error updating background in render system', err);
+      }
+      this.systems.rendering.update(deltaSeconds);
+      return;
+    }
+
     this.systems.ui.update(deltaSeconds);
 
     // 1. Update background/stars regardless of game active state
@@ -301,6 +325,7 @@ export class GameRuntime {
 
     logger.info('Disposing GameRuntime...');
     this.levelTransitionCountdown = null;
+    this.cutsceneRunner = null;
 
     if (this.app.ticker) {
       this.app.ticker.remove(this.onTickBound);

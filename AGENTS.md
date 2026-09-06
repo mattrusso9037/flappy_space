@@ -84,6 +84,13 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 ### F. Level Authoring & Preset Architecture
 - **RULE**: New campaign levels must be authored through `LevelDefinition` and reusable environment/music presets. Do not modify runtime/render/spawn architecture just to add a new level. Use the repo-local `add-level` skill.
 
+### G. Story & Cutscene Architecture
+- Story sequencing is owned by `GameFlow`.
+- Dialogue, in-engine cutscenes, and video cutscenes follow [STORY_ARCHITECTURE.md](./STORY_ARCHITECTURE.md).
+- Story renderers report completion only. They never navigate the campaign directly.
+- React owns dialogue/video overlays; Pixi owns realtime in-engine cinematic presentation.
+- In-engine cutscene timing uses simulation time. No unmanaged timers or additional tickers.
+
 ---
 
 ## 5. Code Quality & Guardrail Rules
@@ -132,7 +139,7 @@ flappy_space/
 ├── electron/                  # Electron main & preload scripts
 ├── public/                    # Static assets (sprites, icons)
 ├── src/
-│   ├── components/            # React UI components (GameDisplay, Scoreboard, LevelMessage)
+│   ├── components/            # React UI components (GameDisplay, Scoreboard, LevelMessage, story)
 │   ├── game/                  # Core game logic, systems, composition root, and runtime
 │   │   ├── campaign/          # Campaign data definitions, GameFlow orchestrator, and SaveService
 │   │   ├── config.ts          # Game constants and physics values
@@ -143,11 +150,14 @@ flappy_space/
 │   │   ├── inputManager.ts    # Low-level keyboard and touch events
 │   │   ├── types.ts           # Game system lifecycle interfaces
 │   │   ├── entities/          # Entities (Astronaut, Planet, Orb, Star)
+│   │   ├── story/             # Story registries (dialogue, cutscenes, video) and CutsceneRunner
 │   │   ├── systems/           # Systems (Physics, Render, Spawning, Audio, UI, Entity)
 │   │   └── visuals/           # Design tokens, motion, particle effects
 │   ├── test/                  # Test setup and Canvas mocks
 │   └── utils/                 # Logger and diagnostic utilities
 ├── AGENTS.md                  # Primary AI Agent Guardrails Guide (Source of Truth)
+├── CAMPAIGN_FLOW_ARCHITECTURE.md # Canonical campaign definition and flow guide
+├── STORY_ARCHITECTURE.md      # Canonical story, dialogue, and cutscene guide
 ├── VISUAL_IMPLEMENTATION.md   # Canonical visual architecture, layers, tokens, and constraints
 ├── eslint.config.js           # ESLint configuration
 ├── package.json               # Scripts, dependencies, and metadata
