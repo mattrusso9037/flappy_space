@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { GameStateService } from './gameStateService';
-import { LEVELS } from './config';
+import { GameStateService, DEFAULT_INITIAL_GAME_STATE } from './gameStateService';
 
 describe('GameStateService', () => {
   let stateService: GameStateService;
@@ -25,9 +24,9 @@ describe('GameStateService', () => {
     expect(state.warps).toBe(0);
     expect(state.time).toBe(0);
     expect(state.orbsCollected).toBe(0);
-    expect(state.orbsRequired).toBe(LEVELS[0].orbsRequired);
-    expect(state.timeLimit).toBe(LEVELS[0].timeLimit);
-    expect(state.timeRemaining).toBe(LEVELS[0].timeLimit);
+    expect(state.orbsRequired).toBe(DEFAULT_INITIAL_GAME_STATE.orbsRequired);
+    expect(state.timeLimit).toBe(DEFAULT_INITIAL_GAME_STATE.timeLimit);
+    expect(state.timeRemaining).toBe(DEFAULT_INITIAL_GAME_STATE.timeLimit);
     expect(state.isStarted).toBe(false);
     expect(state.isGameOver).toBe(false);
     expect(state.isLevelComplete).toBe(false);
@@ -66,39 +65,48 @@ describe('GameStateService', () => {
     expect(stateService.getState().score).toBe(required * 50);
   });
 
-  it('transitions to next level on levelComplete()', () => {
+  it('marks isLevelComplete and increments warps on levelComplete() without guessing next level', () => {
     stateService.levelComplete();
 
     const state = stateService.getState();
-    expect(state.level).toBe(2);
+    expect(state.level).toBe(1); // Level index is preserved; GameFlow owns changing it
     expect(state.warps).toBe(1);
-    expect(state.orbsCollected).toBe(0);
-    expect(state.orbsRequired).toBe(LEVELS[1].orbsRequired);
-    expect(state.timeLimit).toBe(LEVELS[1].timeLimit);
-    expect(state.timeRemaining).toBe(LEVELS[1].timeLimit);
     expect(state.isLevelComplete).toBe(true);
+    expect(state.isGameOver).toBe(false);
+
+    stateService.finishLevelTransition();
+    expect(stateService.getState().isLevelComplete).toBe(false);
   });
 
-  it('marks game over when completing the maximum level', () => {
-    // Progress through all levels
-    for (let i = 1; i < LEVELS.length; i++) {
-      stateService.levelComplete();
-    }
-    expect(stateService.getState().level).toBe(LEVELS.length);
+  it('loads explicit level configuration via loadLevel()', () => {
+    stateService.loadLevel({
+      level: 2,
+      levelId: 'sector-02',
+      levelName: 'Sector 02',
+      orbsRequired: 8,
+      timeLimit: 60000,
+    });
 
-    // Complete the final level
-    stateService.levelComplete();
-    expect(stateService.getState().isGameOver).toBe(true);
+    const state = stateService.getState();
+    expect(state.level).toBe(2);
+    expect(state.levelId).toBe('sector-02');
+    expect(state.levelName).toBe('Sector 02');
+    expect(state.orbsRequired).toBe(8);
+    expect(state.timeLimit).toBe(60000);
+    expect(state.timeRemaining).toBe(60000);
+    expect(state.orbsCollected).toBe(0);
+    expect(state.isLevelComplete).toBe(false);
   });
 
   it('updates time, decrements timeRemaining, and triggers game over when time expires', () => {
+    const initialTimeLimit = stateService.getState().timeLimit;
     stateService.updateTime(1000);
     expect(stateService.getState().time).toBe(1000);
-    expect(stateService.getState().timeRemaining).toBe(LEVELS[0].timeLimit - 1000);
+    expect(stateService.getState().timeRemaining).toBe(initialTimeLimit - 1000);
     expect(stateService.getState().isGameOver).toBe(false);
 
     // Advance time past limit
-    stateService.updateTime(LEVELS[0].timeLimit);
+    stateService.updateTime(initialTimeLimit);
     expect(stateService.getState().timeRemaining).toBe(0);
     expect(stateService.getState().isGameOver).toBe(true);
   });

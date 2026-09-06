@@ -139,15 +139,20 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     runtime.dispose();
   });
 
-  it('handles simulation-time level transition deterministically without setTimeout', () => {
+  it('handles simulation-time level warp deterministically and emits LEVEL_COMPLETED', () => {
     const runtime = createFlappySpaceRuntime(app);
     runtime.initialize();
     runtime.reset();
     runtime.start();
 
-    const levelCompleteEvents: Array<{ level: number }> = [];
+    const levelCompleteEvents: Array<{ level: number; levelId?: string }> = [];
     runtime.events.on(GameEvent.LEVEL_COMPLETE).subscribe(data => {
       levelCompleteEvents.push(data);
+    });
+
+    const levelCompletedOutcomes: Array<{ levelId: string; score: number }> = [];
+    runtime.events.on(GameEvent.LEVEL_COMPLETED).subscribe(data => {
+      levelCompletedOutcomes.push(data);
     });
 
     // Award all required orbs to trigger level completion
@@ -160,10 +165,11 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     runtime.events.emit(GameEvent.ORB_COLLECTED, { x: 100, y: 100 });
 
     expect(levelCompleteEvents).toHaveLength(1);
-    expect(levelCompleteEvents[0]).toEqual({ level: 1 });
+    expect(levelCompleteEvents[0]).toEqual({ level: 1, levelId: 'sector-01' });
 
-    // Level state updated to 2, but runtime has not yet re-initialized entities because of countdown
-    expect(runtime.state.getState().level).toBe(2);
+    // Level state does not increment automatically (GameFlow owns level progression)
+    expect(runtime.state.getState().level).toBe(1);
+    expect(levelCompletedOutcomes).toHaveLength(0);
 
     // Advance simulation time by 1.0 second (deltaMS = 1000)
     runtime.onTick({ deltaMS: 1000 } as PIXI.Ticker);
@@ -176,11 +182,9 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     // Advance remaining 1.0 second (total 2.0s)
     runtime.onTick({ deltaMS: 1000 } as PIXI.Ticker);
 
-    expect(runtime.state.getState().isLevelComplete).toBe(false);
-
-    // Level 2 should now be fully initialized
-    const astronaut = runtime.systems.entities.getAstronaut();
-    expect(astronaut).toBeDefined();
+    // Now LEVEL_COMPLETED outcome event is emitted
+    expect(levelCompletedOutcomes).toHaveLength(1);
+    expect(levelCompletedOutcomes[0].levelId).toBe('sector-01');
 
     runtime.dispose();
   });
@@ -205,6 +209,40 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     // Ticking 2 seconds should not cause transition to level 2
     runtime.onTick({ deltaMS: 2000 } as PIXI.Ticker);
     expect(runtime.state.getState().level).toBe(1);
+
+    runtime.dispose();
+  });
+
+  it('loads explicit LevelDefinition and configures state and spawning', () => {
+    const runtime = createFlappySpaceRuntime(app);
+    runtime.initialize();
+
+    const customLevel = {
+      id: 'custom-sector-99',
+      name: 'Deep Nebula 99',
+      gameplay: {
+        speeds: { planet: 7.2, secondaryPlanet: 6.0, orb: 5.0 },
+        spawnInterval: 1200,
+        orbFrequency: 2500,
+        orbsRequired: 25,
+        timeLimit: 90000,
+        levelNumber: 99,
+      },
+    };
+
+    runtime.loadLevel(customLevel);
+
+    const state = runtime.state.getState();
+    expect(state.level).toBe(99);
+    expect(state.levelId).toBe('custom-sector-99');
+    expect(state.levelName).toBe('Deep Nebula 99');
+    expect(state.orbsRequired).toBe(25);
+    expect(state.timeLimit).toBe(90000);
+
+    const spawningConfig = runtime.systems.spawning.getLevelConfig();
+    expect(spawningConfig.spawnInterval).toBe(1200);
+    expect(spawningConfig.speeds.planet).toBe(7.2);
+    expect(spawningConfig.levelNumber).toBe(99);
 
     runtime.dispose();
   });

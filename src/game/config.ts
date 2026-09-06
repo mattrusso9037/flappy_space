@@ -40,6 +40,9 @@ export const LEVEL_MULTIPLIERS = [
 ];
 
 // Game difficulty levels
+/**
+ * @deprecated Legacy level configs. Use DEFAULT_CAMPAIGN from `src/game/campaign/defaultCampaign.ts` instead.
+ */
 export const LEVELS = [
   { 
     speeds: {

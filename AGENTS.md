@@ -74,7 +74,7 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 ### D. Single-Source Rule Ownership
 - Gameplay rules have a single authoritative owner.
   - **Orb scoring**: When physics detects an orb collection, `state.collectOrb()` updates orb count and awards `ORB_POINTS` (50 points) exactly once.
-  - **Level progression**: State owns level transitions; `SpawningSystem` applies the configured speed and spawn interval for the current level.
+  - **Campaign progression & level sequencing**: Owned exclusively by `GameFlow` above `GameRuntime`. Consult [CAMPAIGN_FLOW_ARCHITECTURE.md](./CAMPAIGN_FLOW_ARCHITECTURE.md) for canonical campaign definitions, game phases, checkpoints, and save contracts. `GameRuntime` executes active levels from explicit `LevelDefinition`s and emits outcome events; it never decides next-level progression.
   - **UI reacts to state/events**: UI never independently mutates score or gameplay rules.
 
 ### E. Simulation Time Over Real Timers
@@ -131,7 +131,8 @@ flappy_space/
 ├── src/
 │   ├── components/            # React UI components (GameDisplay, Scoreboard, LevelMessage)
 │   ├── game/                  # Core game logic, systems, composition root, and runtime
-│   │   ├── config.ts          # Game constants, physics values, level configs
+│   │   ├── campaign/          # Campaign data definitions, GameFlow orchestrator, and SaveService
+│   │   ├── config.ts          # Game constants and physics values
 │   │   ├── createFlappySpaceRuntime.ts # Flappy Space composition root
 │   │   ├── GameRuntime.ts     # Game session runtime lifecycle owner
 │   │   ├── eventBus.ts        # Instantiable, typed EventBus

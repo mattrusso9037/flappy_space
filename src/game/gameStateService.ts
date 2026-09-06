@@ -1,10 +1,12 @@
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map, distinctUntilChanged } from 'rxjs/operators';
-import { LEVELS, ORB_POINTS } from './config';
+import { ORB_POINTS } from './config';
 
 export interface GameState {
   score: number;
   level: number;
+  levelId?: string;
+  levelName?: string;
   warps: number;
   time: number;
   orbsCollected: number;
@@ -17,27 +19,36 @@ export interface GameState {
   debugMode: boolean;
 }
 
+export interface LevelGameplayStateConfig {
+  orbsRequired: number;
+  timeLimit: number;
+  level?: number;
+  levelId?: string;
+  levelName?: string;
+}
+
+export const DEFAULT_INITIAL_GAME_STATE: GameState = {
+  score: 0,
+  level: 1,
+  warps: 0,
+  time: 0,
+  orbsCollected: 0,
+  orbsRequired: 5,
+  timeLimit: 60000,
+  timeRemaining: 60000,
+  isStarted: false,
+  isGameOver: false,
+  isLevelComplete: false,
+  debugMode: false,
+};
+
 export function getInitialGameState(): GameState {
-  const currentLevel = LEVELS[0];
-  return {
-    score: 0,
-    level: 1,
-    warps: 0,
-    time: 0,
-    orbsCollected: 0,
-    orbsRequired: currentLevel.orbsRequired,
-    timeLimit: currentLevel.timeLimit,
-    timeRemaining: currentLevel.timeLimit,
-    isStarted: false,
-    isGameOver: false,
-    isLevelComplete: false,
-    debugMode: false,
-  };
+  return { ...DEFAULT_INITIAL_GAME_STATE };
 }
 
 /**
  * GameStateService is a centralized, instantiable state store.
- * Owns state updates and reactive observables without implicit event publishing.
+ * Owns transient realtime gameplay state and reactive observables without campaign sequencing.
  */
 export class GameStateService {
   private state$: BehaviorSubject<GameState>;
@@ -90,6 +101,20 @@ export class GameStateService {
     this.state$.next(getInitialGameState());
   }
 
+  public loadLevel(config: LevelGameplayStateConfig): void {
+    this.setState(state => ({
+      ...state,
+      orbsCollected: 0,
+      orbsRequired: config.orbsRequired,
+      timeLimit: config.timeLimit,
+      timeRemaining: config.timeLimit,
+      level: config.level !== undefined ? config.level : state.level,
+      levelId: config.levelId !== undefined ? config.levelId : state.levelId,
+      levelName: config.levelName !== undefined ? config.levelName : state.levelName,
+      isLevelComplete: false,
+    }));
+  }
+
   public incrementScore(amount: number): void {
     this.setState(state => ({
       ...state,
@@ -111,29 +136,11 @@ export class GameStateService {
   }
 
   public levelComplete(): void {
-    this.setState(state => {
-      if (state.level >= LEVELS.length) {
-        return {
-          ...state,
-          isLevelComplete: true,
-          isGameOver: true,
-        };
-      }
-
-      const nextLevel = state.level + 1;
-      const levelConfig = LEVELS[nextLevel - 1];
-
-      return {
-        ...state,
-        level: nextLevel,
-        warps: state.warps + 1,
-        orbsCollected: 0,
-        orbsRequired: levelConfig.orbsRequired,
-        timeLimit: levelConfig.timeLimit,
-        timeRemaining: levelConfig.timeLimit,
-        isLevelComplete: true,
-      };
-    });
+    this.setState(state => ({
+      ...state,
+      warps: state.warps + 1,
+      isLevelComplete: true,
+    }));
   }
 
   public finishLevelTransition(): void {
@@ -178,16 +185,5 @@ export class GameStateService {
 
   public addScore(points: number): void {
     this.incrementScore(points);
-  }
-
-  public setLevel(level: number): void {
-    this.setState(state => ({
-      ...state,
-      level,
-    }));
-  }
-
-  public nextLevel(): void {
-    this.levelComplete();
   }
 }

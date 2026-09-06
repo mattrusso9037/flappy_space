@@ -10,6 +10,7 @@ describe('GameDisplay Component', () => {
   let originalInit: typeof PIXI.Application.prototype.init;
 
   beforeEach(() => {
+    localStorage.clear();
     // Ensure asset manager reports loaded so runtime initializes promptly
     vi.spyOn(assetManager, 'isLoaded').mockReturnValue(true);
     vi.spyOn(assetManager, 'loadAssets').mockResolvedValue();
@@ -126,5 +127,42 @@ describe('GameDisplay Component', () => {
 
     // PIXI init should NOT have been re-invoked simply because the callback changed
     expect(initSpy.mock.calls.length).toBe(callCountAfterMount);
+  });
+
+  it('renders Continue and New Game buttons when saved checkpoint exists', async () => {
+    localStorage.setItem(
+      'flappy_space_campaign_progress',
+      JSON.stringify({
+        schemaVersion: 1,
+        campaignId: 'flappy-spaceman-main',
+        currentLevelId: 'sector-02',
+        unlockedLevelIds: ['sector-01', 'sector-02'],
+        completedLevelIds: ['sector-01'],
+        highScores: { 'sector-01': 300 },
+        storyFlags: {},
+        updatedAt: new Date().toISOString(),
+      })
+    );
+
+    render(
+      <StrictMode>
+        <GameDisplay />
+      </StrictMode>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /new game/i })).toBeInTheDocument();
+    });
+
+    // Click Continue
+    const continueBtn = screen.getByRole('button', { name: /continue/i });
+    await act(async () => {
+      fireEvent.click(continueBtn);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /continue/i })).not.toBeInTheDocument();
+    });
   });
 });

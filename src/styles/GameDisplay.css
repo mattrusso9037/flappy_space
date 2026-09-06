@@ -48,6 +48,30 @@
 .start-overlay, .game-over-overlay { z-index: 20; }
 .touch-overlay { z-index: 10; pointer-events: none; }
 
+.start-overlay-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.start-overlay-actions button {
+  margin: 0 !important;
+}
+
+.start-overlay-actions button.secondary {
+  border-color: var(--space-outline) !important;
+  background: rgb(11 16 33 / 70%) !important;
+  color: var(--space-muted) !important;
+}
+
+.start-overlay-actions button.secondary:hover {
+  background: rgb(0 240 255 / 16%) !important;
+  border-color: var(--space-cyan) !important;
+  color: var(--space-ice) !important;
+}
+
 /* Loading overlay styles */
 .loading-overlay {
   background-color: rgb(7 9 19 / 85%);

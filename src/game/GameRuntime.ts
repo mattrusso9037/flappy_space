@@ -10,7 +10,8 @@ import { InputSystem } from './systems/inputSystem';
 import { AudioSystem } from './systems/audioSystem';
 import { UISystem } from './systems/uiSystem';
 import { MOTION } from './visuals/tokens';
-import { LEVELS } from './config';
+import { LevelDefinition } from './campaign/campaignTypes';
+import { DEFAULT_CAMPAIGN } from './campaign/defaultCampaign';
 import { getLogger } from '../utils/logger';
 
 const logger = getLogger('GameRuntime');
@@ -30,6 +31,7 @@ export interface GameRuntimeOptions {
   events: EventBus;
   state: GameStateService;
   systems: GameRuntimeSystems;
+  levelDefinition?: LevelDefinition;
 }
 
 /**
@@ -42,6 +44,7 @@ export class GameRuntime {
   public readonly state: GameStateService;
   public readonly systems: GameRuntimeSystems;
 
+  private currentLevelDefinition: LevelDefinition;
   private initialized: boolean = false;
   private disposed: boolean = false;
   private isPaused: boolean = false;
@@ -54,6 +57,7 @@ export class GameRuntime {
     this.events = options.events;
     this.state = options.state;
     this.systems = options.systems;
+    this.currentLevelDefinition = options.levelDefinition || DEFAULT_CAMPAIGN.levels[DEFAULT_CAMPAIGN.startingLevelId];
     this.onTickBound = this.onTick.bind(this);
     logger.info('GameRuntime instantiated');
   }
@@ -98,7 +102,7 @@ export class GameRuntime {
   /**
    * Reset the game session to initial playable state.
    */
-  public reset(): void {
+  public reset(levelDefinition?: LevelDefinition): void {
     logger.info('Resetting GameRuntime session...');
     this.levelTransitionCountdown = null;
     this.systems.ui.reset();
@@ -106,27 +110,58 @@ export class GameRuntime {
     this.systems.entities.clearAll();
     this.systems.spawning.resetSpawning();
     this.state.resetGame();
-    this.initializeLevel(1);
+
+    const defToLoad = levelDefinition || this.currentLevelDefinition;
+    this.loadLevel(defToLoad);
+
     this.isPaused = false;
     this.events.emit(GameEvent.SHOW_START_PROMPT, null);
     logger.info('GameRuntime reset complete');
   }
 
   /**
-   * Initialize configuration and entities for a specific level.
+   * Load and initialize an explicit LevelDefinition.
    */
-  public initializeLevel(level: number): void {
-    logger.info(`GameRuntime: Initializing level ${level}`);
-    const levelConfig = LEVELS[level - 1] || LEVELS[0];
+  public loadLevel(levelDefinition: LevelDefinition): void {
+    this.currentLevelDefinition = levelDefinition;
+    logger.info(`GameRuntime: Loading level ${levelDefinition.id} (${levelDefinition.name})`);
 
-    this.systems.spawning.setLevelConfig({
-      speeds: levelConfig.speeds,
-      spawnInterval: levelConfig.spawnInterval,
-      orbFrequency: levelConfig.orbFrequency || 3000,
+    this.state.loadLevel({
+      level: levelDefinition.gameplay.levelNumber ?? 1,
+      levelId: levelDefinition.id,
+      levelName: levelDefinition.name,
+      orbsRequired: levelDefinition.gameplay.orbsRequired,
+      timeLimit: levelDefinition.gameplay.timeLimit,
     });
 
+    this.systems.spawning.setLevelConfig({
+      speeds: levelDefinition.gameplay.speeds,
+      spawnInterval: levelDefinition.gameplay.spawnInterval,
+      orbFrequency: levelDefinition.gameplay.orbFrequency || 3000,
+      levelNumber: levelDefinition.gameplay.levelNumber,
+    });
+
+    this.systems.entities.clearAll();
+    this.systems.spawning.resetSpawning();
     this.systems.entities.createAstronaut();
     this.systems.rendering.createBackground();
+  }
+
+  /**
+   * Initialize configuration and entities for a specific level index or LevelDefinition.
+   */
+  public initializeLevel(levelOrDef: number | LevelDefinition): void {
+    if (typeof levelOrDef === 'number') {
+      const sectorKey = `sector-${String(levelOrDef).padStart(2, '0')}`;
+      const def = DEFAULT_CAMPAIGN.levels[sectorKey] || DEFAULT_CAMPAIGN.levels[DEFAULT_CAMPAIGN.startingLevelId];
+      this.loadLevel(def);
+    } else {
+      this.loadLevel(levelOrDef);
+    }
+  }
+
+  public getLevelDefinition(): LevelDefinition {
+    return this.currentLevelDefinition;
   }
 
   /**
@@ -199,11 +234,13 @@ export class GameRuntime {
       if (this.levelTransitionCountdown <= 0) {
         this.levelTransitionCountdown = null;
         if (!this.disposed) {
-          const nextLevel = this.state.getState().level;
-          this.systems.entities.clearAll();
-          this.systems.spawning.resetSpawning();
-          this.initializeLevel(nextLevel);
-          this.state.finishLevelTransition();
+          const completedLevelId = this.currentLevelDefinition.id;
+          const score = this.state.getState().score;
+          logger.info(`Level warp finished for ${completedLevelId}, emitting LEVEL_COMPLETED`);
+          this.events.emit(GameEvent.LEVEL_COMPLETED, {
+            levelId: completedLevelId,
+            score,
+          });
         }
       }
       return;
@@ -335,10 +372,13 @@ export class GameRuntime {
   }
 
   private handleLevelComplete(): void {
+    if (this.levelTransitionCountdown !== null) return;
+
     const currentLevel = this.state.getState().level;
-    logger.info(`Level ${currentLevel} complete triggered`);
+    const currentLevelId = this.currentLevelDefinition.id;
+    logger.info(`Level ${currentLevelId} complete triggered`);
     this.state.levelComplete();
-    this.events.emit(GameEvent.LEVEL_COMPLETE, { level: currentLevel });
+    this.events.emit(GameEvent.LEVEL_COMPLETE, { level: currentLevel, levelId: currentLevelId });
 
     // Transition to next level after brief celebration via simulation time countdown
     this.systems.rendering.beginWarp();

@@ -1,6 +1,7 @@
 import { GameState, GameStateService } from '../gameStateService';
 import { EntitySystem } from './entitySystem';
-import { ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT, LEVELS } from '../config';
+import { ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { DEFAULT_CAMPAIGN } from '../campaign/defaultCampaign';
 import { Planet } from '../entities/Planet';
 import { getLogger } from '../../utils/logger';
 
@@ -14,6 +15,7 @@ export interface LevelConfig {
   };
   spawnInterval: number;
   orbFrequency?: number; // Time between orb spawns
+  levelNumber?: number;
 }
 
 /**
@@ -69,15 +71,21 @@ export class SpawningSystem {
   }
 
   /**
-   * Initialize configuration for a specific level
+   * Initialize configuration for a specific level or level config
    */
-  public initializeLevel(level: number): void {
-    const config = LEVELS[level - 1] || LEVELS[0];
-    this.setLevelConfig({
-      speeds: config.speeds,
-      spawnInterval: config.spawnInterval,
-      orbFrequency: config.orbFrequency || 3000,
-    });
+  public initializeLevel(levelOrConfig: number | LevelConfig): void {
+    if (typeof levelOrConfig === 'number') {
+      const sectorKey = `sector-${String(levelOrConfig).padStart(2, '0')}`;
+      const def = DEFAULT_CAMPAIGN.levels[sectorKey] || DEFAULT_CAMPAIGN.levels[DEFAULT_CAMPAIGN.startingLevelId];
+      this.setLevelConfig({
+        speeds: def.gameplay.speeds,
+        spawnInterval: def.gameplay.spawnInterval,
+        orbFrequency: def.gameplay.orbFrequency,
+        levelNumber: def.gameplay.levelNumber ?? levelOrConfig,
+      });
+    } else {
+      this.setLevelConfig(levelOrConfig);
+    }
     this.resetSpawning();
   }
   
@@ -279,6 +287,9 @@ export class SpawningSystem {
    * Get current level index from supplied state, injected state, or default 0
    */
   private getCurrentLevelIndex(gameState?: GameState): number {
+    if (this.levelConfig.levelNumber !== undefined) {
+      return Math.max(0, this.levelConfig.levelNumber - 1);
+    }
     if (gameState && typeof gameState.level === 'number') {
       return Math.max(0, gameState.level - 1);
     }

@@ -10,6 +10,7 @@ export enum GameEvent {
   LEVEL_CHANGED = 'LEVEL_CHANGED',
   GAME_OVER = 'GAME_OVER',
   LEVEL_COMPLETE = 'LEVEL_COMPLETE',
+  LEVEL_COMPLETED = 'LEVEL_COMPLETED',
   GAME_STARTED = 'GAME_STARTED',
   GAME_RESET = 'GAME_RESET',
   ORB_COLLECTED = 'ORB_COLLECTED',
@@ -55,6 +56,12 @@ export interface TimeUpdatedData {
 
 export interface LevelCompleteData {
   level: number;
+  levelId?: string;
+}
+
+export interface LevelCompletedData {
+  levelId: string;
+  score: number;
 }
 
 export interface GameOverData {
@@ -72,6 +79,7 @@ export interface FlappyGameEvents {
   [GameEvent.LEVEL_CHANGED]: number;
   [GameEvent.GAME_OVER]: GameOverData | null;
   [GameEvent.LEVEL_COMPLETE]: LevelCompleteData;
+  [GameEvent.LEVEL_COMPLETED]: LevelCompletedData;
   [GameEvent.GAME_STARTED]: null | void;
   [GameEvent.GAME_RESET]: null | void;
   [GameEvent.ORB_COLLECTED]: OrbCollectedData;

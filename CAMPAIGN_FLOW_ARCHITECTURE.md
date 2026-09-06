@@ -1,0 +1,859 @@
+# Campaign & Game Flow Architecture
+
+## Status
+
+This document defines the architectural foundation for adding:
+
+- real campaign levels
+- story progression
+- dialogue
+- cutscenes
+- persistent saves
+- future branching/story flags
+
+It is an architectural specification, not a requirement to implement all story features immediately.
+
+`AGENTS.md` remains the repository-wide source of truth. This document is the source of truth specifically for campaign, story, progression, and save architecture.
+
+---
+
+# 1. Goal
+
+Evolve Flappy Spaceman from a self-contained arcade loop into a game capable of supporting a structured campaign without coupling story progression to realtime gameplay systems.
+
+The key architectural rule is:
+
+> `GameFlow` decides what the player is doing. `GameRuntime` executes gameplay when the player is playing.
+
+The runtime must no longer decide what level comes next.
+
+---
+
+# 2. Current Problem
+
+The current architecture is strong for realtime gameplay but still assumes a linear arcade progression:
+
+```text
+GameRuntime
+  ↓
+level complete
+  ↓
+GameStateService.levelComplete()
+  ↓
+level + 1
+  ↓
+LEVELS[nextIndex]
+  ↓
+initialize next level
+```
+
+This creates problems once the game needs:
+
+```text
+Level 1
+↓
+Dialogue
+↓
+Cutscene
+↓
+Level 2
+↓
+Story event
+↓
+Level 3
+↓
+Ending
+```
+
+Story progression, campaign progression, gameplay state, and level configuration must become separate concepts.
+
+---
+
+# 3. Target Architecture
+
+```text
+React App
+    │
+    ▼
+GameFlow
+    │
+    ├── CampaignDefinition
+    ├── CampaignProgress
+    ├── SaveService
+    │
+    └── current GamePhase
+            │
+            ├── title
+            ├── dialogue        [future]
+            ├── cutscene        [future]
+            ├── playing
+            ├── levelComplete
+            ├── gameOver
+            └── credits         [future]
+                    │
+                    ▼
+               GameRuntime
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+     physics     rendering     input
+     entities    spawning      audio
+     effects     gameplay UI
+```
+
+`GameFlow` sits above `GameRuntime`.
+
+It may start, reset, configure, pause, or leave a gameplay session, but it does not perform realtime simulation.
+
+---
+
+# 4. Ownership Boundaries
+
+## GameFlow owns
+
+- current high-level game phase
+- active campaign
+- active level ID
+- campaign sequencing
+- deciding what follows level completion
+- campaign completion
+- persistent progression updates
+- loading and continuing saved progress
+- future story/cutscene/dialogue sequencing
+
+## GameRuntime owns
+
+- active realtime gameplay
+- physics
+- spawning
+- entities
+- gameplay timers
+- collisions
+- score earned during the active run
+- realtime rendering
+- realtime effects
+- gameplay HUD
+- emitting gameplay outcomes
+
+## GameStateService owns
+
+Transient state for the currently active gameplay session.
+
+Examples:
+
+- score
+- current orb count
+- timer
+- isGameOver
+- isLevelComplete
+- realtime gameplay flags
+
+It must not own campaign sequencing.
+
+## SaveService owns
+
+Persistence only.
+
+It does not decide:
+
+- what level unlocks
+- what phase comes next
+- whether a story flag should be set
+- what campaign rules mean
+
+Those decisions belong to `GameFlow`.
+
+---
+
+# 5. Game Phases
+
+Represent high-level flow as a discriminated union.
+
+```ts
+export type GamePhase =
+  | { type: 'title' }
+  | { type: 'playing'; levelId: LevelId }
+  | { type: 'levelComplete'; levelId: LevelId }
+  | { type: 'gameOver'; levelId: LevelId }
+  | { type: 'dialogue'; dialogueId: string }
+  | { type: 'cutscene'; cutsceneId: string }
+  | { type: 'credits' };
+```
+
+The first implementation does not need functional dialogue, cutscene, or credits systems.
+
+Those phase types exist so the architecture has a stable extension point.
+
+Do not build a generic state-machine framework.
+
+A small typed `GameFlow` class is sufficient.
+
+---
+
+# 6. Stable IDs
+
+Campaign content must use stable string IDs, never array indexes as identity.
+
+```ts
+export type LevelId = string;
+export type CampaignId = string;
+```
+
+Example:
+
+```ts
+'earth-orbit'
+'lunar-crossing'
+'mars-approach'
+```
+
+A save file must remain meaningful even if level ordering changes later.
+
+Never persist:
+
+```ts
+currentLevel: 2
+```
+
+Prefer:
+
+```ts
+currentLevelId: 'lunar-crossing'
+```
+
+---
+
+# 7. LevelDefinition
+
+Replace campaign-level dependence on the global indexed `LEVELS` array with data-driven definitions.
+
+```ts
+export interface LevelDefinition {
+  id: LevelId;
+  name: string;
+
+  gameplay: {
+    speeds: {
+      planet: number;
+      secondaryPlanet: number;
+      orb: number;
+    };
+
+    spawnInterval: number;
+    orbFrequency: number;
+    orbsRequired: number;
+    timeLimit: number;
+  };
+
+  intro?: StoryTransition;
+  outro?: StoryTransition;
+
+  nextLevelId?: LevelId;
+}
+```
+
+Story transitions should initially be declarative references only:
+
+```ts
+export type StoryTransition =
+  | { type: 'dialogue'; id: string }
+  | { type: 'cutscene'; id: string };
+```
+
+Do not implement dialogue or cutscene playback during this architecture pass.
+
+---
+
+# 8. CampaignDefinition
+
+A campaign describes playable content and sequencing.
+
+```ts
+export interface CampaignDefinition {
+  id: CampaignId;
+  name: string;
+
+  startingLevelId: LevelId;
+
+  levels: Record<LevelId, LevelDefinition>;
+
+  ending?: StoryTransition;
+}
+```
+
+Campaign definitions should be static game content.
+
+They are not mutable runtime state.
+
+The initial Flappy Spaceman campaign should reproduce the existing five-level experience using stable IDs.
+
+Example:
+
+```text
+sector-01
+sector-02
+sector-03
+sector-04
+sector-05
+```
+
+Behavior and difficulty should remain unchanged during migration.
+
+---
+
+# 9. CampaignProgress
+
+Persistent progression must be separate from `GameState`.
+
+```ts
+export interface CampaignProgress {
+  schemaVersion: number;
+
+  campaignId: CampaignId;
+
+  currentLevelId: LevelId;
+
+  unlockedLevelIds: LevelId[];
+  completedLevelIds: LevelId[];
+
+  highScores: Record<LevelId, number>;
+
+  storyFlags: Record<string, boolean>;
+
+  updatedAt: string;
+}
+```
+
+Do not save transient runtime state such as:
+
+- current entity positions
+- active particles
+- current collision state
+- current spawn countdown
+- Pixi objects
+- RxJS objects
+- active ticker state
+
+The first save system is a checkpoint/progression save, not arbitrary mid-frame save-state serialization.
+
+---
+
+# 10. Save Schema Versioning
+
+Persistent data must be versioned from day one.
+
+```ts
+schemaVersion: 1
+```
+
+The `SaveService` must validate loaded data.
+
+If data is corrupt or from an unsupported version, fail safely and allow a new game rather than crashing the application.
+
+Future migrations may convert older save schemas.
+
+Do not build a generic migration framework yet.
+
+---
+
+# 11. SaveService
+
+Expose a small persistence boundary.
+
+```ts
+export interface SaveService {
+  load(): CampaignProgress | null;
+  save(progress: CampaignProgress): void;
+  clear(): void;
+}
+```
+
+The first implementation may use browser `localStorage`, which also works for the current Electron renderer.
+
+Keep the persistence mechanism behind the interface so a future implementation can use:
+
+- Electron user-data files
+- Steam Cloud
+- another desktop persistence backend
+
+`GameFlow` should depend on the interface, not directly on `localStorage`.
+
+Save automatically at safe progression checkpoints, particularly:
+
+- after completing a level
+- after unlocking the next level
+- after future story-state changes
+
+Do not save every frame.
+
+---
+
+# 12. GameFlow
+
+`GameFlow` is the campaign orchestrator.
+
+Suggested responsibilities:
+
+```ts
+class GameFlow {
+  startNewGame(): void;
+  continueGame(): void;
+
+  startLevel(levelId: LevelId): void;
+
+  handleLevelCompleted(levelId: LevelId): void;
+  handleGameOver(levelId: LevelId): void;
+
+  retryLevel(): void;
+  returnToTitle(): void;
+
+  getPhase(): GamePhase;
+  getPhase$(): Observable<GamePhase>;
+
+  getProgress(): CampaignProgress;
+}
+```
+
+Exact method names may change if the resulting API is simpler.
+
+Behavior matters more than matching these signatures exactly.
+
+---
+
+# 13. Runtime Contract
+
+`GameRuntime` must stop deciding campaign sequencing.
+
+The runtime should accept the definition for the level it is asked to run.
+
+Conceptually:
+
+```ts
+runtime.loadLevel(levelDefinition);
+runtime.start();
+```
+
+When gameplay ends, the runtime reports an outcome.
+
+Example domain events:
+
+```ts
+LEVEL_COMPLETED
+GAME_OVER
+```
+
+`GameFlow` consumes those outcomes.
+
+The flow becomes:
+
+```text
+GameFlow.startLevel('sector-01')
+        ↓
+GameRuntime loads sector-01 gameplay config
+        ↓
+player completes gameplay
+        ↓
+GameRuntime emits LEVEL_COMPLETED
+        ↓
+GameFlow handles completion
+        ↓
+updates CampaignProgress
+        ↓
+saves
+        ↓
+examines LevelDefinition
+        ↓
+next story/game phase
+```
+
+`GameRuntime` must not:
+
+```ts
+level + 1
+```
+
+or inspect campaign ordering to decide what happens next.
+
+---
+
+# 14. GameStateService Changes
+
+`GameStateService` should remain a transient gameplay-state store.
+
+Remove campaign progression decisions from methods such as `levelComplete()`.
+
+It is acceptable for `GameState` to expose presentation information such as:
+
+```ts
+levelId
+levelName
+```
+
+or another lightweight representation of the active gameplay level if useful.
+
+However:
+
+> The authoritative campaign level is owned by GameFlow.
+
+Avoid keeping two independent level counters that can drift.
+
+---
+
+# 15. Story Extension Point
+
+This architecture must make the following possible later:
+
+```text
+Level completed
+      ↓
+GameFlow reads outro
+      ↓
+phase = dialogue
+      ↓
+DialogueRunner completes
+      ↓
+phase = cutscene
+      ↓
+CutsceneRunner completes
+      ↓
+GameFlow starts next level
+```
+
+Do not implement `DialogueRunner` or `CutsceneRunner` in this phase.
+
+Future story systems should notify `GameFlow` when they finish rather than directly starting gameplay themselves.
+
+---
+
+# 16. Future SequenceRunner
+
+A future cutscene/story system may use declarative steps such as:
+
+```ts
+type StoryStep =
+  | { type: 'dialogue'; speaker: string; text: string }
+  | { type: 'wait'; seconds: number }
+  | { type: 'music'; track: string }
+  | { type: 'camera'; action: string }
+  | { type: 'fade'; direction: 'in' | 'out' };
+```
+
+This is explicitly future scope.
+
+Do not implement it as part of the GameFlow architecture migration.
+
+---
+
+# 17. React / Pixi Boundary
+
+Existing repository rules remain unchanged.
+
+React should eventually own:
+
+- title/menu screens
+- dialogue UI
+- choices
+- save-selection UI
+- pause menus
+- story overlays
+
+Pixi should own:
+
+- gameplay world
+- realtime entities
+- cinematic world movement
+- particles
+- world camera movement
+- visual effects
+
+Story orchestration belongs to `GameFlow`, not React or Pixi.
+
+---
+
+# 18. Suggested Directory Structure
+
+Keep the structure lightweight.
+
+```text
+src/game/
+├── campaign/
+│   ├── GameFlow.ts
+│   ├── GameFlow.test.ts
+│   ├── campaignTypes.ts
+│   ├── campaign.ts
+│   ├── campaign.test.ts
+│   ├── CampaignProgress.ts
+│   └── save/
+│       ├── SaveService.ts
+│       ├── LocalStorageSaveService.ts
+│       └── LocalStorageSaveService.test.ts
+│
+├── GameRuntime.ts
+├── gameStateService.ts
+├── eventBus.ts
+└── ...
+```
+
+Do not create a generic engine directory merely for campaign abstractions.
+
+---
+
+# 19. Initial Campaign Migration
+
+The first campaign definition should reproduce the current five levels.
+
+Migration must preserve:
+
+- current speeds
+- spawn intervals
+- orb requirements
+- time limits
+- scoring behavior
+- progression order
+- game-over behavior
+- warp presentation
+- visual effects
+- audio behavior
+
+This phase is architectural, not a gameplay rebalance.
+
+---
+
+# 20. New Game and Continue
+
+The architecture must support both.
+
+## New Game
+
+```text
+clear/reset campaign progress
+↓
+create initial CampaignProgress
+↓
+startingLevelId
+↓
+playing
+```
+
+## Continue
+
+```text
+load persisted CampaignProgress
+↓
+validate campaign + level ID
+↓
+resume from current checkpoint
+```
+
+If no valid save exists, Continue should not be offered or should behave safely.
+
+---
+
+# 21. Retry Semantics
+
+Game over does not automatically advance campaign progression.
+
+Retrying should reload the current campaign level.
+
+A failed run must not mark the level complete.
+
+---
+
+# 22. Completion Semantics
+
+When a level is successfully completed:
+
+1. mark it completed
+2. update its high score when applicable
+3. determine its next level/story transition
+4. unlock the next level when applicable
+5. update current checkpoint
+6. persist campaign progress
+7. transition to the appropriate next `GamePhase`
+
+Do not let multiple subscribers independently mutate progress for the same completion event.
+
+`GameFlow` is the single owner.
+
+---
+
+# 23. Campaign Completion
+
+When there is no next level:
+
+```text
+GameFlow
+  ↓
+ending transition if defined
+  ↓
+credits
+```
+
+Until credits/ending systems exist, the first implementation may use a simple campaign-complete phase or existing completion presentation.
+
+Do not route a finished campaign through `GAME_OVER`.
+
+---
+
+# 24. Dependency Direction
+
+Correct:
+
+```text
+GameFlow → GameRuntime
+GameFlow → CampaignDefinition
+GameFlow → SaveService
+GameRuntime → gameplay systems
+```
+
+Avoid:
+
+```text
+GameRuntime → GameFlow
+PhysicsSystem → CampaignProgress
+Entity → SaveService
+React component → mutate campaign save directly
+```
+
+Lower-level gameplay systems must remain unaware of campaign progression.
+
+---
+
+# 25. Explicit Non-Goals
+
+Do not introduce during this phase:
+
+- XState
+- Redux
+- Zustand
+- ECS
+- generic scene framework
+- quest engine
+- branching narrative engine
+- dialogue engine
+- cutscene engine
+- arbitrary mid-level save states
+- cloud synchronization
+- Steamworks integration
+- shared npm game engine
+- monorepo conversion
+
+Build only the minimum architecture justified by the current game.
+
+---
+
+# 26. Testing Requirements
+
+Add behavioral tests covering at minimum:
+
+### GameFlow
+
+- starts at title
+- new game selects configured starting level
+- starts a specific level
+- level completion updates progress exactly once
+- completion advances according to campaign definition
+- game over does not advance progression
+- retry reloads current level
+- final level completes campaign
+- invalid level IDs fail safely
+
+### Saving
+
+- valid progress round-trips
+- missing save returns null
+- corrupt save fails safely
+- unsupported schema version fails safely
+- clearing save works
+
+### Runtime integration
+
+- runtime receives the selected `LevelDefinition`
+- runtime no longer chooses the next campaign level
+- current five levels preserve existing gameplay configuration
+- existing level-complete effects still occur
+- reset/retry remains deterministic
+
+### Isolation
+
+Two independent GameFlow/runtime instances must not share mutable campaign state.
+
+---
+
+# 27. Migration Strategy
+
+Implement incrementally.
+
+## Phase A
+
+Introduce types and campaign data:
+
+- `LevelId`
+- `LevelDefinition`
+- `CampaignDefinition`
+- current five-level campaign
+
+No behavior change.
+
+## Phase B
+
+Allow `GameRuntime` to load explicit `LevelDefinition`.
+
+Preserve existing behavior.
+
+## Phase C
+
+Introduce `GameFlow`.
+
+Move next-level sequencing out of `GameRuntime`.
+
+## Phase D
+
+Introduce `CampaignProgress` and `SaveService`.
+
+Add New Game / Continue architecture.
+
+## Phase E
+
+Remove obsolete index-based campaign ownership and dead compatibility paths.
+
+Only after tests prove equivalent behavior.
+
+---
+
+# 28. Acceptance Criteria
+
+The architecture migration is complete when:
+
+- `GameFlow` is the single owner of high-level campaign sequencing.
+- `GameRuntime` no longer chooses the next level.
+- Level identity uses stable string IDs.
+- Current levels are represented as `LevelDefinition`s.
+- Current five-level gameplay behavior is preserved.
+- `GameStateService` no longer owns campaign progression.
+- `CampaignProgress` is distinct from transient `GameState`.
+- Save data is versioned.
+- Save persistence is accessed through `SaveService`.
+- New Game and Continue are architecturally supported.
+- Dialogue and cutscene phases have clean extension points but are not implemented.
+- No new generic state-machine or game-engine framework was added.
+- Existing Pixi/runtime lifecycle guarantees remain intact.
+- `npm run verify` passes.
+- `npm run test:coverage` passes.
+- `npm run build` passes.
+
+---
+
+# 29. Agent Rule
+
+Any future work involving:
+
+- campaign sequencing
+- level progression
+- checkpoints
+- story phases
+- dialogue flow
+- cutscene flow
+- persistent campaign state
+
+must follow this specification unless the specification is intentionally updated first.
