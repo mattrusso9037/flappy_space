@@ -29,11 +29,16 @@ Before writing code or editing files, inspect and understand:
 Level authoring operates strictly through data configuration. Distinguish existing reusable capabilities from missing engine capabilities before modifying code.
 
 ### Existing Reusable Capabilities (Configure via `LevelDefinition`):
-- **Deep space flight**: Default full-height gameplay corridor with lethal bottom boundary and unlimited thrust.
+- **Deep space flight**: Default full-height gameplay corridor with lethal bottom boundary and unlimited thrust (`movement: { mode: 'flight' }` or omitted).
 - **Ground / planetary surface**: Solid terrain surface via `gameplay.ground: { enabled: true, height: number }` and `presentation.terrainId?: TerrainId` (e.g. `'alien-crust'`). Bottom boundary becomes walkable/landable surface.
-- **Ground traversal & thrust capacity**: `gameplay.movement: { mode: 'ground', maxThrustCharges: 1 }`. Left/right walking + jet-assisted jump. One thrust per landing; landing recharges thrust. Future double-jump via `maxThrustCharges: 2` without redesign. Omit for default flight mode.
-- **Obstacle enable/disable**: `gameplay.obstacles: { enabled: false, ... }` to disable planet obstacles while preserving other gameplay.
-- **Configurable orb range & independent spawning**: `gameplay.orbs: { minY: number, maxY: number, spawnInterval?: number, spawnChance?: number }` or `gameplay.orbSpawnRange: { minY, maxY }`. Configures vertical corridor so orbs spawn within reachable jump range.
+- **Ground traversal & thrust capacity**: Discriminated union:
+  - Flight mode: `gameplay.movement: { mode: 'flight' }` (or omitted).
+  - Ground mode: `gameplay.movement: { mode: 'ground', maxThrustCharges: number }`. Left/right continuous traversal while held + jet-assisted jump. One thrust per landing (`maxThrustCharges: 1`); landing recharges thrust. Future double-jump via `maxThrustCharges: 2` without redesign.
+- **Stationary ground in ground mode**: In grounded traversal levels, ground does NOT auto-scroll (stationary ground).
+- **Obstacle enable/disable**: Discriminated union:
+  - Enabled: `gameplay.obstacles: { minPlanetRadius, maxPlanetRadius, secondaryPlanetChance, enabled?: true }`.
+  - Disabled: `gameplay.obstacles: { enabled: false }` — does NOT require or accept irrelevant planet radius metadata.
+- **Single canonical orb configuration**: `gameplay.orbs: { spawnChance: number, spawnInterval?: number, minY?: number, maxY?: number }`. Single authoritative source of truth for orb probability, independent cadence, and reachable vertical corridor (e.g. `[360, 480]` for grounded levels).
 - **Environment presets**: Visual backgrounds via `presentation.environmentId` (`'deep-nebula'`, `'alien-surface'`, `'violet-reach'`, `'solar-storm'`).
 - **Terrain presets**: Visual ground styling via `presentation.terrainId` (`'alien-crust'`).
 - **Music tracks**: Background audio via `presentation.musicId` (`'weightless-space'`).
@@ -117,7 +122,7 @@ Follow this systematic sequence whenever adding or modifying a level:
 
 ---
 
-## 6. Ground & Terrain Authoring Rules
+## 6. Ground, Terrain, and Scrolling Authoring Rules
 
 - Ground geometry belongs strictly to `gameplay.ground`:
   ```typescript
@@ -138,6 +143,8 @@ Follow this systematic sequence whenever adding or modifying a level:
   ```
   - `terrainId` must resolve to a registered preset in `src/game/visuals/terrainPresets.ts`.
 - Groundless levels simply omit `gameplay.ground` and `presentation.terrainId`.
+- **Scrolling separation**: In ground traversal mode (`movement.mode: 'ground'`), the ground does NOT auto-scroll under the player's feet. Instead, it remains stationary while traversing the viewport, and dynamically progresses forward/backward when the player moves against the screen boundaries (end/beginning).
+- **Cross-Level Transition Hygiene**: Whenever a level introduces a capability (e.g. ground surface or ground movement), verify that moving to the next level (e.g. flight level) cleanly clears ground geometry and restores flight dynamics without capability leakage.
 
 ---
 
@@ -150,9 +157,10 @@ When translating a prompt (e.g. *"Add a level after sector-03 called The Crimson
 3. **Derived Values**:
    - Speeds: Scale prior level speeds by +15% (e.g. `planet * 1.15`).
    - Spawn interval: Decrease slightly for density (e.g. `priorInterval * 0.9`).
-   - Obstacles: Interpolate radii (`minPlanetRadius`, `maxPlanetRadius`) and `secondaryPlanetChance`.
-   - `orbSpawnChance`: Defaults to `0.4` unless specifically requested.
+   - Obstacles: Interpolate radii (`minPlanetRadius`, `maxPlanetRadius`) and `secondaryPlanetChance`. If obstacles disabled, `{ enabled: false }`.
+   - `orbs`: Single canonical config `orbs: { spawnChance: 0.4 }`. If grounded level, specify `minY` and `maxY` reachable with one thrust jump (e.g. `[360, 480]`).
    - Ground: If surface level requested, specify `ground: { enabled: true, height: 80 }` and `terrainId: 'alien-crust'`.
+   - Movement: If grounded traversal requested, specify `movement: { mode: 'ground', maxThrustCharges: 1 }`.
 4. **Ambiguity**: If key parameters cannot reasonably be inferred and materially affect gameplay, state the assumption clearly or ask for clarification.
 
 ---

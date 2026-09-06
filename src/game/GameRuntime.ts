@@ -142,11 +142,9 @@ export class GameRuntime {
     this.systems.spawning.setLevelConfig({
       speeds: levelDefinition.gameplay.speeds,
       spawnInterval: levelDefinition.gameplay.spawnInterval,
-      orbSpawnChance: levelDefinition.gameplay.orbSpawnChance,
       obstacles: levelDefinition.gameplay.obstacles,
       ground: levelDefinition.gameplay.ground,
       orbs: levelDefinition.gameplay.orbs,
-      orbSpawnRange: levelDefinition.gameplay.orbSpawnRange,
       levelNumber: levelDefinition.gameplay.levelNumber,
     });
 
@@ -300,6 +298,13 @@ export class GameRuntime {
       timeRemaining: updatedState.timeRemaining,
       timeRanOut: updatedState.timeRemaining <= 0,
     });
+
+    // 2.5 Process continuous player input
+    try {
+      this.systems.input.update(deltaSeconds);
+    } catch (err) {
+      logger.error('Error updating input system', err);
+    }
 
     // 3. Update physics (movement, boundaries, collisions)
     try {

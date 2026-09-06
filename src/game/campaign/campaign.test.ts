@@ -40,19 +40,17 @@ describe('Campaign Definition & Data Migration', () => {
       expect(levelDef.gameplay.spawnInterval).toBe(legacyConfig.spawnInterval);
       expect(levelDef.gameplay.orbsRequired).toBe(legacyConfig.orbsRequired);
       expect(levelDef.gameplay.timeLimit).toBe(legacyConfig.timeLimit);
-      expect(levelDef.gameplay.orbSpawnChance).toBe(id === 'sector-02' ? 0.6 : 0.4);
+      expect(levelDef.gameplay.orbs.spawnChance).toBe(id === 'sector-02' ? 0.6 : 0.4);
       expect(levelDef.gameplay.levelNumber).toBe(index + 1);
-
-      // Explicit obstacle configuration
-      expect(levelDef.gameplay.obstacles.minPlanetRadius).toBe(20);
-      expect(levelDef.gameplay.obstacles.maxPlanetRadius).toBe(40 + (index + 1) * 5);
 
       if (id === 'sector-02') {
         expect(levelDef.gameplay.obstacles.enabled).toBe(false);
-        expect(levelDef.gameplay.obstacles.secondaryPlanetChance).toBe(0);
         expect(levelDef.gameplay.movement).toEqual({ mode: 'ground', maxThrustCharges: 1 });
-        expect(levelDef.gameplay.orbs).toEqual({ minY: 360, maxY: 480 });
+        expect(levelDef.gameplay.orbs).toEqual({ spawnChance: 0.6, minY: 360, maxY: 480 });
       } else {
+        // Explicit obstacle configuration
+        expect(levelDef.gameplay.obstacles.minPlanetRadius).toBe(20);
+        expect(levelDef.gameplay.obstacles.maxPlanetRadius).toBe(40 + (index + 1) * 5);
         expect(levelDef.gameplay.obstacles.enabled).toBeUndefined();
         expect(levelDef.gameplay.obstacles.secondaryPlanetChance).toBe(index === 0 ? 0 : 0.3);
         expect(levelDef.gameplay.movement).toBeUndefined();

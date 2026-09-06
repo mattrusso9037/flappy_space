@@ -182,10 +182,11 @@ export class Ground {
 
   /**
    * Update scrolling ground surface details based on level scroll speed.
+   * Supports both forward (positive) and backward (negative) scroll speeds.
    * Presentation only; does not affect collision geometry or surface Y coordinate.
    */
   public updatePresentation(deltaSeconds: number, scrollSpeed: number): void {
-    if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0 || !Number.isFinite(scrollSpeed)) return;
+    if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0 || !Number.isFinite(scrollSpeed) || scrollSpeed === 0) return;
 
     // Movement matches obstacle scroll velocity: speed * 60 * deltaSeconds
     const movement = scrollSpeed * 60 * deltaSeconds;
@@ -194,11 +195,10 @@ export class Ground {
     const wrapDistance = GAME_WIDTH * 1.6;
 
     for (const span of this.detailSpans) {
-      let x = (span.baseX - this.scrollOffset) % wrapDistance;
-      if (x < -span.width) {
-        x += wrapDistance;
-      }
-      span.graphics.x = x;
+      const minX = -span.width;
+      const rawOffset = span.baseX - this.scrollOffset - minX;
+      const wrappedOffset = ((rawOffset % wrapDistance) + wrapDistance) % wrapDistance;
+      span.graphics.x = wrappedOffset + minX;
     }
   }
 

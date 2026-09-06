@@ -213,10 +213,10 @@ describe('GameFlow', () => {
             gameplay: {
               speeds: { planet: 3, secondaryPlanet: 2.5, orb: 2 },
               spawnInterval: 2500,
-              orbSpawnChance: 0.4,
               orbsRequired: 5,
               timeLimit: 60000,
               obstacles: { minPlanetRadius: 20, maxPlanetRadius: 45, secondaryPlanetChance: 0 },
+              orbs: { spawnChance: 0.4 },
             },
             presentation: { environmentId: 'deep-nebula' },
             outro: { type: 'cutscene', id: 'first-signal' },
@@ -229,10 +229,10 @@ describe('GameFlow', () => {
             gameplay: {
               speeds: { planet: 3, secondaryPlanet: 2.5, orb: 2 },
               spawnInterval: 2500,
-              orbSpawnChance: 0.4,
               orbsRequired: 5,
               timeLimit: 60000,
               obstacles: { minPlanetRadius: 20, maxPlanetRadius: 45, secondaryPlanetChance: 0 },
+              orbs: { spawnChance: 0.4 },
             },
             presentation: { environmentId: 'violet-reach' },
           },

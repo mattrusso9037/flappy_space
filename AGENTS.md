@@ -84,6 +84,13 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 ### F. Level Authoring & Reusable Capability Architecture
 - **RULE**: `LevelDefinition` is configuration, not an escape hatch into runtime architecture. When a reusable capability such as ground already exists, new levels must consume it through the canonical definition contract (`gameplay.ground`, `presentation.terrainId`). Runtime, system, and entity changes are prohibited unless the requested feature requires a genuinely new reusable engine capability.
 - **RULE**: Introducing a new reusable level capability requires updating its canonical type contract, validation, tests, documentation, and relevant repo-local authoring skill before the feature is considered complete. Levels must never be implemented using level-ID branches in runtime systems. Consult the repo-local `add-level` skill.
+- **Capability Guardrails**:
+  - **Discriminated unions**: Prefer discriminated unions for mutually exclusive configuration modes (e.g. `movement: { mode: 'flight' } | { mode: 'ground', maxThrustCharges: number }`).
+  - **Single authoritative config path**: Every gameplay rule must have one canonical config path without duplicate, fallback, or alias paths (e.g. `gameplay.orbs`).
+  - **Lean disabled states**: Disabled capabilities must never require irrelevant metadata (e.g. `obstacles: { enabled: false }` requires no planet radii).
+  - **Continuous controls**: Continuous movement must query held input state, never single keydown impulses.
+  - **Debug key isolation**: Debug keys must never overlap gameplay keys (`D`/`Shift+D` are gameplay-exclusive).
+  - **Transition & cleanup tests**: Every capability requires cross-level transition tests verifying clean state reset without capability leakage (e.g., flight → ground → flight).
 
 ### G. Story & Cutscene Architecture
 - Story sequencing is owned by `GameFlow`.

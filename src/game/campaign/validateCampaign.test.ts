@@ -15,13 +15,15 @@ function createValidCampaign(): CampaignDefinition {
         gameplay: {
           speeds: { planet: 3, secondaryPlanet: 2.5, orb: 2 },
           spawnInterval: 2500,
-          orbSpawnChance: 0.4,
           orbsRequired: 5,
           timeLimit: 60000,
           obstacles: {
             minPlanetRadius: 20,
             maxPlanetRadius: 45,
             secondaryPlanetChance: 0.3,
+          },
+          orbs: {
+            spawnChance: 0.4,
           },
         },
         presentation: {
@@ -36,13 +38,15 @@ function createValidCampaign(): CampaignDefinition {
         gameplay: {
           speeds: { planet: 3.5, secondaryPlanet: 3, orb: 2.5 },
           spawnInterval: 2200,
-          orbSpawnChance: 0.5,
           orbsRequired: 8,
           timeLimit: 60000,
           obstacles: {
             minPlanetRadius: 20,
             maxPlanetRadius: 50,
             secondaryPlanetChance: 0.3,
+          },
+          orbs: {
+            spawnChance: 0.5,
           },
         },
         presentation: {
@@ -108,13 +112,13 @@ describe('validateCampaignDefinition', () => {
     expect(result.errors.some(e => e.includes('invalid musicId'))).toBe(true);
   });
 
-  it('fails when orbSpawnChance is outside [0, 1]', () => {
+  it('fails when orbs.spawnChance is outside [0, 1]', () => {
     const campaign = createValidCampaign();
-    campaign.levels['lvl-1'].gameplay.orbSpawnChance = 1.5;
+    campaign.levels['lvl-1'].gameplay.orbs.spawnChance = 1.5;
 
     const result = validateCampaignDefinition(campaign);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('orbSpawnChance'))).toBe(true);
+    expect(result.errors.some(e => e.includes('orbs.spawnChance'))).toBe(true);
   });
 
   it('fails when obstacle radius configuration is invalid', () => {
@@ -343,9 +347,11 @@ describe('validateCampaignDefinition', () => {
   });
 
   describe('movement, obstacle enabling, and orb validation', () => {
-    it('accepts valid movement, disabled obstacles, and orb range configurations', () => {
+    it('accepts valid movement, disabled obstacles without planet metadata, and orb range configurations', () => {
       const campaign = createValidCampaign();
-      campaign.levels['lvl-1'].gameplay.obstacles.enabled = false;
+      campaign.levels['lvl-1'].gameplay.obstacles = {
+        enabled: false,
+      };
       campaign.levels['lvl-1'].gameplay.movement = {
         mode: 'ground',
         maxThrustCharges: 1,
@@ -353,10 +359,6 @@ describe('validateCampaignDefinition', () => {
       campaign.levels['lvl-1'].gameplay.orbs = {
         spawnInterval: 2000,
         spawnChance: 0.6,
-        minY: 360,
-        maxY: 480,
-      };
-      campaign.levels['lvl-1'].gameplay.orbSpawnRange = {
         minY: 360,
         maxY: 480,
       };
@@ -370,6 +372,7 @@ describe('validateCampaignDefinition', () => {
       const campaign = createValidCampaign();
       campaign.levels['lvl-1'].gameplay.movement = {
         mode: 'teleport' as unknown as 'ground',
+        maxThrustCharges: 1,
       };
 
       const result = validateCampaignDefinition(campaign);
@@ -377,22 +380,24 @@ describe('validateCampaignDefinition', () => {
       expect(result.errors.some(e => e.includes("movement.mode must be 'flight' or 'ground'"))).toBe(true);
     });
 
-    it('rejects non-integer or non-positive maxThrustCharges', () => {
+    it('rejects non-integer or non-positive maxThrustCharges in ground mode', () => {
       const campaign = createValidCampaign();
       campaign.levels['lvl-1'].gameplay.movement = {
+        mode: 'ground',
         maxThrustCharges: -1,
       };
 
       let result = validateCampaignDefinition(campaign);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('movement.maxThrustCharges must be a positive integer'))).toBe(true);
+      expect(result.errors.some(e => e.includes('ground movement requires a positive integer maxThrustCharges'))).toBe(true);
 
       campaign.levels['lvl-1'].gameplay.movement = {
+        mode: 'ground',
         maxThrustCharges: 1.5,
       };
       result = validateCampaignDefinition(campaign);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('movement.maxThrustCharges must be a positive integer'))).toBe(true);
+      expect(result.errors.some(e => e.includes('ground movement requires a positive integer maxThrustCharges'))).toBe(true);
     });
 
     it('rejects non-boolean obstacles.enabled', () => {
@@ -407,6 +412,7 @@ describe('validateCampaignDefinition', () => {
     it('rejects inverted orb vertical range (minY > maxY)', () => {
       const campaign = createValidCampaign();
       campaign.levels['lvl-1'].gameplay.orbs = {
+        spawnChance: 0.4,
         minY: 500,
         maxY: 200,
       };

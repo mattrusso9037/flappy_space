@@ -34,6 +34,7 @@ export class Astronaut {
   private movementMode: MovementMode = 'flight';
   private maxThrustCharges: number = Infinity;
   private thrustCharges: number = Infinity;
+  private boundaryScrollVelocity: number = 0;
 
   constructor(source: ResolvedSpritePresentation | PIXI.Texture, x: number, y: number) {
     if (source instanceof PIXI.Texture) {
@@ -65,10 +66,15 @@ export class Astronaut {
   }
 
   public setMovementConfig(config?: MovementGameplayDefinition): void {
-    const mode = config?.mode ?? 'flight';
-    this.movementMode = mode;
-    this.maxThrustCharges = config?.maxThrustCharges ?? (mode === 'ground' ? 1 : Infinity);
-    this.thrustCharges = this.maxThrustCharges;
+    if (!config || config.mode === 'flight') {
+      this.movementMode = 'flight';
+      this.maxThrustCharges = Infinity;
+      this.thrustCharges = Infinity;
+    } else {
+      this.movementMode = 'ground';
+      this.maxThrustCharges = config.maxThrustCharges;
+      this.thrustCharges = this.maxThrustCharges;
+    }
     logger.info(`Movement config set: mode=${this.movementMode}, maxThrustCharges=${this.maxThrustCharges}`);
   }
 
@@ -82,6 +88,10 @@ export class Astronaut {
 
   public getThrustCharges(): number {
     return this.thrustCharges;
+  }
+
+  public getBoundaryScrollVelocity(): number {
+    return this.boundaryScrollVelocity;
   }
 
   public rechargeThrust(): void {
@@ -100,6 +110,8 @@ export class Astronaut {
   update(deltaMS: number = 16.667): void {
     if (this.dead) return;
 
+    this.boundaryScrollVelocity = 0;
+
     // Scale delta time to make physics consistent (normalize to 60 FPS time step)
     const delta = deltaMS / 16.667;
 
@@ -113,11 +125,12 @@ export class Astronaut {
     this.sprite.y += this.velocity * delta;
     this.sprite.x += this.horizontalVelocity * delta;
 
-    // Apply horizontal deceleration (friction)
+    // Apply horizontal deceleration (crisp friction on solid ground; gentle drift in air/space)
+    const friction = (this.isGrounded && this.movementMode === 'ground') ? 0.5 : 0.1;
     if (this.horizontalVelocity > 0) {
-      this.horizontalVelocity = Math.max(0, this.horizontalVelocity - 0.1 * delta);
+      this.horizontalVelocity = Math.max(0, this.horizontalVelocity - friction * delta);
     } else if (this.horizontalVelocity < 0) {
-      this.horizontalVelocity = Math.min(0, this.horizontalVelocity + 0.1 * delta);
+      this.horizontalVelocity = Math.min(0, this.horizontalVelocity + friction * delta);
     }
 
     // Update rotation based on velocity (stand upright when grounded on terrain)
@@ -164,17 +177,33 @@ export class Astronaut {
       }
     }
 
-    // Check horizontal boundaries using logical body dimensions
-    if (this.sprite.x - halfW < 0) {
-      this.sprite.x = halfW;
-      this.horizontalVelocity = 0;
-      logger.info('Hit left boundary');
+    // Check horizontal boundaries using logical body dimensions.
+    // Scroll zone is evaluated BEFORE the hard clamp so that
+    // boundaryScrollVelocity is set even when the player is pinned to the
+    // edge wall — otherwise the else-if branch would be skipped and the
+    // ground would freeze while the player is pressing into the boundary.
+    // We use the actual post-friction horizontalVelocity so the ground
+    // scrolls at exactly the same rate as the player moves — the classic
+    // side-scroller illusion where the world moves under the player's feet.
+    const scrollZone = 0.33 * GAME_WIDTH;
+
+    // 1. Scroll zone detection (uses pre-clamp velocity)
+    if (this.sprite.x <= scrollZone && this.horizontalVelocity < 0) {
+      this.boundaryScrollVelocity = this.horizontalVelocity;
+    } else if (this.sprite.x >= GAME_WIDTH - scrollZone && this.horizontalVelocity > 0) {
+      this.boundaryScrollVelocity = this.horizontalVelocity;
     }
 
-    if (this.sprite.x + halfW > GAME_WIDTH) {
+    // 2. Hard wall clamp (zeroes velocity after scroll is recorded)
+    if (this.sprite.x - halfW <= 0) {
+      this.sprite.x = halfW;
+      this.horizontalVelocity = 0;
+      logger.debug('Hit left boundary');
+    }
+    if (this.sprite.x + halfW >= GAME_WIDTH) {
       this.sprite.x = GAME_WIDTH - halfW;
       this.horizontalVelocity = 0;
-      logger.info('Hit right boundary');
+      logger.debug('Hit right boundary');
     }
   }
 
@@ -336,6 +365,7 @@ export class Astronaut {
     this.sprite.y = y;
     this.velocity = 0;
     this.horizontalVelocity = 0;
+    this.boundaryScrollVelocity = 0;
     this.rotation = 0;
     this.dead = false;
     this.isGrounded = false;

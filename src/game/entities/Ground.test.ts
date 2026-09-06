@@ -71,6 +71,40 @@ describe('Ground Entity', () => {
     }
   });
 
+  it('supports backward surface feature scrolling displacement with negative scrollSpeed', () => {
+    const spans = ground.getDetailSpans();
+    const testSpan = spans[3];
+    const initialX = testSpan.graphics.x;
+
+    const deltaSeconds = 0.5;
+    const scrollSpeed = -2.0;
+    const expectedMovement = scrollSpeed * 60 * deltaSeconds; // -60 pixels
+
+    ground.updatePresentation(deltaSeconds, scrollSpeed);
+
+    expect(ground.getScrollOffset()).toBe(expectedMovement);
+    expect(testSpan.graphics.x).toBeCloseTo(initialX - expectedMovement, 2);
+  });
+
+  it('wraps backward scrolling surface features smoothly across loop boundary', () => {
+    const wrapDistance = GAME_WIDTH * 1.6;
+    // Scroll backward past the wrap distance
+    const totalSeconds = (wrapDistance + 100) / (60 * 3.0);
+    ground.updatePresentation(totalSeconds, -3.0);
+
+    const spans = ground.getDetailSpans();
+    for (const span of spans) {
+      expect(span.graphics.x).toBeGreaterThanOrEqual(-span.width);
+      expect(span.graphics.x).toBeLessThanOrEqual(wrapDistance);
+    }
+  });
+
+  it('safely ignores zero scroll speed without changing scroll offset', () => {
+    const initialOffset = ground.getScrollOffset();
+    ground.updatePresentation(0.016, 0);
+    expect(ground.getScrollOffset()).toBe(initialOffset);
+  });
+
   it('safely ignores non-positive, NaN, and infinite delta times and scroll speeds', () => {
     const initialOffset = ground.getScrollOffset();
 

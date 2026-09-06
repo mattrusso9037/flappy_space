@@ -102,7 +102,7 @@ describe('InputSystem', () => {
     inputSystem2.dispose();
   });
 
-  it('does not toggle debug mode when pressing D (avoids move right conflict)', () => {
+  it('never toggles debug mode when pressing D or Shift+D (avoids move right conflict)', () => {
     inputSystem.initialize();
     state.startGame();
 
@@ -115,11 +115,61 @@ describe('InputSystem', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', code: 'KeyD' }));
     expect(state.getState().debugMode).toBe(false);
 
-    // Dedicated shortcuts (Backquote or Shift+D) toggle debug mode
+    // Shift+D must NEVER toggle debug mode
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', code: 'KeyD', shiftKey: true }));
+    expect(state.getState().debugMode).toBe(false);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD', shiftKey: true }));
+    expect(state.getState().debugMode).toBe(false);
+
+    // Dedicated non-gameplay shortcuts (Backquote or F3) toggle debug mode
     document.dispatchEvent(new KeyboardEvent('keydown', { key: '`', code: 'Backquote' }));
     expect(state.getState().debugMode).toBe(true);
 
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', code: 'KeyD', shiftKey: true }));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'F3', code: 'F3' }));
     expect(state.getState().debugMode).toBe(false);
+  });
+
+  it('polls held directional controls during update() to drive continuous astronaut movement', () => {
+    inputSystem.initialize();
+    state.startGame();
+
+    const mockAstro = {
+      dead: false,
+      moveRight: vi.fn(),
+      moveLeft: vi.fn(),
+    };
+    vi.spyOn(entities, 'getAstronaut').mockReturnValue(mockAstro as unknown as ReturnType<typeof entities.getAstronaut>);
+
+    // Simulate holding KeyD (keydown without keyup)
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyD' }));
+    expect(inputSystem.getDirectionalInput().right).toBe(true);
+    // Initial keydown triggers immediate moveRight response
+    expect(mockAstro.moveRight).toHaveBeenCalledTimes(1);
+
+    // Per-frame update drives continuous movement while held
+    inputSystem.update(0.016);
+    expect(mockAstro.moveRight).toHaveBeenCalledTimes(2);
+
+    inputSystem.update(0.016);
+    expect(mockAstro.moveRight).toHaveBeenCalledTimes(3);
+
+    // Release KeyD
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyD' }));
+    expect(inputSystem.getDirectionalInput().right).toBe(false);
+
+    // After release, update no longer invokes moveRight
+    inputSystem.update(0.016);
+    expect(mockAstro.moveRight).toHaveBeenCalledTimes(3);
+
+    // Simulate holding KeyA
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }));
+    expect(inputSystem.getDirectionalInput().left).toBe(true);
+    expect(mockAstro.moveLeft).toHaveBeenCalledTimes(1);
+
+    inputSystem.update(0.016);
+    expect(mockAstro.moveLeft).toHaveBeenCalledTimes(2);
+
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA' }));
   });
 });

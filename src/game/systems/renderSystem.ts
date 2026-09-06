@@ -219,8 +219,16 @@ export class RenderSystem {
       astronaut.sprite.rotation = Math.sin(this.elapsed * 1.4) * 0.055;
     }
     const ground = this.entities.getGround();
+    const isGroundMode = this.entities.getMovementConfig()?.mode === 'ground';
     if (ground && this.state.getState().isStarted && !this.state.getState().isGameOver) {
-      ground.updatePresentation(seconds, this.scrollSpeed);
+      if (!isGroundMode) {
+        ground.updatePresentation(seconds, this.scrollSpeed);
+      } else {
+        const boundaryScrollVelocity = astronaut?.getBoundaryScrollVelocity() ?? 0;
+        if (boundaryScrollVelocity !== 0) {
+          ground.updatePresentation(seconds, boundaryScrollVelocity);
+        }
+      }
     }
     const g = this.debugGraphics;
     if (!this.state.getState().debugMode) { if (g.context.instructions.length) g.clear(); return; }

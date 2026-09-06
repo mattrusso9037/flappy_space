@@ -3,6 +3,7 @@ import { GameStateService } from '../gameStateService';
 import { InputManager, InputEvent, TouchData, Direction } from '../inputManager';
 import { EntitySystem } from './entitySystem';
 import { Subscription } from 'rxjs';
+import { UpdatingGameSystem } from '../types';
 import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('InputSystem');
@@ -11,7 +12,7 @@ const logger = getLogger('InputSystem');
  * InputSystem processes user input and dispatches game events.
  * It abstracts the low-level input handling from the game logic.
  */
-export class InputSystem {
+export class InputSystem implements UpdatingGameSystem {
   private subscriptions: Subscription[] = [];
   private initialized: boolean = false;
   private enabled: boolean = false;
@@ -348,13 +349,35 @@ export class InputSystem {
       }
     } 
 
-    // Handle debug mode toggle (Backquote, F3, or Shift+D; avoids collision with WASD D-key move right)
-    else if ((e.code === 'Backquote' || e.key === '`' || e.key === 'F3' || (e.shiftKey && (e.key === 'd' || e.key === 'D'))) && !e.repeat) {
+    // Handle debug mode toggle (Backquote or F3; keeps gameplay keys exclusive to gameplay)
+    else if ((e.code === 'Backquote' || e.key === '`' || e.key === 'F3') && !e.repeat) {
       logger.info('Debug mode toggle');
       this.state.toggleDebugMode();
     } else if (e.key === 'r' || e.key === 'R') {
       logger.info('Restart game');
       this.events.emit(GameEvent.RESTART_GAME, null);
+    }
+  }
+
+  /**
+   * Per-frame continuous input processing.
+   * Polls held directional controls and drives active entity movement.
+   */
+  public update(_deltaSeconds: number): void {
+    if (!this.enabled || !this.state.getState().isStarted || this.state.getState().isGameOver) {
+      return;
+    }
+
+    const dir = this.getDirectionalInput();
+    const astronaut = this.entities.getAstronaut();
+    if (!astronaut || astronaut.dead) {
+      return;
+    }
+
+    if (dir.left && !dir.right) {
+      astronaut.moveLeft();
+    } else if (dir.right && !dir.left) {
+      astronaut.moveRight();
     }
   }
   

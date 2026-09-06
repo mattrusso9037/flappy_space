@@ -562,5 +562,160 @@ describe('Astronaut Entity', () => {
       astronaut.reset(150, 250);
       expect(astronaut.getThrustCharges()).toBe(1);
     });
+
+    it('supports continuous held left/right movement across multiple update ticks', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 300, 495);
+      astro.setGroundY(520);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+
+      // Hold right across 5 frames
+      for (let i = 0; i < 5; i++) {
+        astro.moveRight(); // simulating held right input driving movement
+        expect(astro.horizontalVelocity).toBe(5);
+        astro.update(16.667);
+      }
+      expect(astro.sprite.x).toBeGreaterThan(320);
+
+      // Hold left across 5 frames
+      const currentX = astro.sprite.x;
+      for (let i = 0; i < 5; i++) {
+        astro.moveLeft(); // simulating held left input driving movement
+        expect(astro.horizontalVelocity).toBe(-5);
+        astro.update(16.667);
+      }
+      expect(astro.sprite.x).toBeLessThan(currentX);
+    });
+
+    it('demonstrates release behavior: decelerates to zero when directional input is released', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 300, 495);
+      astro.setGroundY(520);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.isGrounded = true;
+
+      // Nudge right
+      astro.moveRight();
+      expect(astro.horizontalVelocity).toBe(5);
+
+      // Release: no moveRight calls during updates
+      // Ground friction (0.5 per frame) decelerates horizontalVelocity to 0 in 10 frames
+      for (let i = 0; i < 12; i++) {
+        astro.update(16.667);
+      }
+
+      expect(astro.horizontalVelocity).toBe(0);
+    });
+
+    it('verifies that the highest Sector 02 orb (y = 360) is reachable with one thrust from ground', () => {
+      const presentation = createMockPresentation();
+      // Ground in Sector 02 is height 80 (y = 520). Astronaut center is at 495.
+      const astro = new Astronaut(presentation, 150, 495);
+      astro.setGroundY(520);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+
+      expect(astro.isGrounded).toBe(false);
+      // Initial grounded check
+      astro.update(16.667);
+      expect(astro.isGrounded).toBe(true);
+
+      // Execute single thrust
+      expect(astro.thrust()).toBe(true);
+      expect(astro.velocity).toBe(JUMP_VELOCITY); // -5
+
+      let minYReached = astro.sprite.y;
+      // Simulate jump under gravity until apex
+      for (let frame = 0; frame < 60; frame++) {
+        astro.update(16.667);
+        if (astro.sprite.y < minYReached) {
+          minYReached = astro.sprite.y;
+        }
+      }
+
+      // Discrete integration apex reaches y = 372.5
+      expect(minYReached).toBeCloseTo(372.5, 1);
+
+      // Astronaut hitbox at apex (height 35, bounds 352.5 to 387.5)
+      const hitbox = astro.getHitbox();
+      hitbox.minY = minYReached - 17.5;
+      hitbox.maxY = minYReached + 17.5;
+
+      // Sector 02 highest orb is at minY = 360. With radius 15, orb vertical bounds are 345 to 375.
+      const highestOrbY = 360;
+      const orbRadius = 15;
+      const orbBottom = highestOrbY + orbRadius; // 375
+      const orbTop = highestOrbY - orbRadius; // 345
+
+      // Overlap condition: astro hitbox reaches above orbBottom
+      const overlaps = hitbox.minY <= orbBottom && hitbox.maxY >= orbTop;
+      expect(overlaps).toBe(true);
+      expect(hitbox.minY).toBeLessThan(highestOrbY); // Hitbox extends above the orb center!
+    });
+
+    it('reports zero boundaryScrollVelocity while moving in the open play area', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 400, 300);
+      astro.moveRight();
+      astro.update(16.667);
+      expect(astro.getBoundaryScrollVelocity()).toBe(0);
+    });
+
+    it('reports positive boundaryScrollVelocity matching horizontalVelocity in the right 33% zone', () => {
+      const presentation = createMockPresentation();
+      // GAME_WIDTH=800, scrollZone=0.33*800=264 → right zone starts at x=536.
+      // Place at x=600, well inside the right 33% zone.
+      const astro = new Astronaut(presentation, 600, 300);
+      astro.moveRight();
+      astro.update(16.667);
+      // boundaryScrollVelocity must be positive and equal to actual horizontalVelocity
+      // (post-friction), not a constant — this is the sync contract.
+      expect(astro.getBoundaryScrollVelocity()).toBeGreaterThan(0);
+      expect(astro.getBoundaryScrollVelocity()).toBe(astro.horizontalVelocity);
+    });
+
+    it('reports negative boundaryScrollVelocity matching horizontalVelocity in the left 33% zone', () => {
+      const presentation = createMockPresentation();
+      // scrollZone=264 → left zone ends at x=264.
+      // Place at x=200, inside the left 33% zone.
+      const astro = new Astronaut(presentation, 200, 300);
+      astro.moveLeft();
+      astro.update(16.667);
+      // Must be negative and equal to actual horizontalVelocity (post-friction).
+      expect(astro.getBoundaryScrollVelocity()).toBeLessThan(0);
+      expect(astro.getBoundaryScrollVelocity()).toBe(astro.horizontalVelocity);
+    });
+
+    it('reports zero boundaryScrollVelocity when moving left in the right zone (wrong direction)', () => {
+      const presentation = createMockPresentation();
+      // Right zone but moving left — should not scroll.
+      const astro = new Astronaut(presentation, 600, 300);
+      astro.moveLeft();
+      astro.update(16.667);
+      expect(astro.getBoundaryScrollVelocity()).toBe(0);
+    });
+
+    it('clears boundaryScrollVelocity when astronaut moves back into the open area', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 600, 300);
+      astro.moveRight();
+      astro.update(16.667);
+      expect(astro.getBoundaryScrollVelocity()).toBeGreaterThan(0);
+
+      // Teleport to center (outside the 33% zone) and update without input
+      astro.sprite.x = 400;
+      astro.update(16.667);
+      expect(astro.getBoundaryScrollVelocity()).toBe(0);
+    });
+
+    it('resets boundaryScrollVelocity to 0 on reset()', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 600, 300);
+      astro.moveRight();
+      astro.update(16.667);
+      expect(astro.getBoundaryScrollVelocity()).toBeGreaterThan(0);
+
+      astro.reset(150, 250);
+      expect(astro.getBoundaryScrollVelocity()).toBe(0);
+    });
   });
 });

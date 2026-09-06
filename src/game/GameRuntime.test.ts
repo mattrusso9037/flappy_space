@@ -225,13 +225,15 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
       gameplay: {
         speeds: { planet: 7.2, secondaryPlanet: 6.0, orb: 5.0 },
         spawnInterval: 1200,
-        orbSpawnChance: 0.6,
         orbsRequired: 25,
         timeLimit: 90000,
         obstacles: {
           minPlanetRadius: 25,
           maxPlanetRadius: 70,
           secondaryPlanetChance: 0.4,
+        },
+        orbs: {
+          spawnChance: 0.6,
         },
         levelNumber: 99,
       },
@@ -253,7 +255,7 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     const spawningConfig = runtime.systems.spawning.getLevelConfig();
     expect(spawningConfig.spawnInterval).toBe(1200);
     expect(spawningConfig.speeds.planet).toBe(7.2);
-    expect(spawningConfig.orbSpawnChance).toBe(0.6);
+    expect(spawningConfig.orbs.spawnChance).toBe(0.6);
     expect(spawningConfig.obstacles?.minPlanetRadius).toBe(25);
     expect(spawningConfig.obstacles?.maxPlanetRadius).toBe(70);
     expect(spawningConfig.levelNumber).toBe(99);
@@ -408,6 +410,12 @@ it('cleanly transitions between groundless and ground-enabled levels without cap
   expect(ground).not.toBeNull();
   expect(ground?.height).toBe(80);
   expect(ground?.y).toBe(520);
+  expect(ground?.getScrollOffset()).toBe(0);
+
+  // In ground mode, ground remains stationary during render update
+  runtime.systems.rendering.update(0.1);
+  expect(ground?.getScrollOffset()).toBe(0);
+
   const astro2 = runtime.systems.entities.getAstronaut()!;
   expect(astro2.getGroundY()).toBe(520);
   expect(astro2.getMovementMode()).toBe('ground');

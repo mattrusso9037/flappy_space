@@ -36,7 +36,9 @@ describe('SpawningSystem', () => {
     spawning.setLevelConfig({
       speeds: { planet: 2.5, secondaryPlanet: 2.0, orb: 1.8 },
       spawnInterval: 1800,
-      orbSpawnChance: 0.8,
+      orbs: {
+        spawnChance: 0.8,
+      },
       obstacles: {
         minPlanetRadius: 25,
         maxPlanetRadius: 55,
@@ -47,7 +49,7 @@ describe('SpawningSystem', () => {
     const config = spawning.getLevelConfig();
     expect(config.spawnInterval).toBe(1800);
     expect(config.speeds.planet).toBe(2.5);
-    expect(config.orbSpawnChance).toBe(0.8);
+    expect(config.orbs.spawnChance).toBe(0.8);
     expect(config.obstacles?.minPlanetRadius).toBe(25);
     expect(config.obstacles?.maxPlanetRadius).toBe(55);
     expect(config.obstacles?.secondaryPlanetChance).toBe(0.2);
@@ -77,11 +79,11 @@ describe('SpawningSystem', () => {
     expect(createPlanetSpy).toHaveBeenCalled();
   });
 
-  it('spawns delayed orb deterministically governed by level orbSpawnChance', () => {
+  it('spawns delayed orb deterministically governed by level orbs.spawnChance', () => {
     const createOrbSpy = vi.spyOn(entities, 'createOrb');
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
 
-    spawning.setLevelConfig({ orbSpawnChance: 0.5 });
+    spawning.setLevelConfig({ orbs: { spawnChance: 0.5 } });
     state.startGame();
     state.updateTime(2000);
     // Spawn first obstacle
@@ -105,11 +107,11 @@ describe('SpawningSystem', () => {
     vi.restoreAllMocks();
   });
 
-  it('never spawns an orb when orbSpawnChance is 0', () => {
+  it('never spawns an orb when orb spawnChance is 0', () => {
     const createOrbSpy = vi.spyOn(entities, 'createOrb');
     vi.spyOn(Math, 'random').mockReturnValue(0.01); // Very low random
 
-    spawning.setLevelConfig({ orbSpawnChance: 0.0 });
+    spawning.setLevelConfig({ orbs: { spawnChance: 0.0 } });
     state.startGame();
     state.updateTime(2000);
     spawning.update(0.016, state.getState());
@@ -205,7 +207,7 @@ describe('SpawningSystem', () => {
       entities.setGround({ enabled: true, height: groundHeight }, 'alien-crust');
 
       const createOrbSpy = vi.spyOn(entities, 'createOrb');
-      spawning.setLevelConfig({ orbSpawnChance: 1.0 });
+      spawning.setLevelConfig({ orbs: { spawnChance: 1.0 } });
 
       state.startGame();
       for (let i = 0; i < 20; i++) {
@@ -282,12 +284,11 @@ describe('SpawningSystem', () => {
       spawning.setLevelConfig({
         obstacles: {
           enabled: false,
-          minPlanetRadius: 20,
-          maxPlanetRadius: 50,
-          secondaryPlanetChance: 0,
         },
         spawnInterval: 1500,
-        orbSpawnChance: 1.0, // 100% orb spawn chance
+        orbs: {
+          spawnChance: 1.0, // 100% orb spawn chance
+        },
       });
 
       state.startGame();
@@ -313,7 +314,7 @@ describe('SpawningSystem', () => {
 
       // Configure reachable range for single jet jump (e.g. 360 to 480)
       spawning.setLevelConfig({
-        obstacles: { enabled: false, minPlanetRadius: 20, maxPlanetRadius: 50, secondaryPlanetChance: 0 },
+        obstacles: { enabled: false },
         orbs: {
           minY: 360,
           maxY: 480,

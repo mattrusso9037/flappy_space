@@ -226,32 +226,44 @@ Replace campaign-level dependence on the global indexed `LEVELS` array with expl
 Levels are authored purely through data without embedding Pixi objects or rendering code.
 
 ```ts
-export interface ObstacleGameplayDefinition {
-  /** Optional flag to enable/disable obstacle spawning. Defaults to true. */
-  enabled?: boolean;
-  minPlanetRadius: number;
-  maxPlanetRadius: number;
-  secondaryPlanetChance: number;
-}
+export type ObstacleGameplayDefinition =
+  | {
+      /** Disable obstacle spawning completely. Planet metadata is not required. */
+      enabled: false;
+      minPlanetRadius?: number;
+      maxPlanetRadius?: number;
+      secondaryPlanetChance?: number;
+    }
+  | {
+      /** Enable obstacle spawning with explicit planet balance parameters. Defaults to true if omitted. */
+      enabled?: true;
+      minPlanetRadius: number;
+      maxPlanetRadius: number;
+      secondaryPlanetChance: number;
+    };
 
 export type MovementMode = 'flight' | 'ground';
 
-export interface MovementGameplayDefinition {
-  /** Movement style: deep space flight or ground traversal. Defaults to 'flight'. */
-  mode?: MovementMode;
-  /**
-   * Maximum jet-assisted thrust charges before requiring a landing recharge.
-   * Defaults to 1 for ground mode and Infinity for flight mode.
-   * Fully supports multi-thrust (e.g. maxThrustCharges: 2 for double jump).
-   */
-  maxThrustCharges?: number;
-}
+export type MovementGameplayDefinition =
+  | {
+      /** Default corridor flight mode with unlimited thrust. */
+      mode: 'flight';
+    }
+  | {
+      /** Planetary ground traversal mode with jet jump capacity. */
+      mode: 'ground';
+      /**
+       * Maximum jet-assisted thrust charges before requiring a landing recharge.
+       * Fully supports multi-thrust (e.g. maxThrustCharges: 1 or 2 for double jump).
+       */
+      maxThrustCharges: number;
+    };
 
 export interface OrbGameplayDefinition {
+  /** Explicit spawn probability in [0, 1]. */
+  spawnChance: number;
   /** Optional independent spawn interval in milliseconds. If omitted, uses gameplay.spawnInterval. */
   spawnInterval?: number;
-  /** Optional explicit spawn chance in [0, 1]. If omitted, uses gameplay.orbSpawnChance. */
-  spawnChance?: number;
   /** Optional minimum Y coordinate for orb spawning. */
   minY?: number;
   /** Optional maximum Y coordinate for orb spawning. */
@@ -266,26 +278,19 @@ export interface LevelGameplayDefinition {
   };
 
   spawnInterval: number;
-  orbSpawnChance: number; // 0 to 1
   orbsRequired: number;
   timeLimit: number;
 
   obstacles: ObstacleGameplayDefinition;
+
+  /** Single canonical orb configuration */
+  orbs: OrbGameplayDefinition;
 
   /** Optional planetary ground terrain definition */
   ground?: GroundGameplayDefinition;
 
   /** Optional movement mode and thrust capacity configuration */
   movement?: MovementGameplayDefinition;
-
-  /** Optional independent orb spawn and vertical range configuration */
-  orbs?: OrbGameplayDefinition;
-
-  /** Optional shorthand for vertical orb spawn range */
-  orbSpawnRange?: {
-    minY: number;
-    maxY: number;
-  };
 
   /** Optional display metadata only - does NOT dictate gameplay difficulty */
   levelNumber?: number;
@@ -325,10 +330,10 @@ export interface LevelDefinition {
    - Runtime systems implement ground capability generically once. No level-specific branching is allowed.
    - No Pixi objects, shaders, or rendering loops exist in campaign definitions.
 2. **Explicit Obstacle Difficulty**:
-   - Obstacle size bounds (`minPlanetRadius`, `maxPlanetRadius`) and secondary obstacle spawn probability (`secondaryPlanetChance`) are declared explicitly.
+   - Obstacle size bounds (`minPlanetRadius`, `maxPlanetRadius`) and secondary obstacle spawn probability (`secondaryPlanetChance`) are declared explicitly. When disabled (`enabled: false`), planet dimensions are not required.
    - `levelNumber` is strictly display metadata; difficulty never relies on numeric order.
 3. **Truthful Orb Spawning Semantics**:
-   - Spawning probability is governed by `orbSpawnChance` (0.0 to 1.0) rather than misleading time frequencies.
+   - Spawning probability is governed by `gameplay.orbs.spawnChance` (0.0 to 1.0) rather than misleading time frequencies. Single canonical `orbs` configuration replaces fragmented legacy fields.
 4. **Campaign Validation (`validateCampaignDefinition`)**:
    - A centralized validator (`src/game/campaign/validateCampaign.ts`) ensures all links, environment IDs, terrain IDs, music IDs, and numeric bounds (including finite positive ground heights leaving a viable corridor) are sound before runtime execution.
 5. **Direct Level Preview Tooling**:

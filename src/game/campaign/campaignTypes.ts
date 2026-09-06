@@ -20,13 +20,21 @@ export type StoryContinuation =
   | { type: 'credits' }
   | { type: 'title' };
 
-export interface ObstacleGameplayDefinition {
-  /** Optional flag to enable/disable obstacle spawning. Defaults to true. */
-  enabled?: boolean;
-  minPlanetRadius: number;
-  maxPlanetRadius: number;
-  secondaryPlanetChance: number;
-}
+export type ObstacleGameplayDefinition =
+  | {
+      /** Disable obstacle spawning completely. Planet metadata is not required. */
+      enabled: false;
+      minPlanetRadius?: number;
+      maxPlanetRadius?: number;
+      secondaryPlanetChance?: number;
+    }
+  | {
+      /** Enable obstacle spawning with explicit planet balance parameters. Defaults to true if omitted. */
+      enabled?: true;
+      minPlanetRadius: number;
+      maxPlanetRadius: number;
+      secondaryPlanetChance: number;
+    };
 
 export interface GroundGameplayDefinition {
   enabled: boolean;
@@ -36,22 +44,26 @@ export interface GroundGameplayDefinition {
 
 export type MovementMode = 'flight' | 'ground';
 
-export interface MovementGameplayDefinition {
-  /** Movement style: deep space flight or ground traversal. Defaults to 'flight'. */
-  mode?: MovementMode;
-  /**
-   * Maximum jet-assisted thrust charges before requiring a landing recharge.
-   * Defaults to 1 for ground mode and Infinity for flight mode.
-   * Fully supports multi-thrust (e.g. maxThrustCharges: 2 for double jump).
-   */
-  maxThrustCharges?: number;
-}
+export type MovementGameplayDefinition =
+  | {
+      /** Default corridor flight mode with unlimited thrust. */
+      mode: 'flight';
+    }
+  | {
+      /** Planetary ground traversal mode with jet jump capacity. */
+      mode: 'ground';
+      /**
+       * Maximum jet-assisted thrust charges before requiring a landing recharge.
+       * Fully supports multi-thrust (e.g. maxThrustCharges: 1 or 2 for double jump).
+       */
+      maxThrustCharges: number;
+    };
 
 export interface OrbGameplayDefinition {
+  /** Explicit spawn probability in [0, 1]. */
+  spawnChance: number;
   /** Optional independent spawn interval in milliseconds. If omitted, uses gameplay.spawnInterval. */
   spawnInterval?: number;
-  /** Optional explicit spawn chance in [0, 1]. If omitted, uses gameplay.orbSpawnChance. */
-  spawnChance?: number;
   /** Optional minimum Y coordinate for orb spawning. */
   minY?: number;
   /** Optional maximum Y coordinate for orb spawning. */
@@ -66,26 +78,19 @@ export interface LevelGameplayDefinition {
   };
 
   spawnInterval: number;
-  orbSpawnChance: number;
   orbsRequired: number;
   timeLimit: number;
 
   obstacles: ObstacleGameplayDefinition;
+
+  /** Single canonical orb configuration */
+  orbs: OrbGameplayDefinition;
 
   /** Optional planetary ground terrain definition */
   ground?: GroundGameplayDefinition;
 
   /** Optional movement mode and thrust capacity configuration */
   movement?: MovementGameplayDefinition;
-
-  /** Optional independent orb spawn and vertical range configuration */
-  orbs?: OrbGameplayDefinition;
-
-  /** Optional shorthand for vertical orb spawn range */
-  orbSpawnRange?: {
-    minY: number;
-    maxY: number;
-  };
 
   /** Optional display metadata only - does NOT dictate gameplay difficulty */
   levelNumber?: number;
