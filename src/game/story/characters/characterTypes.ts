@@ -13,10 +13,9 @@ export const CharacterIds = {
 
 export type CharacterId = (typeof CharacterIds)[keyof typeof CharacterIds];
 
-/**
- * Visor emotions from public/assets/astronaut/astronaut-headshots.png (6x2 grid).
- */
-export type AstronautEmotion =
+/** Shared semantic expression vocabulary. Character portrait adapters decide how
+ * each expression is rendered and which expressions are supported. */
+export type EmotionId =
   | 'neutral'
   | 'curious'
   | 'happy'
@@ -31,11 +30,20 @@ export type AstronautEmotion =
   | 'nervous'
   | 'cool';
 
-export type PortraitId = AstronautEmotion;
+/** @deprecated Use EmotionId for authored dialogue content. */
+export type AstronautEmotion = EmotionId;
+/** @deprecated Use EmotionId for authored dialogue content. */
+export type PortraitId = EmotionId;
+
+export const EMOTION_IDS: readonly EmotionId[] = [
+  'neutral', 'curious', 'happy', 'excited', 'puzzled', 'alert', 'love',
+  'sad', 'angry', 'sleepy', 'wink', 'nervous', 'cool',
+];
 
 export interface CharacterDefinition {
   id: CharacterId;
   defaultName: string;
   nameVariableKey: 'astronautName' | 'aiName';
-  resolveName: (variables?: Record<string, string | undefined>) => string;
+  defaultEmotion: EmotionId;
+  supportedEmotions: readonly EmotionId[];
 }

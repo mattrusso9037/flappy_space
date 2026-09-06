@@ -1,11 +1,27 @@
-import { AstronautEmotion } from '../../game/story/characters/characterTypes';
-
-export type { AstronautEmotion };
+import { CharacterId, CharacterIds, EmotionId } from '../../game/story/characters/characterTypes';
 
 export interface HeadshotCoordinates {
   col: number;
   row: number;
   backgroundPosition: string;
+}
+
+export type DialoguePortraitDescriptor =
+  | {
+      kind: 'headshot-grid';
+      characterId: CharacterId;
+      assetUrl: string;
+      coordinates: HeadshotCoordinates;
+    }
+  | {
+      kind: 'ai-core';
+      characterId: CharacterId;
+      emotion: EmotionId;
+    };
+
+export interface CharacterPortraitAdapter {
+  characterId: CharacterId;
+  resolve(emotion?: EmotionId): DialoguePortraitDescriptor;
 }
 
 /**
@@ -25,7 +41,7 @@ export interface HeadshotCoordinates {
  *   Col 4: nervous
  *   Col 5: cool
  */
-export const EMOTION_COORDINATES: Record<AstronautEmotion, { col: number; row: number }> = {
+export const EMOTION_COORDINATES: Record<EmotionId, { col: number; row: number }> = {
   // Row 0
   happy: { col: 0, row: 0 },
   excited: { col: 1, row: 0 },
@@ -57,7 +73,7 @@ export function getAstronautHeadshotUrl(): string {
  * Resolves the sprite sheet background position for an astronaut emotion.
  * Falls back to neutral (col 2, row 0) if unspecified or unrecognized.
  */
-export function getAstronautHeadshotCoordinates(emotion?: AstronautEmotion): HeadshotCoordinates {
+export function getAstronautHeadshotCoordinates(emotion?: EmotionId): HeadshotCoordinates {
   const coords = (emotion && EMOTION_COORDINATES[emotion]) || EMOTION_COORDINATES.neutral;
   const xPercent = (coords.col * 100) / 5;
   const yPercent = coords.row * 100;
@@ -67,4 +83,32 @@ export function getAstronautHeadshotCoordinates(emotion?: AstronautEmotion): Hea
     row: coords.row,
     backgroundPosition: `${xPercent}% ${yPercent}%`,
   };
+}
+
+const ASTRONAUT_PORTRAIT_ADAPTER: CharacterPortraitAdapter = {
+  characterId: CharacterIds.ASTRONAUT,
+  resolve: (emotion) => ({
+    kind: 'headshot-grid',
+    characterId: CharacterIds.ASTRONAUT,
+    assetUrl: getAstronautHeadshotUrl(),
+    coordinates: getAstronautHeadshotCoordinates(emotion),
+  }),
+};
+
+const AI_PORTRAIT_ADAPTER: CharacterPortraitAdapter = {
+  characterId: CharacterIds.AI,
+  resolve: (emotion) => ({
+    kind: 'ai-core',
+    characterId: CharacterIds.AI,
+    emotion: emotion ?? 'neutral',
+  }),
+};
+
+const PORTRAIT_ADAPTERS: Record<CharacterId, CharacterPortraitAdapter> = {
+  [CharacterIds.ASTRONAUT]: ASTRONAUT_PORTRAIT_ADAPTER,
+  [CharacterIds.AI]: AI_PORTRAIT_ADAPTER,
+};
+
+export function getCharacterPortraitAdapter(characterId: CharacterId): CharacterPortraitAdapter {
+  return PORTRAIT_ADAPTERS[characterId];
 }

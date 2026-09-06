@@ -1,10 +1,9 @@
-import { getUseToolKeyLabel } from '../../inputManager';
 import {
   CharacterId,
   CharacterIds,
-  PortraitId,
-  AstronautEmotion,
+  EmotionId,
 } from '../characters/characterTypes';
+import { resolveCharacterName } from '../characters/characters';
 
 export {
   CharacterIds,
@@ -12,8 +11,7 @@ export {
 
 export type {
   CharacterId,
-  PortraitId,
-  AstronautEmotion,
+  EmotionId,
 };
 
 /**
@@ -34,10 +32,9 @@ export type CanonicalDialogueId = (typeof DialogueIds)[keyof typeof DialogueIds]
 export type DialogueId = CanonicalDialogueId | (string & Record<never, never>);
 
 export interface DialogueLine {
-  characterId?: CharacterId;
-  speaker: string;
+  characterId: CharacterId;
   text: string;
-  portraitId?: PortraitId;
+  emotion?: EmotionId;
 }
 
 export interface DialogueDefinition {
@@ -46,40 +43,38 @@ export interface DialogueDefinition {
 }
 
 export interface DialogueVariables {
-  [key: string]: string | undefined;
+  astronautName?: string;
+  aiName?: string;
+  useToolKey?: string;
 }
 
 /**
- * Resolves template placeholders like {useToolKey}, {toolKey}, {buildKey}, {key}
- * in dialogue text against default dynamic game variables or custom overrides.
+ * Resolves the small, explicit set of dynamic values supported by dialogue text.
  */
 export function resolveDialogueText(
   text: string,
   variables?: DialogueVariables
 ): string {
-  const toolKey = getUseToolKeyLabel();
-  const defaults: Record<string, string> = {
-    astronautName: 'Atom',
-    ASTRONAUT_NAME: 'Atom',
-    aiName: 'Artimus',
-    AI_NAME: 'Artimus',
-    useToolKey: toolKey,
-    USE_TOOL_KEY: toolKey,
-    toolKey: toolKey,
-    TOOL_KEY: toolKey,
-    buildKey: toolKey,
-    BUILD_KEY: toolKey,
-    key: toolKey,
-    KEY: toolKey,
+  const defaults: Pick<DialogueVariables, 'astronautName' | 'aiName'> = {
+    astronautName: resolveCharacterName(CharacterIds.ASTRONAUT, variables),
+    aiName: resolveCharacterName(CharacterIds.AI, variables),
   };
 
-  return text.replace(/\{(\w+)\}/g, (match, varName) => {
-    if (variables && variables[varName] !== undefined) {
-      return variables[varName]!;
+  return text.replace(/\{(\w+)\}/g, (match, varName: string) => {
+    const variableName = varName as keyof DialogueVariables;
+    if (variables && variables[variableName] !== undefined) {
+      return variables[variableName]!;
     }
-    if (varName in defaults) {
-      return defaults[varName];
+    if (variableName === 'astronautName' || variableName === 'aiName') {
+      return defaults[variableName] ?? match;
     }
     return match;
   });
+}
+
+export function resolveDialogueSpeaker(
+  characterId: CharacterId,
+  variables?: DialogueVariables
+): string {
+  return resolveCharacterName(characterId, variables);
 }

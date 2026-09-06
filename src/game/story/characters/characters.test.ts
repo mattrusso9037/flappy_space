@@ -3,6 +3,8 @@ import {
   getCharacter,
   getAllCharacters,
   isCharacterId,
+  resolveCharacterName,
+  supportsCharacterEmotion,
 } from './characters';
 import { CharacterIds } from './characterTypes';
 
@@ -13,18 +15,21 @@ describe('Characters Registry', () => {
     expect(characters.map((c) => c.id)).toEqual(['astronaut', 'ai']);
   });
 
-  it('provides default names and variable keys', () => {
+  it('provides default names, variable keys and shared semantic emotions', () => {
     const astronaut = getCharacter(CharacterIds.ASTRONAUT);
     expect(astronaut.defaultName).toBe('Atom');
     expect(astronaut.nameVariableKey).toBe('astronautName');
-    expect(astronaut.resolveName()).toBe('Atom');
-    expect(astronaut.resolveName({ astronautName: 'Neil' })).toBe('Neil');
+    expect(resolveCharacterName(CharacterIds.ASTRONAUT)).toBe('Atom');
+    expect(resolveCharacterName(CharacterIds.ASTRONAUT, { astronautName: 'Neil' })).toBe('Neil');
+    expect(astronaut.defaultEmotion).toBe('neutral');
+    expect(supportsCharacterEmotion(CharacterIds.ASTRONAUT, 'puzzled')).toBe(true);
 
     const ai = getCharacter(CharacterIds.AI);
-    expect(ai.defaultName).toBe('AI');
+    expect(ai.defaultName).toBe('Artimus');
     expect(ai.nameVariableKey).toBe('aiName');
-    expect(ai.resolveName()).toBe('Artimus');
-    expect(ai.resolveName({ aiName: 'JARVIS' })).toBe('JARVIS');
+    expect(resolveCharacterName(CharacterIds.AI)).toBe('Artimus');
+    expect(resolveCharacterName(CharacterIds.AI, { aiName: 'JARVIS' })).toBe('JARVIS');
+    expect(supportsCharacterEmotion(CharacterIds.AI, 'alert')).toBe(true);
   });
 
   it('validates character IDs with type guard', () => {

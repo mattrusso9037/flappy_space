@@ -4,26 +4,22 @@ import {
   DialogueIds,
   CharacterIds,
 } from './dialogueTypes';
-import { isCharacterId } from '../characters/characters';
-import { EMOTION_COORDINATES } from '../../../components/story/dialogueAvatars';
+import { isCharacterId, supportsCharacterEmotion } from '../characters/characters';
 
 export const UNKNOWN_SIGNAL_DIALOGUE: DialogueDefinition = {
   id: DialogueIds.UNKNOWN_SIGNAL,
   lines: [
     {
       characterId: CharacterIds.AI,
-      speaker: '{aiName}',
       text: 'Telemetry detects an anomalous subspace frequency ahead. Stay alert, {astronautName}.',
     },
     {
       characterId: CharacterIds.ASTRONAUT,
-      speaker: '{astronautName}',
       text: 'Copy that, {aiName}. Thrusters engaged. Scanning flight corridor.',
-      portraitId: 'neutral',
+      emotion: 'neutral',
     },
     {
       characterId: CharacterIds.AI,
-      speaker: '{aiName}',
       text: 'Energy signatures fluctuating. Maintain orbital stability.',
     },
   ],
@@ -34,13 +30,11 @@ export const LUNAR_ARRIVAL_DIALOGUE: DialogueDefinition = {
   lines: [
     {
       characterId: CharacterIds.ASTRONAUT,
-      speaker: '{astronautName}',
       text: 'Approaching lunar perimeter. Gravitational distortion intensifying.',
-      portraitId: 'alert',
+      emotion: 'alert',
     },
     {
       characterId: CharacterIds.AI,
-      speaker: '{aiName}',
       text: 'Radar sweep confirms high-density celestial debris field. Navigate carefully, {astronautName}.',
     },
   ],
@@ -51,26 +45,22 @@ export const MATTER_GUN_FOUND_DIALOGUE: DialogueDefinition = {
   lines: [
     {
       characterId: CharacterIds.ASTRONAUT,
-      speaker: '{astronautName}',
       text: 'Oh shoot, my matter gun...',
-      portraitId: 'neutral',
+      emotion: 'neutral',
     },
     {
       characterId: CharacterIds.ASTRONAUT,
-      speaker: '{astronautName}',
-      text: 'Some of my stuff must have gotten sucked in too.',
-      portraitId: 'puzzled',
+      text: 'Some of my stuff must have gotten sucked into this thing too.',
+      emotion: 'puzzled',
     },
     {
       characterId: CharacterIds.ASTRONAUT,
-      speaker: '{astronautName}',
       text: 'I wonder what else is lying around...',
-      portraitId: 'curious',
+      emotion: 'curious',
     },
     {
       characterId: CharacterIds.AI,
-      speaker: '{aiName}',
-      text: '[Matter Gun]: It creates... matter. The geniuses behind this thing could only figure out how to create tiny platforms. I\'m sure you\'ll figure out what to do with it... Or not...',
+      text: '[Matter Gun]: It creates... well, matter. The geniuses behind this thing could only figure out how to make tiny platforms. I\'m sure you\'ll figure out what to do with it. Or not...',
     },
   ],
 };
@@ -114,20 +104,17 @@ export function validateDialogueDefinition(dialogue: DialogueDefinition): string
     errors.push(`Dialogue "${dialogue.id}" must contain at least one dialogue line.`);
   } else {
     dialogue.lines.forEach((line, index) => {
-      if (!line.speaker || typeof line.speaker !== 'string') {
-        errors.push(`Dialogue "${dialogue.id}" line ${index} missing valid speaker.`);
-      }
       if (!line.text || typeof line.text !== 'string') {
         errors.push(`Dialogue "${dialogue.id}" line ${index} missing valid text.`);
       }
-      if (line.characterId && !isCharacterId(line.characterId)) {
+      if (!isCharacterId(line.characterId)) {
         errors.push(
           `Dialogue "${dialogue.id}" line ${index} has invalid characterId "${String(line.characterId)}". Only "astronaut" and "ai" are supported.`
         );
       }
-      if (line.portraitId && !(line.portraitId in EMOTION_COORDINATES)) {
+      if (line.emotion && isCharacterId(line.characterId) && !supportsCharacterEmotion(line.characterId, line.emotion)) {
         errors.push(
-          `Dialogue "${dialogue.id}" line ${index} has invalid portraitId "${String(line.portraitId)}". Must be a valid Astronaut emotion.`
+          `Dialogue "${dialogue.id}" line ${index} has unsupported emotion "${String(line.emotion)}" for character "${line.characterId}".`
         );
       }
     });

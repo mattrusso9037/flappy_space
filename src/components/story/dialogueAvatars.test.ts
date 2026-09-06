@@ -3,6 +3,7 @@ import {
   getAstronautHeadshotCoordinates,
   getAstronautHeadshotUrl,
   EMOTION_COORDINATES,
+  getCharacterPortraitAdapter,
 } from './dialogueAvatars';
 
 describe('dialogueAvatars', () => {
@@ -13,7 +14,7 @@ describe('dialogueAvatars', () => {
 
   it('maps all defined emotions to valid coordinates', () => {
     Object.keys(EMOTION_COORDINATES).forEach((emotion) => {
-      const coords = getAstronautHeadshotCoordinates(emotion as any);
+      const coords = getAstronautHeadshotCoordinates(emotion as Parameters<typeof getAstronautHeadshotCoordinates>[0]);
       expect(coords.col).toBeGreaterThanOrEqual(0);
       expect(coords.col).toBeLessThanOrEqual(5);
       expect(coords.row).toBeGreaterThanOrEqual(0);
@@ -41,6 +42,20 @@ describe('dialogueAvatars', () => {
 
   it('falls back to neutral when emotion is undefined or unrecognized', () => {
     expect(getAstronautHeadshotCoordinates(undefined).backgroundPosition).toBe('40% 0%');
-    expect(getAstronautHeadshotCoordinates('unknown-emotion' as any).backgroundPosition).toBe('40% 0%');
+    expect(getAstronautHeadshotCoordinates('unknown-emotion' as Parameters<typeof getAstronautHeadshotCoordinates>[0]).backgroundPosition).toBe('40% 0%');
+  });
+
+  it('uses a separate portrait adapter for each character', () => {
+    const astronaut = getCharacterPortraitAdapter('astronaut').resolve('puzzled');
+    const ai = getCharacterPortraitAdapter('ai').resolve('puzzled');
+
+    expect(astronaut.kind).toBe('headshot-grid');
+    expect(ai.kind).toBe('ai-core');
+    if (astronaut.kind === 'headshot-grid') {
+      expect(astronaut.coordinates.backgroundPosition).toBe('60% 0%');
+    }
+    if (ai.kind === 'ai-core') {
+      expect(ai.emotion).toBe('puzzled');
+    }
   });
 });

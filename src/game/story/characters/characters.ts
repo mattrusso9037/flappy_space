@@ -1,4 +1,12 @@
-import { CharacterDefinition, CharacterId, CharacterIds } from './characterTypes';
+import {
+  CharacterDefinition,
+  CharacterId,
+  CharacterIds,
+  EMOTION_IDS,
+  EmotionId,
+} from './characterTypes';
+
+const SHARED_EMOTIONS: readonly EmotionId[] = EMOTION_IDS;
 
 /**
  * Centralized character definitions for Flappy Spaceman.
@@ -9,18 +17,28 @@ export const CHARACTERS: Record<CharacterId, CharacterDefinition> = {
     id: CharacterIds.ASTRONAUT,
     defaultName: 'Atom',
     nameVariableKey: 'astronautName',
-    resolveName: (variables) => variables?.astronautName ?? 'Atom',
+    defaultEmotion: 'neutral',
+    supportedEmotions: SHARED_EMOTIONS,
   },
   [CharacterIds.AI]: {
     id: CharacterIds.AI,
-    defaultName: 'AI',
+    defaultName: 'Artimus',
     nameVariableKey: 'aiName',
-    resolveName: (variables) => variables?.aiName ?? 'Artimus',
+    defaultEmotion: 'neutral',
+    supportedEmotions: SHARED_EMOTIONS,
   },
 };
 
 export function getCharacter(id: CharacterId): CharacterDefinition {
   return CHARACTERS[id];
+}
+
+export function resolveCharacterName(
+  id: CharacterId,
+  variables?: { astronautName?: string; aiName?: string }
+): string {
+  const character = getCharacter(id);
+  return variables?.[character.nameVariableKey] ?? character.defaultName;
 }
 
 export function isCharacterId(id: unknown): id is CharacterId {
@@ -29,4 +47,8 @@ export function isCharacterId(id: unknown): id is CharacterId {
 
 export function getAllCharacters(): CharacterDefinition[] {
   return Object.values(CHARACTERS);
+}
+
+export function supportsCharacterEmotion(id: CharacterId, emotion: EmotionId): boolean {
+  return getCharacter(id).supportedEmotions.includes(emotion);
 }

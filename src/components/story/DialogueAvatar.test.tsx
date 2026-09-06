@@ -16,12 +16,12 @@ describe('DialogueAvatar', () => {
     expect(portrait.textContent).toBe('astronaut');
 
     // Rerender with emotion: puzzled (col 3, row 0 -> 60% 0%)
-    rerender(<DialogueAvatar characterId="astronaut" portraitId="puzzled" />);
+    rerender(<DialogueAvatar characterId="astronaut" emotion="puzzled" />);
     expect(headshot.style.backgroundPosition).toBe('60% 0%');
     expect(portrait.textContent).toBe('puzzled');
 
     // Rerender with emotion: nervous (col 4, row 1 -> 80% 100%)
-    rerender(<DialogueAvatar characterId="astronaut" portraitId="nervous" />);
+    rerender(<DialogueAvatar characterId="astronaut" emotion="nervous" />);
     expect(headshot.style.backgroundPosition).toBe('80% 100%');
     expect(portrait.textContent).toBe('nervous');
   });

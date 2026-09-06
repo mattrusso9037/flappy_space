@@ -6,8 +6,8 @@ import { DialogueDefinition } from '../../game/story/dialogue/dialogueTypes';
 const testDialogue: DialogueDefinition = {
   id: 'test-dialogue',
   lines: [
-    { characterId: 'astronaut', speaker: 'Atom', text: 'Line 1 text', portraitId: 'neutral' },
-    { speaker: 'Artimus', text: 'Line 2 text' },
+    { characterId: 'astronaut', text: 'Line 1 text', emotion: 'neutral' },
+    { characterId: 'ai', text: 'Line 2 text' },
   ],
 };
 
@@ -44,7 +44,7 @@ describe('DialogueOverlay', () => {
     expect(screen.getByTestId('dialogue-speaker').textContent).toBe('Artimus');
     expect(screen.getByTestId('dialogue-text').textContent).toBe('Line 2 text');
     expect(screen.getByTestId('dialogue-counter').textContent).toBe('2 / 2');
-    expect(screen.queryByTestId('dialogue-portrait')).toBeNull();
+    expect(screen.getByTestId('dialogue-portrait').classList.contains('dialogue-portrait--ai')).toBe(true);
     expect(onComplete).not.toHaveBeenCalled();
 
     // Advancing on final line triggers completion
@@ -113,7 +113,7 @@ describe('DialogueOverlay', () => {
     const variableDialogue: DialogueDefinition = {
       id: 'var-dialogue',
       lines: [
-        { speaker: 'Flight AI', text: 'Build walls using the {useToolKey} key.' },
+        { characterId: 'ai', text: 'Build walls using the {useToolKey} key.' },
       ],
     };
 
@@ -132,7 +132,7 @@ describe('DialogueOverlay', () => {
     const variableDialogue: DialogueDefinition = {
       id: 'override-dialogue',
       lines: [
-        { speaker: 'Flight AI', text: 'Activate module with {useToolKey}.' },
+        { characterId: 'ai', text: 'Activate module with {useToolKey}.' },
       ],
     };
 
@@ -152,7 +152,7 @@ describe('DialogueOverlay', () => {
     const conversationDialogue: DialogueDefinition = {
       id: 'convo-dialogue',
       lines: [
-        { speaker: '{astronautName}', text: 'What is this, {aiName}?' },
+        { characterId: 'astronaut', text: 'What is this, {aiName}?' },
       ],
     };
 
@@ -188,8 +188,8 @@ describe('DialogueOverlay', () => {
     const astronautDialogue: DialogueDefinition = {
       id: 'avatar-dialogue',
       lines: [
-        { characterId: 'astronaut', speaker: 'Atom', text: 'Default face' },
-        { characterId: 'astronaut', speaker: 'Atom', text: 'Nervous face', portraitId: 'nervous' },
+        { characterId: 'astronaut', text: 'Default face' },
+        { characterId: 'astronaut', text: 'Nervous face', emotion: 'nervous' },
       ],
     };
 
@@ -220,7 +220,7 @@ describe('DialogueOverlay', () => {
     const aiDialogue: DialogueDefinition = {
       id: 'ai-dialogue',
       lines: [
-        { characterId: 'ai', speaker: 'Artimus', text: 'AI processing...' },
+        { characterId: 'ai', text: 'AI processing...' },
       ],
     };
 

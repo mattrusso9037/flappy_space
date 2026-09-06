@@ -24,30 +24,22 @@ describe('Dialogue Registry', () => {
     const dialogue = getDialogue(DialogueIds.UNKNOWN_SIGNAL);
     expect(dialogue).toBeDefined();
     expect(dialogue?.lines.length).toBe(3);
-    // Dialogues are exclusively between astronaut and AI
-    expect(dialogue?.lines.every(l => l.speaker === '{astronautName}' || l.speaker === '{aiName}')).toBe(true);
-    expect(dialogue?.lines[0].speaker).toBe('{aiName}');
     expect(dialogue?.lines[0].characterId).toBe(CharacterIds.AI);
-    expect(dialogue?.lines[0].portraitId).toBeUndefined();
 
     const matterGunDialogue = getDialogue(DialogueIds.MATTER_GUN_FOUND);
     expect(matterGunDialogue).toBeDefined();
     expect(matterGunDialogue?.lines.length).toBe(4);
-    expect(matterGunDialogue?.lines.every(l => l.speaker === '{astronautName}' || l.speaker === '{aiName}')).toBe(true);
-    expect(matterGunDialogue?.lines[0].speaker).toBe('{astronautName}');
     expect(matterGunDialogue?.lines[0].characterId).toBe(CharacterIds.ASTRONAUT);
-    expect(matterGunDialogue?.lines[0].portraitId).toBe('neutral');
+    expect(matterGunDialogue?.lines[0].emotion).toBe('neutral');
     expect(matterGunDialogue?.lines[0].text).toContain('matter gun');
-    expect(matterGunDialogue?.lines[3].speaker).toBe('{aiName}');
     expect(matterGunDialogue?.lines[3].characterId).toBe(CharacterIds.AI);
-    expect(matterGunDialogue?.lines[3].portraitId).toBeUndefined();
   });
 
   it('allows registering custom dialogue definitions', () => {
     registerDialogue({
       id: 'custom-briefing',
       lines: [
-        { characterId: CharacterIds.AI, speaker: 'Artimus', text: 'Prepare for deep space jump.' },
+        { characterId: CharacterIds.AI, text: 'Prepare for deep space jump.' },
       ],
     });
 
@@ -81,27 +73,24 @@ describe('Dialogue Registry', () => {
     const errors = validateDialogueDefinition({
       id: 'bad-dialogue',
       lines: [
-        { characterId: CharacterIds.AI, speaker: '', text: '' },
+        { characterId: CharacterIds.AI, text: '' },
       ],
     });
-    expect(errors.some(e => e.includes('missing valid speaker'))).toBe(true);
     expect(errors.some(e => e.includes('missing valid text'))).toBe(true);
   });
 
-  it('enforces characterId and portraitId guardrails in validateDialogueDefinition', () => {
-    // Valid dialogue with characterId and portraitId
+  it('enforces characterId and emotion guardrails in validateDialogueDefinition', () => {
+    // Valid dialogue with characterId and emotion
     const validErrors = validateDialogueDefinition({
       id: 'valid-guarded-dialogue',
       lines: [
         {
           characterId: 'astronaut',
-          speaker: 'Atom',
           text: 'Hello space.',
-          portraitId: 'happy',
+          emotion: 'happy',
         },
         {
           characterId: 'ai',
-          speaker: 'Artimus',
           text: 'Acknowledged.',
         },
       ],
@@ -114,7 +103,6 @@ describe('Dialogue Registry', () => {
       lines: [
         {
           characterId: 'pilot' as unknown as import('./dialogueTypes').CharacterId,
-          speaker: 'Pilot',
           text: 'Testing',
         },
       ],
@@ -122,25 +110,22 @@ describe('Dialogue Registry', () => {
     expect(invalidCharErrors.some(e => e.includes('invalid characterId'))).toBe(true);
     expect(invalidCharErrors.some(e => e.includes('Only "astronaut" and "ai" are supported'))).toBe(true);
 
-    // Invalid portraitId (not matching astronaut emotions)
-    const invalidPortraitErrors = validateDialogueDefinition({
-      id: 'invalid-portrait-dialogue',
+    // Invalid emotion
+    const invalidEmotionErrors = validateDialogueDefinition({
+      id: 'invalid-emotion-dialogue',
       lines: [
         {
           characterId: 'astronaut',
-          speaker: 'Atom',
           text: 'Testing',
-          portraitId: 'unsupported-portrait-id' as unknown as import('./dialogueTypes').PortraitId,
+          emotion: 'unsupported-emotion' as unknown as import('../characters/characterTypes').EmotionId,
         },
       ],
     });
-    expect(invalidPortraitErrors.some(e => e.includes('invalid portraitId'))).toBe(true);
+    expect(invalidEmotionErrors.some(e => e.includes('unsupported emotion'))).toBe(true);
   });
 
   it('resolves dialogue text variables dynamically', () => {
-    expect(resolveDialogueText('Press {useToolKey} to place a wall.')).toBe('Press E to place a wall.');
-    expect(resolveDialogueText('Press {key} to activate.')).toBe('Press E to activate.');
-    expect(resolveDialogueText('Press {useToolKey} or {buildKey}.')).toBe('Press E or E.');
+    expect(resolveDialogueText('Press {useToolKey} to place a wall.', { useToolKey: 'E' })).toBe('Press E to place a wall.');
     expect(resolveDialogueText('{astronautName}: scanning with {aiName}.')).toBe('Atom: scanning with Artimus.');
     // Supports custom variable override
     expect(resolveDialogueText('{astronautName}: Press {useToolKey}, {aiName}.', {

@@ -4,8 +4,10 @@ import {
   DialogueId,
   DialogueVariables,
   resolveDialogueText,
+  resolveDialogueSpeaker,
 } from '../../game/story/dialogue/dialogueTypes';
 import { getDialogue } from '../../game/story/dialogue/dialogues';
+import { getUseToolKeyLabel } from '../../game/inputManager';
 import { getLogger } from '../../utils/logger';
 import { DialogueAvatar } from './DialogueAvatar';
 import './story.css';
@@ -29,12 +31,29 @@ export const DialogueOverlay: React.FC<DialogueOverlayProps> = ({
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
   const completedRef = useRef(false);
 
+  useEffect(() => {
+    setCurrentLineIndex(0);
+    completedRef.current = false;
+  }, [dialogueId, customDefinition]);
+
   const handleFinish = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
     logger.info(`Dialogue "${dialogueId}" completed`);
     onComplete();
   }, [dialogueId, onComplete]);
+
+  const resolvedVariables = {
+    useToolKey: getUseToolKeyLabel(),
+    ...variables,
+  };
+
+  useEffect(() => {
+    if (!definition || definition.lines.length === 0) {
+      logger.warn(`Dialogue "${dialogueId}" definition not found or empty, skipping`);
+      handleFinish();
+    }
+  }, [definition, dialogueId, handleFinish]);
 
   const handleAdvance = useCallback(
     (e?: React.SyntheticEvent | KeyboardEvent | MouseEvent) => {
@@ -86,12 +105,11 @@ export const DialogueOverlay: React.FC<DialogueOverlayProps> = ({
   }, [handleAdvance, handleSkip]);
 
   if (!definition || definition.lines.length === 0) {
-    logger.warn(`Dialogue "${dialogueId}" definition not found or empty, skipping`);
-    handleFinish();
     return null;
   }
 
-  const currentLine = definition.lines[currentLineIndex];
+  const activeLineIndex = Math.min(currentLineIndex, definition.lines.length - 1);
+  const currentLine = definition.lines[activeLineIndex];
 
   return (
     <div
@@ -109,11 +127,11 @@ export const DialogueOverlay: React.FC<DialogueOverlayProps> = ({
           <div className="dialogue-speaker-wrap">
             <span className="dialogue-status-dot" aria-hidden="true" />
             <span className="dialogue-speaker" data-testid="dialogue-speaker">
-              {resolveDialogueText(currentLine.speaker, variables)}
+              {resolveDialogueSpeaker(currentLine.characterId, variables)}
             </span>
           </div>
           <span className="dialogue-counter" data-testid="dialogue-counter">
-            {currentLineIndex + 1} / {definition.lines.length}
+            {activeLineIndex + 1} / {definition.lines.length}
           </span>
         </div>
 
@@ -121,11 +139,11 @@ export const DialogueOverlay: React.FC<DialogueOverlayProps> = ({
           {currentLine.characterId ? (
             <DialogueAvatar
               characterId={currentLine.characterId}
-              portraitId={currentLine.portraitId}
+              emotion={currentLine.emotion}
             />
           ) : null}
           <p className="dialogue-text" data-testid="dialogue-text">
-            {resolveDialogueText(currentLine.text, variables)}
+            {resolveDialogueText(currentLine.text, resolvedVariables)}
           </p>
         </div>
 

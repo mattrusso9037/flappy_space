@@ -154,9 +154,9 @@ Dialogue definitions are registered centrally in `src/game/story/dialogue/dialog
 
 ```typescript
 export interface DialogueLine {
-  speaker: string;
+  characterId: CharacterId;
   text: string;
-  portraitId?: string;
+  emotion?: EmotionId;
 }
 
 export interface DialogueDefinition {
@@ -164,6 +164,12 @@ export interface DialogueDefinition {
   lines: DialogueLine[];
 }
 ```
+
+Dialogue lines are immutable content records, not runtime entities. `characterId`
+is the single source of speaker identity. `emotion` is a shared semantic value;
+the character's portrait adapter resolves it to the character's actual
+presentation (for example, a sprite-sheet cell or an animated AI optic). Dialogue
+content never stores asset coordinates or renderer-specific portrait IDs.
 
 ### B. Presentation Boundary
 - **React owns Dialogue Presentation**: Handled by `DialogueOverlay.tsx`.

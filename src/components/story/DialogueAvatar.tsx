@@ -1,14 +1,11 @@
 import React from 'react';
-import { CharacterId, PortraitId } from '../../game/story/characters/characterTypes';
-import {
-  getAstronautHeadshotCoordinates,
-  getAstronautHeadshotUrl,
-} from './dialogueAvatars';
+import { CharacterId, EmotionId } from '../../game/story/characters/characterTypes';
+import { getCharacterPortraitAdapter } from './dialogueAvatars';
 import './story.css';
 
 export interface DialogueAvatarProps {
   characterId?: CharacterId;
-  portraitId?: PortraitId;
+  emotion?: EmotionId;
   className?: string;
 }
 
@@ -16,34 +13,35 @@ export interface DialogueAvatarProps {
  * DialogueAvatar Component
  *
  * Dedicated presentation component for character avatars in dialogue overlays.
- * Receives the explicit characterId ('astronaut' | 'ai') and optional emotion portraitId.
+ * Resolves each character through its presentation adapter. Dialogue content does
+ * not need to know whether a character uses a grid, animation, or another renderer.
  */
 export const DialogueAvatar: React.FC<DialogueAvatarProps> = ({
   characterId,
-  portraitId,
+  emotion,
   className = '',
 }) => {
   if (!characterId) {
     return null;
   }
 
-  if (characterId === 'astronaut') {
-    const coords = getAstronautHeadshotCoordinates(portraitId);
-    const headshotUrl = getAstronautHeadshotUrl();
-    const label = portraitId || 'astronaut';
+  const descriptor = getCharacterPortraitAdapter(characterId).resolve(emotion);
+
+  if (descriptor.kind === 'headshot-grid') {
+    const label = emotion || characterId;
     return (
       <div
-        className={`dialogue-portrait dialogue-portrait--astronaut ${className}`.trim()}
+        className={`dialogue-portrait dialogue-portrait--${descriptor.characterId} ${className}`.trim()}
         data-testid="dialogue-portrait"
-        data-character-id="astronaut"
+        data-character-id={descriptor.characterId}
         data-portrait-id={label}
       >
         <div
           className="dialogue-portrait-headshot"
           data-testid="dialogue-portrait-headshot"
           style={{
-            backgroundImage: `url(${headshotUrl})`,
-            backgroundPosition: coords.backgroundPosition,
+            backgroundImage: `url(${descriptor.assetUrl})`,
+            backgroundPosition: descriptor.coordinates.backgroundPosition,
           }}
           aria-hidden="true"
         />
@@ -52,13 +50,13 @@ export const DialogueAvatar: React.FC<DialogueAvatarProps> = ({
     );
   }
 
-  if (characterId === 'ai') {
+  if (descriptor.kind === 'ai-core') {
     return (
       <div
         className={`dialogue-portrait dialogue-portrait--ai ${className}`.trim()}
         data-testid="dialogue-portrait"
-        data-character-id="ai"
-        data-portrait-id="ai"
+        data-character-id={descriptor.characterId}
+        data-portrait-id={descriptor.emotion}
       >
         <div className="dialogue-portrait-ai" aria-hidden="true">
           <span className="ai-core-ring" />
@@ -69,7 +67,7 @@ export const DialogueAvatar: React.FC<DialogueAvatarProps> = ({
             <span className="ai-wave ai-wave-3" />
           </span>
         </div>
-        <span className="sr-only">ai</span>
+        <span className="sr-only">{emotion || characterId}</span>
       </div>
     );
   }
