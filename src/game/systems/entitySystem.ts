@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { Astronaut, AstronautVisualSource } from '../entities/Astronaut';
+import { Astronaut } from '../entities/Astronaut';
 import { Obstacle } from '../entities/Obstacle';
 import { Planet } from '../entities/Planet';
 import { Orb } from '../entities/Orb';
@@ -8,6 +8,7 @@ import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { EventBus, GameEvent } from '../eventBus';
 import defaultAssetManager from '../assetManager';
 import { DEPTH } from '../visuals/tokens';
+import { ASTRONAUT_SPRITE_DEFINITION, resolveSpritePresentation } from '../visuals/spriteAnimations';
 import { getLogger } from '../../utils/logger';
 
 /**
@@ -112,16 +113,9 @@ export class EntitySystem {
       return this.astronaut;
     }
     
-    const idleFrames = this.assetMgr.getAnimationFrames('astronaut', 'idle');
-    const thrustFrames = this.assetMgr.getAnimationFrames('astronaut', 'thrust');
-    const astronautTexture = this.assetMgr.getTexture('astronaut-idle') || this.assetMgr.getTexture('astronaut');
+    const presentation = resolveSpritePresentation(this.assetMgr, ASTRONAUT_SPRITE_DEFINITION);
     
-    const source: AstronautVisualSource =
-      idleFrames.length > 0 || thrustFrames.length > 0
-        ? { idle: idleFrames, thrust: thrustFrames }
-        : astronautTexture;
-    
-    this.astronaut = new Astronaut(source, ASTRONAUT.startX, ASTRONAUT.startY);
+    this.astronaut = new Astronaut(presentation, ASTRONAUT.startX, ASTRONAUT.startY);
     this.pilotLayer.addChild(this.astronaut.sprite);
     this.logger.info('Astronaut created and added to stage');
     

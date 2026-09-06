@@ -16,7 +16,7 @@
 
 import { Application, AnimatedSprite, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import assetManager from '../game/assetManager';
-import { getAllSpriteAnimations, getSpriteAnimation } from '../game/visuals/spriteAnimations';
+import { getAllSpriteAnimations, getSpriteAnimation, resolveSpritePresentation } from '../game/visuals/spriteAnimations';
 import { SpriteAssetDefinition } from '../game/visuals/spriteAnimationTypes';
 import { INK } from '../game/visuals/tokens';
 import { initLogger, LogLevel, getLogger } from '../utils/logger';
@@ -202,18 +202,24 @@ function renderActiveSprite(): void {
   const dims = currentDefinition.collisionDimensions ?? { width: 35, height: 35 };
   hitboxSizeEl.textContent = `${dims.width} × ${dims.height}`;
 
-  // Try to load animation frames from spritesheet
-  const frames = assetManager.getAnimationFrames(currentDefinition.spritesheetAsset, currentAnimationKey);
+  const presentation = resolveSpritePresentation(assetManager, currentDefinition);
+  const resolvedAnim = presentation.animations[currentAnimationKey];
 
-  if (frames.length > 0) {
-    const animSprite = new AnimatedSprite(frames);
+  if (resolvedAnim && resolvedAnim.frames.length > 0) {
+    const animSprite = new AnimatedSprite(resolvedAnim.frames);
     animSprite.anchor.set(0.5);
-    animSprite.loop = animDef.loop;
-    const targetFps = parseFloat(fpsInput.value) || animDef.fps || 8;
+    animSprite.loop = resolvedAnim.loop;
+    const targetFps = parseFloat(fpsInput.value) || resolvedAnim.fps || 8;
     animSprite.animationSpeed = targetFps / 60;
 
+    const targetHeight = presentation.definition.visualDimensions?.targetHeight;
+    const baseTexture = resolvedAnim.frames[0];
+    if (targetHeight && baseTexture && baseTexture.height > 0) {
+      animSprite.scale.set(targetHeight / baseTexture.height);
+    }
+
     animSprite.onFrameChange = (frame) => {
-      frameCounterEl.textContent = `${frame + 1} / ${frames.length}`;
+      frameCounterEl.textContent = `${frame + 1} / ${resolvedAnim.frames.length}`;
     };
 
     animSprite.onComplete = () => {
@@ -224,18 +230,23 @@ function renderActiveSprite(): void {
     currentSprite = animSprite;
     centerContainer.addChild(animSprite);
 
-    frameCounterEl.textContent = `1 / ${frames.length}`;
-    setStatus(`Playing "${currentAnimationKey}" (${frames.length} frames @ ${targetFps} FPS)`);
+    frameCounterEl.textContent = `1 / ${resolvedAnim.frames.length}`;
+    setStatus(`Playing "${currentAnimationKey}" (${resolvedAnim.frames.length} frames @ ${targetFps} FPS)`);
     playBtn.disabled = true;
     pauseBtn.disabled = false;
   } else {
     // Fallback when spritesheet is not loaded or frames are missing
-    // Try to display static base texture
-    const texture = assetManager.getTexture(currentDefinition.spritesheetAsset);
-    const sprite = new Sprite(texture !== Texture.WHITE ? texture : Texture.WHITE);
+    const texture = presentation.fallbackTexture ?? Texture.WHITE;
+    const sprite = new Sprite(texture);
     sprite.anchor.set(0.5);
-    sprite.width = 50;
-    sprite.height = 50;
+
+    const targetHeight = presentation.definition.visualDimensions?.targetHeight;
+    if (targetHeight && texture.height > 0) {
+      sprite.scale.set(targetHeight / texture.height);
+    } else {
+      sprite.width = 50;
+      sprite.height = 50;
+    }
 
     currentSprite = sprite;
     centerContainer.addChild(sprite);

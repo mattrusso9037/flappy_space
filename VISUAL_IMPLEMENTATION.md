@@ -181,7 +181,10 @@ The HUD implements a **Perimeter-Anchored Avionics System**:
 >
 > - Intentional sprite-sheet upgrades must use the canonical sprite-animation pipeline (`add-sprite-animation` skill) and preserve gameplay dimensions, visual identity, and architectural boundaries.
 > - **DO NOT** casually regenerate, replace, or restyle the astronaut during unrelated tasks.
-> - Logical collision dimensions (fixed 35×35 hitbox) must remain strictly decoupled from visual frame dimensions.
+> - **Three-Tier Sizing Architecture**:
+>   1. **Visual Footprint**: Preserves source aspect ratio based on canonical target height (`targetHeight: 95.48`, `scale = targetHeight / texture.height`).
+>   2. **Logical Body Footprint**: Fixed at 50×50 (`ASTRONAUT.body`) for world-space boundary clamping.
+>   3. **Collision Footprint**: Fixed 35×35 hitbox (`collisionDimensions`) decoupled from active visual frames.
 > - Runtime presentation enhancements remain supported: velocity pitch rotation, thruster emission anchors, death sequence presentation, and warp acceleration trails.
 
 ---

@@ -9,10 +9,24 @@ export const MAX_VELOCITY = 12;
 
 // Game objects
 export const ASTRONAUT = {
+  // Logical body dimensions (used for world boundaries)
   width: 50,
   height: 50,
   startX: 150,
   startY: GAME_HEIGHT / 2 - 50,
+  body: {
+    width: 50,
+    height: 50,
+  },
+  // Logical collision dimensions (used for gameplay hitbox)
+  collision: {
+    width: 35,
+    height: 35,
+  },
+  // Visual sizing metadata (target rendered height in game pixels, ~0.28 scale for 341px frame)
+  visual: {
+    targetHeight: 95.48,
+  },
 };
 
 export const OBSTACLE = {

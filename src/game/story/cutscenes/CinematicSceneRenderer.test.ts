@@ -39,9 +39,15 @@ describe('CinematicSceneRenderer', () => {
     renderer.dispose();
   });
 
-  it('creates pilot as an AnimatedSprite when animation frames are available', () => {
-    const idleFrames = [Texture.WHITE, Texture.WHITE];
-    vi.spyOn(assetManager, 'getAnimationFrames').mockReturnValue(idleFrames);
+  it('creates pilot as an AnimatedSprite when animation frames are available from spritesheet', () => {
+    const textures: Record<string, Texture> = {};
+    for (const frame of [
+      'idle_00', 'idle_01', 'idle_02', 'idle_03', 'idle_04', 'idle_05', 'idle_06', 'idle_07',
+      'thrust_00', 'thrust_01', 'thrust_02', 'thrust_03', 'thrust_04', 'thrust_05', 'thrust_06', 'thrust_07',
+    ]) {
+      textures[frame] = Texture.WHITE;
+    }
+    vi.spyOn(assetManager, 'getSpritesheet').mockReturnValue({ textures } as unknown as import('pixi.js').Spritesheet);
     const renderer = new CinematicSceneRenderer();
     const step = OPENING_SPACEWALK.steps.find(s => s.type === 'scene');
     if (!step || step.type !== 'scene') throw new Error('Missing scene');
@@ -54,6 +60,7 @@ describe('CinematicSceneRenderer', () => {
     );
     expect(animSprite).toBeDefined();
     expect(animSprite?.loop).toBe(true);
+    expect(animSprite?.animationSpeed).toBeCloseTo(3 / 60, 4);
     renderer.dispose();
   });
 });

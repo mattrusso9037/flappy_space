@@ -1,10 +1,13 @@
-/**
- * Type contracts for atlas-based sprite animations.
- */
+import type { Texture } from 'pixi.js';
 
 export interface CollisionDimensions {
   width: number;
   height: number;
+}
+
+export interface VisualDimensions {
+  /** Target rendered height in virtual game canvas pixels (aspect ratio preserved) */
+  targetHeight: number;
 }
 
 export interface SpriteAnimationDefinition {
@@ -31,4 +34,19 @@ export interface SpriteAssetDefinition {
   animations: SpriteAnimationGroup;
   /** Fixed logical collision dimensions to maintain hitbox independence */
   collisionDimensions?: CollisionDimensions;
+  /** Canonical display sizing metadata */
+  visualDimensions?: VisualDimensions;
+}
+
+export interface ResolvedSpriteAnimation {
+  name: string;
+  frames: Texture[];
+  fps: number;
+  loop: boolean;
+}
+
+export interface ResolvedSpritePresentation {
+  definition: SpriteAssetDefinition;
+  animations: Record<string, ResolvedSpriteAnimation>;
+  fallbackTexture?: Texture;
 }

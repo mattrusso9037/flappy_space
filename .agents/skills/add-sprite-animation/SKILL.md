@@ -106,27 +106,25 @@ Do not invent states that have no gameplay or presentation triggers. If a reques
 
 ---
 
-## 5. Collision & Visual Scale Independence (MANDATORY)
+## 5. Collision, Boundary & Visual Scale Independence (MANDATORY)
 
-### Fixed Logical Hitbox
-> [!IMPORTANT]
-> **Do not derive collision bounds from active animation frame dimensions.**
+Explicitly distinguish the three separate sizing tiers:
 
-Visual sprites may flare, stretch, or emit thruster exhaust across frames. Logical hitboxes must remain constant:
-```typescript
-export interface CollisionDimensions {
-  width: number;
-  height: number;
-}
-```
-- For the astronaut, logical collision dimensions are fixed at `35 × 35` (matching the `0.7` scale of the canonical 50px rendered frame).
-- Changing active frames or animation states **must not change collision bounds**.
+1. **Visual Display Footprint**:
+   - Do NOT hardcode `sprite.width = 50; sprite.height = 50` or squish aspect ratio.
+   - Set canonical `visualDimensions: { targetHeight: 95.48 }` on `SpriteAssetDefinition`.
+   - Calculate aspect-ratio preserving display scale: `scale = targetHeight / texture.height`.
+   - Ensure consistent center anchor (`sprite.anchor.set(0.5)`) across all frames.
 
-### In-Game Scale & Anchor Consistency
-- Do not assume raw source frame dimensions equal in-game dimensions (e.g. source 512×512 rendered at 50×50).
-- Explicitly set `sprite.width = 50` and `sprite.height = 50` (or fixed display scale).
-- Ensure consistent center anchor (`sprite.anchor.set(0.5)`) across all frames.
-- Verify that atlas trim data does not cause frame-to-frame positional jitter. Fix the atlas origin/pivot rather than compensating with gameplay position offsets.
+2. **Logical Body / Boundary Footprint**:
+   - World boundary clamping (top, bottom, left, right) uses explicit logical body dimensions (`ASTRONAUT.body.width = 50`, `ASTRONAUT.body.height = 50`).
+   - Never use `sprite.width`, `sprite.height`, or active frame dimensions for boundary checks.
+
+3. **Logical Collision Footprint (Hitbox)**:
+   > [!IMPORTANT]
+   > **Do not derive collision bounds from active animation frame dimensions.**
+   - Logical collision dimensions remain fixed (`collisionDimensions: { width: 35, height: 35 }`).
+   - Changing active frames or animation states **must never alter collision bounds**.
 
 ---
 
@@ -145,22 +143,16 @@ assetManager.registerAsset({
 });
 ```
 
-### Resolving Frames
+### Resolving Presentation
+Resolve semantic definitions against `AssetManager` through `resolveSpritePresentation`:
 ```typescript
-// Get loaded spritesheet
-const sheet = assetManager.getSpritesheet('astronaut');
+import { resolveSpritePresentation, createAnimatedSprite, ASTRONAUT_SPRITE_DEFINITION } from '../visuals/spriteAnimations';
 
-// Get specific animation frame textures
-const thrustFrames = assetManager.getAnimationFrames('astronaut', 'thrust');
-```
+// 1. Resolve canonical presentation metadata to textures
+const presentation = resolveSpritePresentation(assetManager, ASTRONAUT_SPRITE_DEFINITION);
 
-### AnimatedSprite Setup
-Use PixiJS v8 `AnimatedSprite`:
-```typescript
-const animSprite = new PIXI.AnimatedSprite(textures);
-animSprite.anchor.set(0.5);
-animSprite.loop = definition.loop;
-animSprite.animationSpeed = definition.fps / 60; // Normalize FPS to Pixi ticker rate
+// 2. Construct presentation sprite with canonical FPS, loop, and aspect-ratio scale
+const sprite = createAnimatedSprite(presentation, 'idle');
 ```
 
 **Guardrails on Tickers & Libraries**:
@@ -177,42 +169,35 @@ animSprite.animationSpeed = definition.fps / 60; // Normalize FPS to Pixi ticker
 ### Reusable Definition Contract
 Store animation configuration in `src/game/visuals/spriteAnimations.ts`:
 ```typescript
-export interface SpriteAnimationDefinition {
-  frames: string[];
-  fps: number;
-  loop: boolean;
-}
-
 export const ASTRONAUT_SPRITE_DEFINITION: SpriteAssetDefinition = {
   id: 'astronaut',
   name: 'Astronaut Pilot',
   spritesheetAsset: 'astronaut',
   defaultAnimation: 'idle',
   collisionDimensions: { width: 35, height: 35 },
+  visualDimensions: { targetHeight: 95.48 },
   animations: {
-    idle: { frames: ['idle_00', 'idle_01', 'idle_02', 'idle_03'], fps: 8, loop: true },
-    thrust: { frames: ['thrust_00', 'thrust_01', 'thrust_02', 'thrust_03'], fps: 14, loop: false },
-    hit: { frames: ['hit_00', 'hit_01'], fps: 10, loop: false },
-    death: { frames: ['death_00', 'death_01', 'death_02', 'death_03'], fps: 12, loop: false },
-    warp: { frames: ['warp_00', 'warp_01', 'warp_02', 'warp_03'], fps: 12, loop: true },
+    idle: {
+      frames: ['idle_00', 'idle_01', 'idle_02', 'idle_03', 'idle_04', 'idle_05', 'idle_06', 'idle_07'],
+      fps: 3,
+      loop: true,
+    },
+    thrust: {
+      frames: ['thrust_03', 'thrust_04', 'thrust_05', 'thrust_06', 'thrust_07', 'thrust_00', 'thrust_01', 'thrust_02', 'thrust_03'],
+      fps: 3,
+      loop: false,
+    },
   },
 };
 ```
 
-### Predictable State Transitions
+### Named Animation States & Predictable Transitions
+- Entities expose named state transitions: `playAnimation('idle')`, `playAnimation('thrust')`.
+- Callers must not pass raw texture arrays or FPS constants.
 - **spawn / reset**: `idle` (looping).
-- **flap / thrust**: `thrust` (non-looping) → return to `idle` upon completion.
-- **hit**: `hit` (non-looping) → return to prior state or `idle`.
-- **die**: `death` (non-looping) → remain dead on final frame; do not return to `idle`.
-- **warp**: `warp` (looping) → return to `idle` when warp sequence concludes.
-
-Do not restart the same animation every frame (prevent animation thrashing). Check current active animation state before calling `playAnimation()`.
-
-### Non-Looping Completion Callbacks
-When handling `onComplete` for non-looping animations:
-- Clean up or unbind callbacks when switching states.
-- Ensure callbacks do not fire repeatedly.
-- Never trigger campaign navigation or score mutations from within an animation completion callback.
+- **thrust / flap**: `thrust` (non-looping) → returns to `idle` upon completion. Repeated thrust input updates velocity without restarting an already-running thrust animation.
+- **die**: stops animation, unbinds completion callbacks, remains on final frame.
+- **Cinematic reuse**: In-engine cinematics (`CinematicSceneRenderer`) reuse the exact same canonical `SpriteAssetDefinition` via `resolveSpritePresentation` and `createAnimatedSprite`, avoiding duplicate scale or FPS constants.
 
 ---
 
@@ -221,6 +206,7 @@ When handling `onComplete` for non-looping animations:
 Always inspect animated sprites directly using `sprite-preview.html`:
 ```text
 http://localhost:5173/flappy_space/sprite-preview.html?asset=astronaut&animation=idle
+http://localhost:5173/flappy_space/sprite-preview.html?asset=astronaut&animation=thrust
 ```
 
 ### Preview Checklist
@@ -230,11 +216,11 @@ Before completing any sprite task, verify:
 - [ ] **Silhouette Stability**: No sudden shifts in mass or proportions.
 - [ ] **Transparency**: Clean alpha cutout with zero haloing or clipping borders.
 - [ ] **Anchor / Pivot Stability**: Sprite origin (0.5, 0.5) stays fixed; zero positional jitter.
-- [ ] **Looping**: Looping states (`idle`, `warp`) transition seamlessly without hitches.
-- [ ] **Animation Speed**: FPS matches natural gameplay speed without feeling sluggish or frenetic.
-- [ ] **In-Game Display Scale**: Rendered size matches designated gameplay footprint (e.g. 50px).
+- [ ] **Looping**: Looping states transition seamlessly without hitches.
+- [ ] **Animation Speed**: FPS matches canonical metadata without feeling sluggish or frenetic.
+- [ ] **Display Scale**: Rendered size matches designated aspect-ratio preserved target height.
 - [ ] **Hitbox Independence**: Toggling `HITBOX` confirms the hazard-orange collision box remains strictly fixed during frame changes.
-- [ ] **Idle Recovery**: Non-looping animations (`thrust`, `hit`) transition cleanly back to `idle`.
+- [ ] **Idle Recovery**: Non-looping animations transition cleanly back to `idle`.
 
 ---
 
@@ -245,11 +231,11 @@ Before completing any sprite task, verify:
 2. Verify frame naming (e.g. idle_00, thrust_00) and animation groups.
 3. Validate PNG and JSON asset placement under public/assets/<id>/.
 4. Register the spritesheet in src/game/assetManager.ts.
-5. Declare SpriteAssetDefinition and animation metadata in src/game/visuals/spriteAnimations.ts.
-6. Wire semantic presentation methods on the entity (e.g. playAnimation('thrust')).
-7. Verify explicit fixed collision dimensions (hitbox independent of frame sizes).
-8. Preview animations directly in /sprite-preview.html?asset=<id>.
-9. Run unit test suite (npm test).
+5. Declare SpriteAssetDefinition with collisionDimensions and visualDimensions in src/game/visuals/spriteAnimations.ts.
+6. Resolve presentation via resolveSpritePresentation(assetManager, definition).
+7. Wire named animation methods on entity (e.g. playAnimation('thrust')).
+8. Verify 3-tier sizing separation (visual targetHeight vs logical body vs fixed hitbox).
+9. Preview animations directly in /sprite-preview.html?asset=<id>.
 10. Run full verification gate (npm run verify && npm run test:coverage && npm run build).
 ```
 
@@ -257,19 +243,20 @@ Before completing any sprite task, verify:
 
 ## 10. Mandatory Testing Requirements
 
-When adding or upgrading animated sprites (e.g. astronaut migration), include unit tests verifying:
+When adding or upgrading animated sprites, include unit tests verifying:
 
 1. **Spritesheet Loads**: Asset layer resolves spritesheet without throwing.
-2. **Animation Names Resolve**: All declared animation keys (`idle`, `thrust`, etc.) resolve non-empty frame arrays.
-3. **Idle Starts Correctly**: Default state is `idle` and loop flag is `true`.
-4. **Thrust Triggers**: Triggering `flap()` starts `thrust` animation.
-5. **Non-Looping Completes Safely**: Non-looping animations stop at end or return cleanly to `idle`.
-6. **Death Animation**: `die()` plays death sequence and does not loop or revert to `idle`.
-7. **Reset Restores Idle**: `reset()` restores entity to `idle` state and neutral display properties.
+2. **Animation Names Resolve**: Declared animation keys resolve non-empty frame arrays.
+3. **Idle Starts Correctly**: Default state is `idle`, loop flag is `true`, canonical FPS is set.
+4. **Thrust Triggers**: Triggering `thrust()` (or `flap()`) starts `thrust` animation without restarting if already playing.
+5. **Non-Looping Completes Safely**: Non-looping animations return cleanly to `idle`.
+6. **Death Animation**: `die()` stops animation and does not loop or revert to `idle`.
+7. **Reset Restores Idle**: `reset()` restores entity to `idle` state.
 8. **Collision Dimensions Fixed**: Changing frames does not alter bounds returned by `getHitbox()`.
 9. **Position Invariance**: Changing animation states does not shift entity `(x, y)` coordinates.
-10. **Safe Fallback**: Requesting a non-existent animation key fails safely without crashing.
-11. **Resource Cleanup**: `dispose()` properly stops animation and destroys sprite resources.
+10. **Body Clamping Decoupled**: World boundary clamping uses logical body dimensions, not visual sprite scale.
+11. **Safe Fallback**: Requesting a non-existent animation key fails safely without crashing.
+12. **Cinematic Reuse**: Cinematic presentation reuses canonical metadata independently of gameplay entity.
 
 ---
 

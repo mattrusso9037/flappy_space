@@ -1,6 +1,7 @@
-import { AnimatedSprite, Container, Graphics, Sprite } from 'pixi.js';
+import { Container, Graphics, Sprite } from 'pixi.js';
 import assetManager from '../../assetManager';
 import { INK } from '../../visuals/tokens';
+import { ASTRONAUT_SPRITE_DEFINITION, createAnimatedSprite, resolveSpritePresentation } from '../../visuals/spriteAnimations';
 import { CinematicScene, SceneActorKind, sampleActor } from './sceneTypes';
 
 /** A disposable world-space presentation layer. Never touches gameplay entities. */
@@ -55,22 +56,9 @@ export class CinematicSceneRenderer {
     root.addChild(g);
     switch (kind) {
       case 'pilot': {
-        const idleFrames = assetManager.getAnimationFrames('astronaut', 'idle');
-        if (idleFrames.length > 0) {
-          const anim = new AnimatedSprite(idleFrames);
-          anim.anchor.set(0.5);
-          anim.scale.set(0.28);
-          anim.animationSpeed = 3 / 60;
-          anim.loop = true;
-          anim.play();
-          root.addChild(anim);
-        } else {
-          const sprite = new Sprite(assetManager.getTexture('astronaut-idle'));
-          sprite.anchor.set(0.5);
-          sprite.width = 64;
-          sprite.height = 64;
-          root.addChild(sprite);
-        }
+        const presentation = resolveSpritePresentation(assetManager, ASTRONAUT_SPRITE_DEFINITION);
+        const pilot = createAnimatedSprite(presentation, 'idle');
+        root.addChild(pilot);
         break;
       }
       case 'ship': {

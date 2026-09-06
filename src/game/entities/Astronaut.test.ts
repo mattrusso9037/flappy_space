@@ -1,7 +1,32 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as PIXI from 'pixi.js';
 import { Astronaut } from './Astronaut';
-import { GAME_HEIGHT, GAME_WIDTH, GRAVITY, JUMP_VELOCITY, MAX_VELOCITY } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH, GRAVITY, JUMP_VELOCITY, MAX_VELOCITY, ASTRONAUT } from '../config';
+import { ASTRONAUT_SPRITE_DEFINITION } from '../visuals/spriteAnimations';
+import { ResolvedSpritePresentation } from '../visuals/spriteAnimationTypes';
+
+function createMockPresentation(): ResolvedSpritePresentation {
+  const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
+  const thrustFrames = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
+  return {
+    definition: ASTRONAUT_SPRITE_DEFINITION,
+    animations: {
+      idle: {
+        name: 'idle',
+        frames: idleFrames,
+        fps: 3,
+        loop: true,
+      },
+      thrust: {
+        name: 'thrust',
+        frames: thrustFrames,
+        fps: 3,
+        loop: false,
+      },
+    },
+    fallbackTexture: new PIXI.Texture(),
+  };
+}
 
 describe('Astronaut Entity', () => {
   let astronaut: Astronaut;
@@ -30,7 +55,12 @@ describe('Astronaut Entity', () => {
     expect(astronaut.velocity).toBe(MAX_VELOCITY);
   });
 
-  it('jumps (flaps) and changes velocity to JUMP_VELOCITY', () => {
+  it('thrusts (jumps) and changes velocity to JUMP_VELOCITY', () => {
+    astronaut.thrust();
+    expect(astronaut.velocity).toBe(JUMP_VELOCITY);
+  });
+
+  it('supports flap() as an alias to thrust()', () => {
     astronaut.flap();
     expect(astronaut.velocity).toBe(JUMP_VELOCITY);
   });
@@ -49,12 +79,12 @@ describe('Astronaut Entity', () => {
     expect(astronaut.velocity).toBe(5);
   });
 
-  it('clamps at the top boundary and zeroes vertical velocity', () => {
+  it('clamps at the top boundary using logical body dimensions', () => {
     astronaut.sprite.y = 10;
     astronaut.velocity = -10;
     astronaut.update(16.667);
 
-    const halfHeight = astronaut.sprite.height / 2;
+    const halfHeight = ASTRONAUT.body.height / 2;
     expect(astronaut.sprite.y).toBe(halfHeight);
     expect(astronaut.velocity).toBe(0);
   });
@@ -64,38 +94,49 @@ describe('Astronaut Entity', () => {
     astronaut.velocity = 10;
     astronaut.update(16.667);
 
-    const halfHeight = astronaut.sprite.height / 2;
+    const halfHeight = ASTRONAUT.body.height / 2;
     expect(astronaut.sprite.y).toBe(GAME_HEIGHT - halfHeight);
     expect(astronaut.dead).toBe(true);
     expect(astronaut.sprite.tint).toBe(0xFF5555);
   });
 
-  it('clamps at horizontal boundaries', () => {
+  it('clamps at horizontal boundaries using logical body dimensions', () => {
+    const halfWidth = ASTRONAUT.body.width / 2;
+
     // Left boundary
     astronaut.sprite.x = 10;
     astronaut.horizontalVelocity = -10;
     astronaut.update(16.667);
-    expect(astronaut.sprite.x).toBe(astronaut.sprite.width / 2);
+    expect(astronaut.sprite.x).toBe(halfWidth);
     expect(astronaut.horizontalVelocity).toBe(0);
 
     // Right boundary
     astronaut.sprite.x = GAME_WIDTH - 10;
     astronaut.horizontalVelocity = 10;
     astronaut.update(16.667);
-    expect(astronaut.sprite.x).toBe(GAME_WIDTH - astronaut.sprite.width / 2);
+    expect(astronaut.sprite.x).toBe(GAME_WIDTH - halfWidth);
     expect(astronaut.horizontalVelocity).toBe(0);
   });
 
-  it('calculates a scaled hitbox correctly (70% scale)', () => {
+  it('verifies that visual frame dimensions do not change logical body bounds', () => {
+    const presentation = createMockPresentation();
+    const animatedAstro = new Astronaut(presentation, 10, 10);
+    // Artificially change sprite scale / rendered dimensions
+    animatedAstro.sprite.scale.set(5.0);
+
+    animatedAstro.update(16.667);
+    // Boundary clamp must still be at ASTRONAUT.body.width / 2 and ASTRONAUT.body.height / 2
+    expect(animatedAstro.sprite.x).toBe(ASTRONAUT.body.width / 2);
+    expect(animatedAstro.sprite.y).toBe(ASTRONAUT.body.height / 2);
+  });
+
+  it('calculates fixed 35x35 hitbox correctly', () => {
     astronaut.sprite.x = 100;
     astronaut.sprite.y = 200;
     const hitbox = astronaut.getHitbox();
 
-    const expectedWidth = astronaut.sprite.width * 0.7;
-    const expectedHeight = astronaut.sprite.height * 0.7;
-
-    expect(hitbox.maxX - hitbox.minX).toBeCloseTo(expectedWidth, 3);
-    expect(hitbox.maxY - hitbox.minY).toBeCloseTo(expectedHeight, 3);
+    expect(hitbox.maxX - hitbox.minX).toBe(35);
+    expect(hitbox.maxY - hitbox.minY).toBe(35);
     expect((hitbox.minX + hitbox.maxX) / 2).toBeCloseTo(100, 3);
     expect((hitbox.minY + hitbox.maxY) / 2).toBeCloseTo(200, 3);
   });
@@ -118,12 +159,13 @@ describe('Astronaut Entity', () => {
   it('keeps thrust immediate and restores presentation on reset', () => {
     const texture = astronaut.sprite.texture;
     const hitbox = astronaut.getHitbox();
-    astronaut.flap();
+    astronaut.thrust();
     expect(astronaut.thrustRemaining).toBeGreaterThan(0);
     astronaut.updatePresentation(0.3);
     expect(astronaut.thrustRemaining).toBe(0);
     expect(astronaut.getHitbox()).toEqual(hitbox);
-    astronaut.die(); astronaut.updatePresentation(0.3);
+    astronaut.die();
+    astronaut.updatePresentation(0.3);
     expect(astronaut.sprite.rotation).not.toBe(0);
     astronaut.reset(200, 300);
     expect(astronaut.sprite.rotation).toBe(0);
@@ -138,189 +180,181 @@ describe('Astronaut Entity', () => {
     astronaut.update(16.667);
     expect(astronaut.sprite.y).toBe(startY);
 
-    astronaut.flap();
+    astronaut.thrust();
     expect(astronaut.velocity).toBe(0);
 
     astronaut.moveLeft();
     expect(astronaut.horizontalVelocity).toBe(0);
   });
 
-  it('instantiates with AnimatedSprite stopped on frame 0 when frame array is provided', () => {
-    const frames = [new PIXI.Texture(), new PIXI.Texture()];
-    const animatedAstronaut = new Astronaut(frames, 100, 200);
-
-    expect(animatedAstronaut.sprite).toBeInstanceOf(PIXI.AnimatedSprite);
-    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
-    expect(anim.playing).toBe(false);
-    expect(anim.currentFrame).toBe(0);
-    expect(animatedAstronaut.collisionDimensions).toEqual({ width: 35, height: 35 });
+  it('works with static fallback when raw texture is provided', () => {
+    const fallbackTex = new PIXI.Texture();
+    const staticAstro = new Astronaut(fallbackTex, 100, 200);
+    expect(staticAstro.sprite).toBeInstanceOf(PIXI.Sprite);
+    expect(staticAstro.getCurrentAnimation()).toBe('none');
+    expect(staticAstro.collisionDimensions).toEqual({ width: 35, height: 35 });
   });
 
-  it('triggers animation on flap() and returns to resting frame 0 on completion', () => {
-    const frames = [new PIXI.Texture(), new PIXI.Texture()];
-    const animatedAstronaut = new Astronaut(frames, 100, 200);
-    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
-
-    expect(anim.playing).toBe(false);
-    animatedAstronaut.flap();
-    expect(anim.playing).toBe(true);
-
-    // Call onComplete
-    anim.onComplete?.();
-    expect(anim.playing).toBe(false);
-    expect(anim.currentFrame).toBe(0);
-  });
-
-  it('triggers animation on moveUp()', () => {
-    const frames = [new PIXI.Texture(), new PIXI.Texture()];
-    const animatedAstronaut = new Astronaut(frames, 100, 200);
-    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
-
-    expect(anim.playing).toBe(false);
-    animatedAstronaut.moveUp();
-    expect(anim.playing).toBe(true);
-  });
-
-  it('maintains fixed collision dimensions regardless of visual dimensions or frame changes', () => {
-    const frames = [new PIXI.Texture(), new PIXI.Texture()];
-    const animatedAstronaut = new Astronaut(frames, 200, 300);
-
-    const initialHitbox = animatedAstronaut.getHitbox();
-    expect(initialHitbox.maxX - initialHitbox.minX).toBe(35);
-    expect(initialHitbox.maxY - initialHitbox.minY).toBe(35);
-
-    // Change display dimensions
-    animatedAstronaut.sprite.width = 120;
-    animatedAstronaut.sprite.height = 200;
-
-    const afterResizeHitbox = animatedAstronaut.getHitbox();
-    expect(afterResizeHitbox.maxX - afterResizeHitbox.minX).toBe(35);
-    expect(afterResizeHitbox.maxY - afterResizeHitbox.minY).toBe(35);
-    expect((afterResizeHitbox.minX + afterResizeHitbox.maxX) / 2).toBe(200);
-    expect((afterResizeHitbox.minY + afterResizeHitbox.maxY) / 2).toBe(300);
-  });
-
-  it('stops animation on die() and stops on frame 0 on reset()', () => {
-    const frames = [new PIXI.Texture(), new PIXI.Texture()];
-    const animatedAstronaut = new Astronaut(frames, 100, 200);
-    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
-
-    animatedAstronaut.flap();
-    expect(anim.playing).toBe(true);
-    animatedAstronaut.die();
-    expect(anim.playing).toBe(false);
-
-    animatedAstronaut.reset(150, 250);
-    expect(anim.playing).toBe(false);
-    expect(anim.currentFrame).toBe(0);
-    expect(animatedAstronaut.dead).toBe(false);
-  });
-
-  it('switches animation frames and fps via playAnimation()', () => {
-    const frames1 = [new PIXI.Texture(), new PIXI.Texture()];
-    const frames2 = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
-    const animatedAstronaut = new Astronaut(frames1, 100, 200);
-    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
-
-    animatedAstronaut.playAnimation(frames2, 14, false);
-    expect(anim.textures).toBe(frames2);
-    expect(anim.animationSpeed).toBeCloseTo(14 / 60, 4);
-    expect(anim.loop).toBe(false);
-  });
-
-  describe('AstronautAnimationMap (idle in space + thrust on flap)', () => {
-    it('starts with looping idle animation in space', () => {
-      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+  describe('Canonical ResolvedSpritePresentation integration', () => {
+    it('initializes to canonical default animation (idle) with canonical FPS and loop flag', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
       const anim = astro.sprite as PIXI.AnimatedSprite;
 
       expect(astro.getCurrentAnimation()).toBe('idle');
       expect(anim.playing).toBe(true);
       expect(anim.loop).toBe(true);
-      expect(anim.textures).toBe(idleFrames);
+      expect(anim.animationSpeed).toBeCloseTo(3 / 60, 4);
+      expect(anim.textures).toBe(presentation.animations.idle.frames);
       expect(astro.collisionDimensions).toEqual({ width: 35, height: 35 });
     });
 
-    it('transitions to thrust on flap() and returns to looping idle on complete', () => {
-      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+    it('thrust() and flap() switch to canonical thrust with canonical FPS and loop flag', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
       const anim = astro.sprite as PIXI.AnimatedSprite;
 
-      astro.flap();
+      astro.thrust();
       expect(astro.getCurrentAnimation()).toBe('thrust');
-      expect(anim.textures).toBe(thrustFrames);
+      expect(anim.textures).toBe(presentation.animations.thrust.frames);
       expect(anim.loop).toBe(false);
+      expect(anim.animationSpeed).toBeCloseTo(3 / 60, 4);
       expect(anim.playing).toBe(true);
+    });
 
-      // Finish thrust animation
+    it('repeated thrust/flap updates velocity without restarting already-running thrust animation', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+
+      astro.thrust();
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+
+      // Advance frame
+      anim.currentFrame = 1;
+      const playAnimationSpy = vi.spyOn(astro, 'playAnimation');
+
+      // Repeated thrust/flap while already playing thrust
+      astro.velocity = 0; // reset velocity to test update
+      astro.thrust();
+
+      // Velocity must update
+      expect(astro.velocity).toBe(JUMP_VELOCITY);
+      // playAnimation must NOT have been called again (animation not restarted)
+      expect(playAnimationSpy).not.toHaveBeenCalled();
+      expect(anim.currentFrame).toBe(1);
+    });
+
+    it('thrust completion cleanly returns to canonical default animation (idle)', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+
+      astro.thrust();
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+
+      // Complete thrust animation
       anim.onComplete?.();
       expect(astro.getCurrentAnimation()).toBe('idle');
-      expect(anim.textures).toBe(idleFrames);
+      expect(anim.textures).toBe(presentation.animations.idle.frames);
       expect(anim.loop).toBe(true);
       expect(anim.playing).toBe(true);
     });
 
-    it('transitions to thrust on moveUp()', () => {
-      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+    it('moveUp triggers thrust presentation', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
       const anim = astro.sprite as PIXI.AnimatedSprite;
 
       astro.moveUp();
       expect(astro.getCurrentAnimation()).toBe('thrust');
-      expect(anim.textures).toBe(thrustFrames);
+      expect(anim.textures).toBe(presentation.animations.thrust.frames);
       expect(anim.loop).toBe(false);
-      expect(anim.playing).toBe(true);
     });
 
-    it('stops on die() and restores looping idle on reset()', () => {
-      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+    it('reset returns to idle', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
       const anim = astro.sprite as PIXI.AnimatedSprite;
 
-      astro.flap();
+      astro.thrust();
       expect(astro.getCurrentAnimation()).toBe('thrust');
-      astro.die();
-      expect(anim.playing).toBe(false);
 
       astro.reset(150, 250);
-      expect(astro.dead).toBe(false);
       expect(astro.getCurrentAnimation()).toBe('idle');
-      expect(anim.textures).toBe(idleFrames);
+      expect(anim.textures).toBe(presentation.animations.idle.frames);
       expect(anim.loop).toBe(true);
       expect(anim.playing).toBe(true);
     });
 
-    it('resets thrust animation to start each time the user thrusts', () => {
-      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
-      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
-      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+    it('missing animation key fails safely without crashing', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
+
+      expect(() => astro.playAnimation('non_existent_key')).not.toThrow();
+      expect(astro.getCurrentAnimation()).toBe('idle');
+    });
+
+    it('animation changes do not alter (x, y) coordinates', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 120, 240);
+
+      astro.playAnimation('thrust');
+      expect(astro.sprite.x).toBe(120);
+      expect(astro.sprite.y).toBe(240);
+
+      astro.playAnimation('idle');
+      expect(astro.sprite.x).toBe(120);
+      expect(astro.sprite.y).toBe(240);
+    });
+
+    it('animation changes do not alter 35x35 hitbox', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
+
+      const idleHitbox = astro.getHitbox();
+      astro.playAnimation('thrust');
+      const thrustHitbox = astro.getHitbox();
+
+      expect(idleHitbox.maxX - idleHitbox.minX).toBe(35);
+      expect(idleHitbox.maxY - idleHitbox.minY).toBe(35);
+      expect(thrustHitbox.maxX - thrustHitbox.minX).toBe(35);
+      expect(thrustHitbox.maxY - thrustHitbox.minY).toBe(35);
+    });
+
+    it('stale thrust completion does not override death state', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
       const anim = astro.sprite as PIXI.AnimatedSprite;
 
-      astro.flap();
-      expect(astro.getCurrentAnimation()).toBe('thrust');
-      expect(anim.textures).toBe(thrustFrames);
-      expect(anim.loop).toBe(false);
-      expect(anim.playing).toBe(true);
-
-      // Advance frame
-      anim.currentFrame = 1;
-      const gotoAndPlaySpy = vi.spyOn(anim, 'gotoAndPlay');
-
-      // Flap again: should reset to frame 0
-      astro.flap();
-      expect(gotoAndPlaySpy).toHaveBeenCalledWith(0);
-      expect(anim.loop).toBe(false);
+      astro.thrust();
       expect(astro.getCurrentAnimation()).toBe('thrust');
 
-      // Complete the thrust run
+      // Astronaut dies while thrust was running
+      astro.die();
+      expect(astro.dead).toBe(true);
+
+      // Stale callback fires
       anim.onComplete?.();
+      expect(astro.dead).toBe(true);
+      expect(anim.playing).toBe(false);
+    });
+
+    it('stale thrust completion does not override reset state', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 200);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+
+      astro.thrust();
+      const staleCallback = anim.onComplete;
+
+      // Reset is called before completion
+      astro.reset(150, 250);
       expect(astro.getCurrentAnimation()).toBe('idle');
-      expect(anim.textures).toBe(idleFrames);
-      expect(anim.loop).toBe(true);
+
+      // If stale callback is somehow invoked, it must not disrupt idle
+      staleCallback?.();
+      expect(astro.getCurrentAnimation()).toBe('idle');
     });
   });
 });

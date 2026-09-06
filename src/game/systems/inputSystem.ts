@@ -156,7 +156,7 @@ export class InputSystem {
     // Dispatch jump event to the event bus
     logger.debug('Emitting JUMP_ACTION event');
     this.events.emit(GameEvent.JUMP_ACTION, null);
-    this.entities.getAstronaut()?.flap();
+    this.entities.getAstronaut()?.thrust();
   }
 
   /**
@@ -329,7 +329,7 @@ export class InputSystem {
       // Otherwise trigger a jump
       logger.debug('Direct touch triggering jump in active game');
       this.events.emit(GameEvent.JUMP_ACTION, null);
-      this.entities.getAstronaut()?.flap();
+      this.entities.getAstronaut()?.thrust();
     }
   }
   
