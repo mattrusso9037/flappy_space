@@ -10,7 +10,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  background-color: #000033;
+  background-color: var(--space-void);
   overflow: hidden;
   flex: 1;
 }
@@ -24,9 +24,9 @@
 
 /* Overlay base styles - all overlays share these */
 .loading-overlay, 
-.error-overlay,
+.error-overlay, 
 .start-overlay, 
-.game-over-overlay,
+.game-over-overlay, 
 .touch-overlay {
   position: absolute;
   top: 0;
@@ -50,33 +50,36 @@
 
 /* Loading overlay styles */
 .loading-overlay {
-  background-color: rgba(0, 0, 51, 0.8);
-  color: white;
+  background-color: rgb(7 9 19 / 85%);
+  color: var(--space-ice);
 }
 
 .loading-overlay h3 {
+  font-family: var(--font-display);
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
+  color: var(--space-ice);
 }
 
 .loading-spinner {
   margin-top: 1.5rem;
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
+  border: 3px solid rgb(0 240 255 / 20%);
   border-radius: 50%;
-  border-top-color: white;
+  border-top-color: var(--space-cyan);
   animation: spin 1s linear infinite;
 }
 
 /* Error overlay styles */
 .error-overlay {
-  background-color: rgba(51, 0, 0, 0.9);
-  color: white;
+  background-color: rgb(26 10 15 / 90%);
+  color: var(--space-ice);
 }
 
 .error-overlay h3 {
-  color: #ff3333;
+  color: var(--space-hazard);
+  font-family: var(--font-display);
   font-size: 1.5rem;
   margin-bottom: 1.5rem;
 }
@@ -84,42 +87,20 @@
 .error-overlay p {
   margin: 0.75rem 0;
   max-width: 80%;
+  color: var(--space-ice);
 }
 
 .error-tip {
+  font-family: var(--font-telemetry);
   font-size: 0.8rem;
-  opacity: 0.7;
+  color: var(--space-muted);
   margin-top: 2rem;
 }
 
-/* Start/Game Over overlay styles */
-.start-overlay, .game-over-overlay {
-  background-color: rgba(0, 0, 51, 0.7);
-  color: white;
-  animation: fadeIn 0.5s ease-in-out;
-}
-
-.start-overlay h2, .game-over-overlay h2 {
-  font-size: 2.5rem;
-  margin-bottom: 2rem;
-  text-shadow: 0 0 10px rgba(0, 150, 255, 0.8);
-}
-
-.start-overlay p, .game-over-overlay p {
-  font-size: 1.2rem;
-  margin: 0.75rem 0;
-  max-width: 80%;
-}
-
-/* Animations */
+/* Keyframe animations */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 @keyframes pulse {
@@ -130,10 +111,10 @@
 
 /* Mobile specific styles */
 .mobile-instruction {
-  color: #00FFFF;
-  font-size: 1.2rem;
+  color: var(--space-cyan);
+  font-family: var(--font-telemetry);
+  font-size: 0.85rem;
   margin-top: 1rem;
-  animation: pulse 1.5s infinite ease-in-out;
 }
 
 /* Touch overlay styling */
@@ -150,19 +131,19 @@
 }
 
 .touch-hint {
-  background-color: rgba(0, 150, 255, 0.3);
-  border: 2px solid rgba(0, 200, 255, 0.6);
+  background-color: rgb(0 240 255 / 15%);
+  border: 1.5px solid var(--space-cyan);
   border-radius: 50%;
   width: 100%;
   height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  color: white;
+  color: var(--space-ice);
+  font-family: var(--font-telemetry);
   font-weight: bold;
   text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
-  animation: pulse 1.5s infinite ease-in-out;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 /* Media query for desktop - hide mobile elements */
@@ -183,26 +164,26 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  background: rgba(7, 9, 19, 0.75);
-  border: 1px solid rgba(0, 229, 255, 0.35);
+  background: rgb(7 9 19 / 75%);
+  border: 1px solid var(--space-outline);
   border-radius: 4px;
-  color: #00e5ff;
-  font-family: 'Space Mono', 'Courier New', monospace;
+  color: var(--space-cyan);
+  font-family: var(--font-telemetry);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   cursor: pointer;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  transition: all 0.2s ease-in-out;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 229, 255, 0.1);
+  transition: all 0.15s ease-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   user-select: none;
 }
 
 .audio-toggle-btn:hover {
-  background: rgba(0, 229, 255, 0.15);
-  border-color: #00e5ff;
-  box-shadow: 0 2px 12px rgba(0, 229, 255, 0.25);
+  background: rgb(0 240 255 / 15%);
+  border-color: var(--space-cyan);
+  box-shadow: 0 2px 12px rgb(0 240 255 / 25%);
   transform: translateY(-1px);
 }
 
@@ -211,16 +192,16 @@
 }
 
 .audio-toggle-btn.muted {
-  color: #ff5252;
-  border-color: rgba(255, 82, 82, 0.4);
-  background: rgba(26, 10, 15, 0.75);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 82, 82, 0.1);
+  color: var(--space-hazard);
+  border-color: rgb(255 85 51 / 40%);
+  background: rgb(26 10 15 / 75%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .audio-toggle-btn.muted:hover {
-  background: rgba(255, 82, 82, 0.18);
-  border-color: #ff5252;
-  box-shadow: 0 2px 12px rgba(255, 82, 82, 0.3);
+  background: rgb(255 85 51 / 20%);
+  border-color: var(--space-hazard);
+  box-shadow: 0 2px 12px rgb(255 85 51 / 30%);
 }
 
 .audio-toggle-btn svg {

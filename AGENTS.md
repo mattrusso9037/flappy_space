@@ -110,12 +110,13 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 
 ---
 
-## 6. PixiJS v8 Reference Guidance
+## 6. PixiJS v8 Reference Guidance & Visual Implementation
 
 Comprehensive PixiJS v8 reference skills and cheatsheets are maintained for AI agents assisting with this project:
 - Always target Pixi.js v8 modern APIs (e.g., `app.init()`, `app.canvas`, shape-then-fill Graphics).
 - Preserve headless testing compatibility.
 - Do not add `@pixi/react`.
+- Consult [VISUAL_IMPLEMENTATION.md](./VISUAL_IMPLEMENTATION.md) for canonical depth order, design tokens, rendering layers, motion conventions, particle effects, and the locked astronaut asset constraint.
 
 ---
 
@@ -138,10 +139,12 @@ flappy_space/
 │   │   ├── inputManager.ts    # Low-level keyboard and touch events
 │   │   ├── types.ts           # Game system lifecycle interfaces
 │   │   ├── entities/          # Entities (Astronaut, Planet, Orb, Star)
-│   │   └── systems/           # Systems (Physics, Render, Spawning, Audio, UI, Entity)
+│   │   ├── systems/           # Systems (Physics, Render, Spawning, Audio, UI, Entity)
+│   │   └── visuals/           # Design tokens, motion, particle effects
 │   ├── test/                  # Test setup and Canvas mocks
 │   └── utils/                 # Logger and diagnostic utilities
 ├── AGENTS.md                  # Primary AI Agent Guardrails Guide (Source of Truth)
+├── VISUAL_IMPLEMENTATION.md   # Canonical visual architecture, layers, tokens, and constraints
 ├── eslint.config.js           # ESLint configuration
 ├── package.json               # Scripts, dependencies, and metadata
 ├── tsconfig.json              # TypeScript root configuration

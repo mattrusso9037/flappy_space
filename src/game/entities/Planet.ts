@@ -18,11 +18,7 @@ export class Planet extends Obstacle {
     glowGraphics: PIXI.Graphics;
     radius: number;
     rotationSpeed: number;
-    ringRotationSpeed: number;
-    glowPulseSpeed: number;
-    glowSize: number;
     planetType: { color: number, name: string, hasRings: boolean };
-    ringAngle: number;
     timeOffset: number;
     hasRings: boolean;
 
@@ -43,7 +39,6 @@ export class Planet extends Obstacle {
         
         // Create separate glow graphics (for better layering)
         this.glowGraphics = new PIXI.Graphics();
-        this.glowSize = this.radius * 0.3;
         
         this.drawPlanet();
         
@@ -53,11 +48,8 @@ export class Planet extends Obstacle {
         this.glowGraphics.x = x;
         this.glowGraphics.y = y;
         
-        // Add random rotation speeds for visual interest
+        // Add random rotation speed for visual interest
         this.rotationSpeed = (Math.random() * 0.02 - 0.01) * speed;
-        this.ringRotationSpeed = (Math.random() * 0.005 - 0.0025) * speed;
-        this.glowPulseSpeed = 0.03 + Math.random() * 0.02;
-        this.ringAngle = Math.random() * Math.PI * 2;
     }
     
     drawPlanet() {

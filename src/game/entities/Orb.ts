@@ -11,9 +11,6 @@ export class Orb extends Obstacle {
     graphics: PIXI.Graphics;
     glowGraphics: PIXI.Graphics;
     radius: number;
-    rotationSpeed: number;
-    glowPulseSpeed: number;
-    glowSize: number;
     timeOffset: number;
     collected: boolean;
 
@@ -29,7 +26,6 @@ export class Orb extends Obstacle {
         
         // Create separate glow graphics (for better layering)
         this.glowGraphics = new PIXI.Graphics();
-        this.glowSize = this.radius * 0.7;
         
         this.drawOrb();
         
@@ -38,10 +34,6 @@ export class Orb extends Obstacle {
         this.graphics.y = y;
         this.glowGraphics.x = x;
         this.glowGraphics.y = y;
-        
-        // Add random rotation for visual interest
-        this.rotationSpeed = (Math.random() * 0.05 - 0.025);
-        this.glowPulseSpeed = 0.05 + Math.random() * 0.03;
     }
     
     drawOrb() {
