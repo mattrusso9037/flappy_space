@@ -134,7 +134,6 @@ export class CutsceneRunner {
   public skip(): void {
     if (this.completed) return;
     logger.info('Skipping in-engine cutscene');
-    this.cleanupTransforms();
     this.finish();
   }
 
@@ -217,7 +216,7 @@ export class CutsceneRunner {
     if (this.completed) return;
     this.completed = true;
     this.isRunning = false;
-    this.activeDialogueId = null;
+    this.cleanupTransforms();
     logger.info('Cutscene finished');
     this.callbacks.onComplete?.();
   }

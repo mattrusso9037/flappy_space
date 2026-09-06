@@ -36,3 +36,23 @@ Inspect:
    npm run verify
    npm run test:coverage
    npm run build
+   ```
+
+## Guardrails
+
+Do not:
+
+- Put campaign navigation inside dialogue content.
+- Call `GameFlow.startLevel()` from dialogue UI.
+- Embed dialogue directly inside `LevelDefinition`.
+- Create a second dialogue renderer.
+- Create one-off React components for individual conversations.
+- Put HTML styling inside dialogue strings.
+- Modify Pixi systems just to add dialogue.
+- Mutate save state directly from dialogue UI.
+- Invent portrait assets.
+- Change `public/assets/astro-sprite.png`.
+
+If the request needs unsupported behavior or a missing reusable asset, report it instead of hacking around it.
+
+The task is incomplete while validation, preview, or any verification command fails.

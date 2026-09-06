@@ -8,7 +8,12 @@
 import { describe, it, expect } from 'vitest';
 import { getDialogue, getAllDialogues } from '../game/story/dialogue/dialogues';
 import { getCutscene, getAllCutscenes } from '../game/story/cutscenes/cutscenes';
-import { getVideoCutscene, getAllVideoCutscenes } from '../game/story/video/videoCutscenes';
+import {
+  getVideoCutscene,
+  getAllVideoCutscenes,
+  registerVideoCutscene,
+  clearVideoCutsceneRegistry,
+} from '../game/story/video/videoCutscenes';
 import { DialogueDefinition } from '../game/story/dialogue/dialogueTypes';
 import { CutsceneDefinition } from '../game/story/cutscenes/cutsceneTypes';
 import { VideoCutsceneDefinition } from '../game/story/video/videoCutsceneTypes';
@@ -74,21 +79,29 @@ describe('Story Preview — production registries', () => {
   // Video registry
   // -------------------------------------------------------------------------
 
-  it('getVideoCutscene("opening-transmission") resolves from production registry', () => {
-    const def = getVideoCutscene('opening-transmission');
-    expect(def).toBeDefined();
-    expect(def?.id).toBe('opening-transmission');
-    expect(def?.src).toBeTruthy();
-  });
-
-  it('getVideoCutscene with invalid ID returns undefined (safe failure)', () => {
-    const def = getVideoCutscene('missing-video-id');
-    expect(def).toBeUndefined();
-  });
-
-  it('getAllVideoCutscenes() returns at least the built-in opening-transmission', () => {
+  it('getAllVideoCutscenes() returns empty array by default so unavailable media is not promised', () => {
+    clearVideoCutsceneRegistry();
     const all: VideoCutsceneDefinition[] = getAllVideoCutscenes();
-    expect(all.length).toBeGreaterThanOrEqual(1);
-    expect(all.some((v: VideoCutsceneDefinition) => v.id === 'opening-transmission')).toBe(true);
+    expect(all).toEqual([]);
+  });
+
+  it('getVideoCutscene with unregistered ID returns undefined (safe failure)', () => {
+    clearVideoCutsceneRegistry();
+    expect(getVideoCutscene('opening-transmission')).toBeUndefined();
+    expect(getVideoCutscene('missing-video-id')).toBeUndefined();
+  });
+
+  it('getVideoCutscene resolves dynamically registered video cutscenes', () => {
+    clearVideoCutsceneRegistry();
+    registerVideoCutscene({
+      id: 'preview-video',
+      src: '/cutscenes/preview.mp4',
+    });
+    const def = getVideoCutscene('preview-video');
+    expect(def).toBeDefined();
+    expect(def?.id).toBe('preview-video');
+    expect(def?.src).toBe('/cutscenes/preview.mp4');
+
+    clearVideoCutsceneRegistry();
   });
 });

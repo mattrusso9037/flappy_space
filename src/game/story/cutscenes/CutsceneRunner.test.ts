@@ -258,4 +258,124 @@ describe('CutsceneRunner', () => {
     // Linear interpolation: zoom = 1 + (1.5 - 1) * 0.5 = 1.25
     expect(cam.zoom).toBeCloseTo(1.25, 2);
   });
+
+  // -------------------------------------------------------------------------
+  // Self-contained cleanup regression tests
+  // -------------------------------------------------------------------------
+
+  describe('self-contained cleanup contract', () => {
+    it('normal completion resets fade and camera to neutral state', () => {
+      const onComplete = vi.fn();
+      const onFadeChange = vi.fn();
+      const onCameraChange = vi.fn();
+      const runner = new CutsceneRunner({ onComplete, onFadeChange, onCameraChange });
+
+      const cutscene: CutsceneDefinition = {
+        id: 'normal-complete-cleanup',
+        steps: [
+          { type: 'fade', direction: 'out', duration: 1.0 },
+          { type: 'camera', action: { x: 100, y: -50, zoom: 1.4 }, duration: 1.0 },
+        ],
+      };
+
+      runner.start(cutscene);
+
+      // Advance through fade
+      runner.update(1.0);
+      expect(runner.getFadeAlpha()).toBe(1.0);
+
+      // Advance through camera to natural completion
+      runner.update(1.0);
+
+      expect(runner.isActive()).toBe(false);
+      expect(runner.getFadeAlpha()).toBe(0);
+      expect(runner.getCamera()).toEqual({ x: 0, y: 0, zoom: 1 });
+      expect(onComplete).toHaveBeenCalledTimes(1);
+
+      // Verify callbacks received neutral values
+      expect(onFadeChange).toHaveBeenLastCalledWith(0);
+      expect(onCameraChange).toHaveBeenLastCalledWith({ x: 0, y: 0, zoom: 1 });
+    });
+
+    it('skip resets fade and camera to neutral state', () => {
+      const onComplete = vi.fn();
+      const onFadeChange = vi.fn();
+      const onCameraChange = vi.fn();
+      const runner = new CutsceneRunner({ onComplete, onFadeChange, onCameraChange });
+
+      const cutscene: CutsceneDefinition = {
+        id: 'skip-cleanup',
+        steps: [
+          { type: 'fade', direction: 'out', duration: 2.0 },
+          { type: 'camera', action: { x: 50, y: 20, zoom: 1.2 }, duration: 2.0 },
+        ],
+      };
+
+      runner.start(cutscene);
+      runner.update(1.0); // mid-fade (alpha ~0.5)
+
+      expect(runner.getFadeAlpha()).toBeGreaterThan(0);
+
+      runner.skip();
+
+      expect(runner.isActive()).toBe(false);
+      expect(runner.getFadeAlpha()).toBe(0);
+      expect(runner.getCamera()).toEqual({ x: 0, y: 0, zoom: 1 });
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onFadeChange).toHaveBeenLastCalledWith(0);
+      expect(onCameraChange).toHaveBeenLastCalledWith({ x: 0, y: 0, zoom: 1 });
+    });
+
+    it('completion callback fires exactly once on completion and is idempotent against extra updates or skips', () => {
+      const onComplete = vi.fn();
+      const runner = new CutsceneRunner({ onComplete });
+
+      const cutscene: CutsceneDefinition = {
+        id: 'idempotent-complete',
+        steps: [{ type: 'wait', duration: 0.5 }],
+      };
+
+      runner.start(cutscene);
+      runner.update(0.5);
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+
+      // Subsequent updates after completion do not re-fire
+      runner.update(1.0);
+      runner.update(2.0);
+      expect(onComplete).toHaveBeenCalledTimes(1);
+
+      // Subsequent skip calls do not re-fire
+      runner.skip();
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('cleanup does not run repeatedly after completion', () => {
+      const onFadeChange = vi.fn();
+      const onCameraChange = vi.fn();
+      const onComplete = vi.fn();
+      const runner = new CutsceneRunner({ onFadeChange, onCameraChange, onComplete });
+
+      const cutscene: CutsceneDefinition = {
+        id: 'cleanup-once',
+        steps: [{ type: 'fade', direction: 'out', duration: 0.5 }],
+      };
+
+      runner.start(cutscene);
+      runner.update(0.5); // Finishes naturally
+
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      const fadeCallsAfterCompletion = onFadeChange.mock.calls.length;
+      const cameraCallsAfterCompletion = onCameraChange.mock.calls.length;
+
+      // Further updates and skips must not invoke cleanup callbacks again
+      runner.update(1.0);
+      runner.skip();
+      runner.update(0.5);
+
+      expect(onFadeChange.mock.calls.length).toBe(fadeCallsAfterCompletion);
+      expect(onCameraChange.mock.calls.length).toBe(cameraCallsAfterCompletion);
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+  });
 });

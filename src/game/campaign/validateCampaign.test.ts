@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { validateCampaignDefinition } from './validateCampaign';
 import { CampaignDefinition } from './campaignTypes';
+import { registerVideoCutscene, clearVideoCutsceneRegistry } from '../story/video/videoCutscenes';
 
 function createValidCampaign(): CampaignDefinition {
   return {
@@ -153,12 +154,21 @@ describe('validateCampaignDefinition', () => {
     expect(result.errors.some(e => e.includes('timeLimit must be a positive number'))).toBe(true);
   });
 
+  afterEach(() => {
+    clearVideoCutsceneRegistry();
+  });
+
   it('validates story transitions when present and registered', () => {
+    registerVideoCutscene({
+      id: 'valid-test-video',
+      src: '/cutscenes/valid.mp4',
+    });
+
     const campaign = createValidCampaign();
     campaign.levels['lvl-1'].intro = { type: 'dialogue', id: 'unknown-signal' };
     campaign.levels['lvl-1'].outro = { type: 'cutscene', id: 'first-signal' };
-    campaign.levels['lvl-2'].outro = { type: 'video', id: 'opening-transmission' };
-    campaign.ending = { type: 'video', id: 'opening-transmission' };
+    campaign.levels['lvl-2'].outro = { type: 'video', id: 'valid-test-video' };
+    campaign.ending = { type: 'video', id: 'valid-test-video' };
 
     const result = validateCampaignDefinition(campaign);
     expect(result.valid).toBe(true);
@@ -183,13 +193,14 @@ describe('validateCampaignDefinition', () => {
     expect(result.errors.some(e => e.includes('references unregistered cutscene "non-existent-cutscene"'))).toBe(true);
   });
 
-  it('fails when story transition references unregistered video', () => {
+  it('fails when story transition references unregistered video or missing video asset registration', () => {
     const campaign = createValidCampaign();
-    campaign.levels['lvl-1'].outro = { type: 'video', id: 'non-existent-video' };
+    // opening-transmission has no video asset and is not registered in the production registry
+    campaign.levels['lvl-1'].outro = { type: 'video', id: 'opening-transmission' };
 
     const result = validateCampaignDefinition(campaign);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('references unregistered video cutscene "non-existent-video"'))).toBe(true);
+    expect(result.errors.some(e => e.includes('references unregistered video cutscene "opening-transmission"'))).toBe(true);
   });
 
   it('fails when campaign ending references unregistered content', () => {

@@ -1,7 +1,3 @@
-
-### `.agents/skills/add-in-engine-cutscene/SKILL.md`
-
-```markdown
 ---
 name: add-in-engine-cutscene
 description: Author declarative Pixi-rendered Flappy Spaceman cinematics from supported cutscene primitives, then validate and preview them.
