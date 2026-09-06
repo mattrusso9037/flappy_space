@@ -181,6 +181,7 @@ export class GameRuntime {
     this.systems.entities.createAstronaut();
     this.systems.tools.configure(levelDefinition.gameplay.tools);
     this.systems.entities.configureTerrainBlocks(levelDefinition.gameplay.terrainBlocks ?? []);
+    this.systems.entities.configureScenarios(levelDefinition.gameplay.scenarios ?? []);
     for (const orb of levelDefinition.gameplay.orbs.placements ?? []) {
       this.systems.entities.createOrb(orb.x, orb.y, 14, 0, true);
     }

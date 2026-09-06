@@ -1,5 +1,5 @@
 import { TerrainBlock } from '../entities/TerrainBlock';
-import { TerrainBlockDefinition } from '../campaign/campaignTypes';
+import { TerrainBlockDefinition, ScenarioDefinition } from '../campaign/campaignTypes';
 import { GrappleAnchor } from '../tools/toolTypes';
 import { WallPanel } from '../entities/WallPanel';
 import { Rect } from '../campaign/campaignTypes';
@@ -39,6 +39,8 @@ export class EntitySystem {
   private terrainBlocks: TerrainBlock[] = [];
   private walls: WallPanel[] = [];
   private stars: Star[] = [];
+  private grappleAnchors: readonly GrappleAnchor[] = [];
+  private scenarios: readonly ScenarioDefinition[] = [];
   private initialized: boolean = false;
   private readonly starLayer = new PIXI.Container({ label: 'stars', zIndex: DEPTH.stars, eventMode: 'none' });
   private readonly worldLayer = new PIXI.Container({ label: 'world', zIndex: DEPTH.world, eventMode: 'none' });
@@ -89,6 +91,7 @@ export class EntitySystem {
   public clearAll(): void {
     this.configureTerrainBlocks([]);
     this.configureGrappleAnchors([]);
+    this.configureScenarios([]);
     this.clearWalls();
     if (!this.app) return;
     
@@ -170,6 +173,7 @@ export class EntitySystem {
   }
 
   public configureGrappleAnchors(anchors: readonly GrappleAnchor[]): void {
+    this.grappleAnchors = [...anchors];
     for (const graphic of this.grappleGraphics) graphic.destroy();
     this.grappleGraphics = anchors.map(anchor => {
       const graphic = new PIXI.Graphics().circle(0, 0, 10).stroke({ color: 0x8eeeff, width: 3 });
@@ -179,6 +183,18 @@ export class EntitySystem {
     });
     this.grappleLine?.destroy();
     this.grappleLine = undefined;
+  }
+
+  public getGrappleAnchors(): readonly GrappleAnchor[] {
+    return this.grappleAnchors;
+  }
+
+  public configureScenarios(scenarios: readonly ScenarioDefinition[]): void {
+    this.scenarios = [...scenarios];
+  }
+
+  public getScenarios(): readonly ScenarioDefinition[] {
+    return this.scenarios;
   }
 
   public showGrapple(anchor: Readonly<GrappleAnchor> | null): void {

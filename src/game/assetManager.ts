@@ -39,6 +39,21 @@ const gameAssets: AssetDefinition[] = [
     name: 'wormhole',
     url: './assets/wormhole/wormhole.png',
     type: 'texture'
+  },
+  {
+    name: 'terrain-alien-platform-left',
+    url: './assets/terrain/alien-platform-left.png',
+    type: 'texture'
+  },
+  {
+    name: 'terrain-alien-platform-middle',
+    url: './assets/terrain/alien-platform-middle.png',
+    type: 'texture'
+  },
+  {
+    name: 'terrain-alien-platform-right',
+    url: './assets/terrain/alien-platform-right.png',
+    type: 'texture'
   }
   // Add more assets here as needed
 ];

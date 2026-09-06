@@ -62,4 +62,20 @@ describe('authored terrain and shovel validation', () => {
       expect(validate(g => { Object.assign(g, { terrainBlocks: value }); }).valid).toBe(false);
     }
   });
+
+  it('validates styleId when provided on terrain blocks', () => {
+    expect(validate(g => {
+      g.terrainBlocks = [{ id: 'block', bounds: { x: 300, y: 400, width: 100, height: 50 }, diggable: false, styleId: 'alien-platform' }];
+    }).valid).toBe(true);
+
+    expect(validate(g => {
+      // @ts-expect-error - testing unknown styleId at runtime
+      g.terrainBlocks = [{ id: 'block', bounds: { x: 300, y: 400, width: 100, height: 50 }, diggable: false, styleId: 'unknown-style' }];
+    }).valid).toBe(false);
+
+    expect(validate(g => {
+      // @ts-expect-error - testing invalid styleId type
+      g.terrainBlocks = [{ id: 'block', bounds: { x: 300, y: 400, width: 100, height: 50 }, diggable: false, styleId: 123 }];
+    }).valid).toBe(false);
+  });
 });

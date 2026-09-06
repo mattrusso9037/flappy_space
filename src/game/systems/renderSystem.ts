@@ -313,6 +313,10 @@ export class RenderSystem {
       const { x, y, width, height } = block.bounds;
       g.rect(x, y, width, height)
         .stroke({ color: block.diggable ? INK.amber : INK.muted, width: 1.5 });
+      if (block.diggable) {
+        g.moveTo(x, y).lineTo(x + width, y + height)
+          .stroke({ color: INK.amber, width: 1, alpha: 0.5 });
+      }
     }
 
     // 7. Temporary Player Wall Panels
@@ -320,6 +324,28 @@ export class RenderSystem {
       const { x, y, width, height } = wall.bounds;
       g.rect(x, y, width, height)
         .stroke({ color: INK.cyan, width: 1.5 });
+    }
+
+    // 8. Grapple Anchors
+    for (const anchor of this.entities.getGrappleAnchors()) {
+      g.circle(anchor.x, anchor.y, 10).stroke({ color: INK.cyan, width: 1.5 });
+      g.moveTo(anchor.x - 14, anchor.y).lineTo(anchor.x + 14, anchor.y)
+        .stroke({ color: INK.cyan, width: 1 });
+      g.moveTo(anchor.x, anchor.y - 14).lineTo(anchor.x, anchor.y + 14)
+        .stroke({ color: INK.cyan, width: 1 });
+    }
+
+    // 9. Scenario Trigger and Camera Bounds
+    for (const scenario of this.entities.getScenarios()) {
+      const trigger = scenario.trigger;
+      g.rect(trigger.x, trigger.y, trigger.width, trigger.height)
+        .stroke({ color: INK.violet, width: 1.5, alpha: 0.8 });
+
+      if (scenario.cameraBounds) {
+        const cb = scenario.cameraBounds;
+        g.rect(cb.x, cb.y, cb.width, cb.height)
+          .stroke({ color: INK.cyan, width: 1.5, alpha: 0.5 });
+      }
     }
   }
 

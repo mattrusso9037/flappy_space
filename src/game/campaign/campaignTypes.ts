@@ -6,6 +6,7 @@ import { CutsceneId } from '../story/cutscenes/cutsceneTypes';
 import { VideoCutsceneId } from '../story/video/videoCutsceneTypes';
 
 import { TerrainId } from '../visuals/terrainPresets';
+import { TerrainBlockStyleId } from '../visuals/terrainBlockStyles';
 
 export type LevelId = string;
 export type CampaignId = string;
@@ -48,6 +49,8 @@ export interface TerrainBlockDefinition {
   id: string;
   bounds: Rect;
   diggable: boolean;
+  /** Optional presentation style ID (e.g. 'alien-platform'). Omission falls back to placeholder Graphics. */
+  styleId?: TerrainBlockStyleId;
 }
 
 /** Axis-aligned rectangle in world space (all values in game pixels). */

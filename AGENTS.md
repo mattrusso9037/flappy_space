@@ -134,12 +134,19 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
       - Terrain blocks: Exact authored solid collision rectangles (differentiated: `INK.amber` if diggable, `INK.muted` if undiggable).
       - Wall panels: Exact solid wall panel rectangles (`INK.cyan`).
     - **Collectibles**: Orbs exact collection circle (`radius`, `INK.violet`).
-    - **Player Tools**: Active shovel reach box and grapple anchors/range when tools are equipped.
+    - **Player Tools & Anchors**: Active shovel reach box and grapple anchors (`INK.cyan`).
+    - **Scenario Bounds**: Scenario triggers (`INK.violet`) and camera zones (`INK.cyan`).
 - **Instant Responsiveness Across All States**:
   - Toggling debug mode must immediately update or clear presentation across all game states, including paused states, title screens, level resets, and visual preview harnesses (`updateDebugPresentation()`).
 - **Input Isolation**:
   - Debug toggle is strictly bound to dedicated non-gameplay shortcuts (`Backquote` / `` ` `` or `F3`).
   - Debug keys must never overlap gameplay keys (`D`/`Shift+D`, `Space`, `A`, `E`, `X`, `0`-`9` are gameplay-exclusive).
+
+### J. Polished World Asset Architecture
+- Use the repo-local `add-polished-game-asset` skill when replacing placeholder `PIXI.Graphics` world presentation with static or modular PNG/atlas art (platforms, terrain, props, machinery).
+- **Core Rule**: Art is presentation; gameplay geometry remains authoritative. Never derive collision bounds, interaction range, or platform dimensions from texture dimensions.
+- Use canonical presentation registries (`terrainBlockStyles.ts`, etc.) to resolve style IDs to asset metadata.
+- Compose modular pieces (e.g. left cap + tileable middle + right cap) in world space under `worldCamera` with safe fallbacks when assets are unavailable.
 
 ---
 
@@ -184,7 +191,7 @@ Comprehensive PixiJS v8 reference skills and cheatsheets are maintained for AI a
 
 ```
 flappy_space/
-├── .agents/skills/            # Repo-local skills (add-level, add-story, add-sprite-animation)
+├── .agents/skills/            # Repo-local skills (add-level, add-story, add-sprite-animation, add-polished-game-asset)
 ├── .cursor/rules/             # Cursor rules (project-info points to AGENTS.md)
 ├── .github/workflows/         # GitHub Actions CI automation
 ├── electron/                  # Electron main & preload scripts

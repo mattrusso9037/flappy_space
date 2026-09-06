@@ -124,17 +124,17 @@ export const SECTOR_03: LevelDefinition = {
     },
     terrainBlocks: [
       // 1. Learn to land, recharge and jump again before the first grapple.
-      { id: 'first-step', bounds: { x: 330, y: 440, width: 150, height: 80 }, diggable: false },
-      { id: 'second-step', bounds: { x: 600, y: 350, width: 150, height: 30 }, diggable: false },
-      { id: 'catch-balcony', bounds: { x: 940, y: 280, width: 200, height: 30 }, diggable: false },
+      { id: 'first-step', bounds: { x: 330, y: 440, width: 150, height: 80 }, diggable: false, styleId: 'alien-platform' },
+      { id: 'second-step', bounds: { x: 600, y: 350, width: 150, height: 30 }, diggable: false, styleId: 'alien-platform' },
+      { id: 'catch-balcony', bounds: { x: 940, y: 280, width: 200, height: 30 }, diggable: false, styleId: 'alien-platform' },
       // 2. Approach anchors from the open side, release, then steer onto the ledge.
-      { id: 'upper-balcony', bounds: { x: 1400, y: 220, width: 140, height: 30 }, diggable: false },
+      { id: 'upper-balcony', bounds: { x: 1400, y: 220, width: 140, height: 30 }, diggable: false, styleId: 'alien-platform' },
       { id: 'vault-barrier', bounds: { x: 1600, y: 180, width: 80, height: 340 }, diggable: false },
       // 3. Drop to the recovery platform, jump under the ceiling, grapple outside it.
-      { id: 'recovery-platform', bounds: { x: 1900, y: 350, width: 160, height: 30 }, diggable: false },
-      { id: 'last-step', bounds: { x: 2150, y: 270, width: 160, height: 30 }, diggable: false },
+      { id: 'recovery-platform', bounds: { x: 1900, y: 350, width: 160, height: 30 }, diggable: false, styleId: 'alien-platform' },
+      { id: 'last-step', bounds: { x: 2150, y: 270, width: 160, height: 30 }, diggable: false, styleId: 'alien-platform' },
       { id: 'low-ceiling', bounds: { x: 1900, y: 70, width: 450, height: 40 }, diggable: false },
-      { id: 'relay-vault', bounds: { x: 2540, y: 190, width: 200, height: 30 }, diggable: false },
+      { id: 'relay-vault', bounds: { x: 2540, y: 190, width: 200, height: 30 }, diggable: false, styleId: 'alien-platform' },
     ],
     orbs: {
       spawnChance: 0,

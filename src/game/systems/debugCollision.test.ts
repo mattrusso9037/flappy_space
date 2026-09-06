@@ -164,4 +164,46 @@ describe('Debug Mode and Collision Geometry Discipline', () => {
 
     runtime.dispose();
   });
+
+  it('renders grapple anchors, scenario triggers, and camera bounds in debug mode', () => {
+    state.toggleDebugMode();
+    expect(state.getState().debugMode).toBe(true);
+
+    entities.configureGrappleAnchors([
+      { id: 'anchor-1', x: 700, y: 250 },
+      { id: 'anchor-2', x: 1200, y: 150 },
+    ]);
+    entities.configureScenarios([
+      {
+        id: 'vault-entrance',
+        trigger: { x: 1600, y: 0, width: 400, height: 600 },
+        cameraBounds: { x: 1600, y: 0, width: 800, height: 600 },
+      },
+    ]);
+
+    render.update(0.016);
+
+    const debugGraphics = (render as unknown as { debugGraphics: PIXI.Graphics }).debugGraphics;
+    expect(debugGraphics.context.instructions.length).toBeGreaterThan(0);
+
+    // Toggling off immediately clears everything
+    state.toggleDebugMode();
+    render.updateDebugPresentation();
+    expect(debugGraphics.context.instructions.length).toBe(0);
+  });
+
+  it('differentiates diggable vs solid terrain blocks and uses canonical gameplay bounds', () => {
+    state.toggleDebugMode();
+
+    const diggableBlock = { id: 'dig-1', bounds: { x: 300, y: 400, width: 100, height: 50 }, diggable: true };
+    const solidBlock = { id: 'sol-1', bounds: { x: 500, y: 400, width: 100, height: 50 }, diggable: false };
+
+    entities.configureTerrainBlocks([diggableBlock, solidBlock]);
+
+    render.update(0.016);
+
+    const debugGraphics = (render as unknown as { debugGraphics: PIXI.Graphics }).debugGraphics;
+    // Both blocks rendered, plus diggable indicator slash
+    expect(debugGraphics.context.instructions.length).toBeGreaterThanOrEqual(3);
+  });
 });

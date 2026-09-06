@@ -2,6 +2,7 @@ import { CampaignDefinition, StoryTransition } from './campaignTypes';
 import { isEnvironmentId } from '../environments/environments';
 import { isMusicTrackId } from '../audio/musicCatalog';
 import { isTerrainId } from '../visuals/terrainPresets';
+import { isTerrainBlockStyleId } from '../visuals/terrainBlockStyles';
 import { ASTRONAUT, GAME_HEIGHT, GAME_WIDTH } from '../config';
 
 import { hasDialogue } from '../story/dialogue/dialogues';
@@ -191,6 +192,9 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
               continue;
             }
             ids.add(block.id);
+            if (block.styleId !== undefined && !isTerrainBlockStyleId(block.styleId)) {
+              errors.push(`${prefix} terrain block references invalid styleId "${String(block.styleId)}".`);
+            }
             const overlaps = (r: { x: number; y: number; width: number; height: number }) =>
               b.x < r.x + r.width && b.x + b.width > r.x && b.y < r.y + r.height && b.y + b.height > r.y;
             if (terrainBlocks.slice(0, index).some(other => other?.bounds && overlaps(other.bounds))) {
