@@ -341,4 +341,79 @@ describe('validateCampaignDefinition', () => {
       expect(result.errors.some(e => e.includes('References invalid terrainId "volcanic-wasteland"'))).toBe(true);
     });
   });
+
+  describe('movement, obstacle enabling, and orb validation', () => {
+    it('accepts valid movement, disabled obstacles, and orb range configurations', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.obstacles.enabled = false;
+      campaign.levels['lvl-1'].gameplay.movement = {
+        mode: 'ground',
+        maxThrustCharges: 1,
+      };
+      campaign.levels['lvl-1'].gameplay.orbs = {
+        spawnInterval: 2000,
+        spawnChance: 0.6,
+        minY: 360,
+        maxY: 480,
+      };
+      campaign.levels['lvl-1'].gameplay.orbSpawnRange = {
+        minY: 360,
+        maxY: 480,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it('rejects invalid movement mode', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.movement = {
+        mode: 'teleport' as unknown as 'ground',
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes("movement.mode must be 'flight' or 'ground'"))).toBe(true);
+    });
+
+    it('rejects non-integer or non-positive maxThrustCharges', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.movement = {
+        maxThrustCharges: -1,
+      };
+
+      let result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('movement.maxThrustCharges must be a positive integer'))).toBe(true);
+
+      campaign.levels['lvl-1'].gameplay.movement = {
+        maxThrustCharges: 1.5,
+      };
+      result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('movement.maxThrustCharges must be a positive integer'))).toBe(true);
+    });
+
+    it('rejects non-boolean obstacles.enabled', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.obstacles.enabled = 'no' as unknown as boolean;
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('obstacles.enabled must be a boolean'))).toBe(true);
+    });
+
+    it('rejects inverted orb vertical range (minY > maxY)', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.orbs = {
+        minY: 500,
+        maxY: 200,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('orbs.maxY must be greater than or equal to orbs.minY'))).toBe(true);
+    });
+  });
 });

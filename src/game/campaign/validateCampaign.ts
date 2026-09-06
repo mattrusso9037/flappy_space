@@ -112,6 +112,9 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
       if (!obstacles) {
         errors.push(`${prefix} Missing obstacles configuration.`);
       } else {
+        if (obstacles.enabled !== undefined && typeof obstacles.enabled !== 'boolean') {
+          errors.push(`${prefix} obstacles.enabled must be a boolean.`);
+        }
         if (typeof obstacles.minPlanetRadius !== 'number' || obstacles.minPlanetRadius <= 0) {
           errors.push(`${prefix} obstacles.minPlanetRadius must be a positive number.`);
         }
@@ -152,6 +155,59 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
           errors.push(
             `${prefix} ground.height (${ground.height}) leaves an unviable gameplay corridor of ${GAME_HEIGHT - ground.height}px (minimum 100px required).`
           );
+        }
+      }
+
+      // Movement validation
+      if (level.gameplay.movement !== undefined) {
+        const movement = level.gameplay.movement;
+        if (movement.mode !== undefined && movement.mode !== 'flight' && movement.mode !== 'ground') {
+          errors.push(`${prefix} movement.mode must be 'flight' or 'ground'.`);
+        }
+        if (
+          movement.maxThrustCharges !== undefined &&
+          (typeof movement.maxThrustCharges !== 'number' ||
+            !Number.isFinite(movement.maxThrustCharges) ||
+            movement.maxThrustCharges <= 0 ||
+            !Number.isInteger(movement.maxThrustCharges))
+        ) {
+          errors.push(`${prefix} movement.maxThrustCharges must be a positive integer.`);
+        }
+      }
+
+      // Orbs & spawn range validation
+      if (level.gameplay.orbs !== undefined) {
+        const orbs = level.gameplay.orbs;
+        if (orbs.spawnInterval !== undefined && (typeof orbs.spawnInterval !== 'number' || orbs.spawnInterval <= 0)) {
+          errors.push(`${prefix} orbs.spawnInterval must be a positive number.`);
+        }
+        if (
+          orbs.spawnChance !== undefined &&
+          (typeof orbs.spawnChance !== 'number' || orbs.spawnChance < 0 || orbs.spawnChance > 1 || Number.isNaN(orbs.spawnChance))
+        ) {
+          errors.push(`${prefix} orbs.spawnChance must be a number between 0 and 1.`);
+        }
+        if (orbs.minY !== undefined && (typeof orbs.minY !== 'number' || !Number.isFinite(orbs.minY) || orbs.minY < 0 || orbs.minY >= GAME_HEIGHT)) {
+          errors.push(`${prefix} orbs.minY must be a finite number between 0 and GAME_HEIGHT (${GAME_HEIGHT}).`);
+        }
+        if (orbs.maxY !== undefined && (typeof orbs.maxY !== 'number' || !Number.isFinite(orbs.maxY) || orbs.maxY <= 0 || orbs.maxY > GAME_HEIGHT)) {
+          errors.push(`${prefix} orbs.maxY must be a finite number between 0 and GAME_HEIGHT (${GAME_HEIGHT}).`);
+        }
+        if (
+          orbs.minY !== undefined &&
+          orbs.maxY !== undefined &&
+          orbs.minY > orbs.maxY
+        ) {
+          errors.push(`${prefix} orbs.maxY must be greater than or equal to orbs.minY.`);
+        }
+      }
+
+      if (level.gameplay.orbSpawnRange !== undefined) {
+        const range = level.gameplay.orbSpawnRange;
+        if (typeof range.minY !== 'number' || typeof range.maxY !== 'number' || !Number.isFinite(range.minY) || !Number.isFinite(range.maxY)) {
+          errors.push(`${prefix} orbSpawnRange minY and maxY must be finite numbers.`);
+        } else if (range.minY > range.maxY) {
+          errors.push(`${prefix} orbSpawnRange.maxY must be greater than or equal to minY.`);
         }
       }
     }

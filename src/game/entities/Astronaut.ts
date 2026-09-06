@@ -4,6 +4,7 @@ import { getLogger } from '../../utils/logger';
 import { damp, MOTION } from '../visuals/tokens';
 import { ResolvedSpritePresentation } from '../visuals/spriteAnimationTypes';
 import { ASTRONAUT_SPRITE_DEFINITION, advanceSpriteAnimation, createAnimatedSprite } from '../visuals/spriteAnimations';
+import { MovementGameplayDefinition, MovementMode } from '../campaign/campaignTypes';
 
 const logger = getLogger('Astronaut');
 
@@ -29,6 +30,10 @@ export class Astronaut {
   private deathElapsed = 0;
   private readonly presentation: ResolvedSpritePresentation;
   private currentAnimationState: string = 'none';
+
+  private movementMode: MovementMode = 'flight';
+  private maxThrustCharges: number = Infinity;
+  private thrustCharges: number = Infinity;
 
   constructor(source: ResolvedSpritePresentation | PIXI.Texture, x: number, y: number) {
     if (source instanceof PIXI.Texture) {
@@ -57,6 +62,31 @@ export class Astronaut {
     this.dead = false;
 
     logger.info('Astronaut created');
+  }
+
+  public setMovementConfig(config?: MovementGameplayDefinition): void {
+    const mode = config?.mode ?? 'flight';
+    this.movementMode = mode;
+    this.maxThrustCharges = config?.maxThrustCharges ?? (mode === 'ground' ? 1 : Infinity);
+    this.thrustCharges = this.maxThrustCharges;
+    logger.info(`Movement config set: mode=${this.movementMode}, maxThrustCharges=${this.maxThrustCharges}`);
+  }
+
+  public getMovementMode(): MovementMode {
+    return this.movementMode;
+  }
+
+  public getMaxThrustCharges(): number {
+    return this.maxThrustCharges;
+  }
+
+  public getThrustCharges(): number {
+    return this.thrustCharges;
+  }
+
+  public rechargeThrust(): void {
+    this.thrustCharges = this.maxThrustCharges;
+    logger.debug(`Thrust recharged to ${this.thrustCharges}`);
   }
 
   public setGroundY(groundY: number | null): void {
@@ -112,6 +142,7 @@ export class Astronaut {
         this.velocity = 0;
         if (!this.isGrounded) {
           this.isGrounded = true;
+          this.rechargeThrust();
           if (!this.dead) {
             const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
             if (this.currentAnimationState !== defaultAnim && this.currentAnimationState !== 'thrust') {
@@ -201,12 +232,19 @@ export class Astronaut {
     }
   }
 
-  thrust(): void {
+  thrust(): boolean {
     if (this.dead) {
       logger.debug('Thrust attempted but astronaut is dead');
-      return;
+      return false;
     }
-    logger.debug(`Thrust! Setting velocity to ${JUMP_VELOCITY}`);
+    if (this.thrustCharges <= 0) {
+      logger.debug('Thrust rejected - no thrust charges remaining');
+      return false;
+    }
+    if (Number.isFinite(this.thrustCharges)) {
+      this.thrustCharges--;
+    }
+    logger.debug(`Thrust! Setting velocity to ${JUMP_VELOCITY}, remaining charges: ${this.thrustCharges}`);
     this.velocity = JUMP_VELOCITY;
     this.thrustRemaining = MOTION.thrust;
     this.isGrounded = false;
@@ -215,10 +253,11 @@ export class Astronaut {
     if (this.currentAnimationState !== 'thrust') {
       this.playAnimation('thrust');
     }
+    return true;
   }
 
-  flap(): void {
-    this.thrust();
+  flap(): boolean {
+    return this.thrust();
   }
 
   moveLeft(): void {
@@ -244,6 +283,10 @@ export class Astronaut {
       logger.debug('Move up attempted but astronaut is dead');
       return;
     }
+    if (this.movementMode === 'ground') {
+      // Ground movement: vertical motion is strictly jet-assisted jump (thrust); direct vertical velocity override ignored
+      return;
+    }
     logger.debug(`Move up! Setting vertical velocity to -${VERTICAL_SPEED}`);
     this.velocity = -VERTICAL_SPEED;
     this.thrustRemaining = MOTION.thrust;
@@ -256,6 +299,9 @@ export class Astronaut {
   moveDown(): void {
     if (this.dead) {
       logger.debug('Move down attempted but astronaut is dead');
+      return;
+    }
+    if (this.movementMode === 'ground') {
       return;
     }
     logger.debug(`Move down! Setting vertical velocity to ${VERTICAL_SPEED}`);
@@ -298,6 +344,7 @@ export class Astronaut {
     this.sprite.alpha = 1;
     this.thrustRemaining = 0;
     this.deathElapsed = 0;
+    this.rechargeThrust();
 
     const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
     if (this.presentation.animations[defaultAnim]) {

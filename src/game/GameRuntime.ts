@@ -145,6 +145,8 @@ export class GameRuntime {
       orbSpawnChance: levelDefinition.gameplay.orbSpawnChance,
       obstacles: levelDefinition.gameplay.obstacles,
       ground: levelDefinition.gameplay.ground,
+      orbs: levelDefinition.gameplay.orbs,
+      orbSpawnRange: levelDefinition.gameplay.orbSpawnRange,
       levelNumber: levelDefinition.gameplay.levelNumber,
     });
 
@@ -162,6 +164,7 @@ export class GameRuntime {
     this.systems.entities.clearAll();
     this.systems.spawning.resetSpawning();
     this.systems.entities.setGround(levelDefinition.gameplay.ground, levelDefinition.presentation.terrainId);
+    this.systems.entities.setMovementConfig(levelDefinition.gameplay.movement);
     this.systems.entities.createAstronaut();
     this.systems.rendering.createBackground();
   }

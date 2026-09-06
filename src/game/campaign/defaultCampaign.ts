@@ -41,17 +41,26 @@ export const SECTOR_02: LevelDefinition = {
       orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[1],
     },
     spawnInterval: 2200,
-    orbSpawnChance: 0.4,
+    orbSpawnChance: 0.6,
     orbsRequired: 8,
     timeLimit: 60000,
     obstacles: {
+      enabled: false,
       minPlanetRadius: 20,
       maxPlanetRadius: 50,
-      secondaryPlanetChance: 0.3,
+      secondaryPlanetChance: 0,
     },
     ground: {
       enabled: true,
       height: 80,
+    },
+    movement: {
+      mode: 'ground',
+      maxThrustCharges: 1,
+    },
+    orbs: {
+      minY: 360,
+      maxY: 480,
     },
     levelNumber: 2,
   },

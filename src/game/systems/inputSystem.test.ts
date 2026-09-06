@@ -101,4 +101,25 @@ describe('InputSystem', () => {
     sub2.unsubscribe();
     inputSystem2.dispose();
   });
+
+  it('does not toggle debug mode when pressing D (avoids move right conflict)', () => {
+    inputSystem.initialize();
+    state.startGame();
+
+    expect(state.getState().debugMode).toBe(false);
+
+    // Pressing 'd' or 'D' to move right must NOT toggle debug mode
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd', code: 'KeyD' }));
+    expect(state.getState().debugMode).toBe(false);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', code: 'KeyD' }));
+    expect(state.getState().debugMode).toBe(false);
+
+    // Dedicated shortcuts (Backquote or Shift+D) toggle debug mode
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '`', code: 'Backquote' }));
+    expect(state.getState().debugMode).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'D', code: 'KeyD', shiftKey: true }));
+    expect(state.getState().debugMode).toBe(false);
+  });
 });

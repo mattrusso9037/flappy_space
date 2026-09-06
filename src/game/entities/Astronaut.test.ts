@@ -445,4 +445,122 @@ describe('Astronaut Entity', () => {
       expect(astro.getCurrentAnimation()).toBe('idle');
     });
   });
+
+  describe('Movement mode & thrust capacity capabilities', () => {
+    it('defaults to flight mode with unlimited thrust charges and active moveUp/moveDown', () => {
+      expect(astronaut.getMovementMode()).toBe('flight');
+      expect(astronaut.getMaxThrustCharges()).toBe(Infinity);
+      expect(astronaut.getThrustCharges()).toBe(Infinity);
+
+      // Flap repeatedly without rejection
+      for (let i = 0; i < 10; i++) {
+        expect(astronaut.thrust()).toBe(true);
+        expect(astronaut.velocity).toBe(JUMP_VELOCITY);
+      }
+
+      astronaut.moveUp();
+      expect(astronaut.velocity).toBe(-5);
+
+      astronaut.moveDown();
+      expect(astronaut.velocity).toBe(5);
+    });
+
+    it('enforces one thrust per landing in ground mode (maxThrustCharges: 1)', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 495);
+      astro.setGroundY(520);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+
+      expect(astro.getMovementMode()).toBe('ground');
+      expect(astro.getMaxThrustCharges()).toBe(1);
+      expect(astro.getThrustCharges()).toBe(1);
+
+      // First thrust launches astronaut off ground and succeeds
+      const firstThrust = astro.thrust();
+      expect(firstThrust).toBe(true);
+      expect(astro.velocity).toBe(JUMP_VELOCITY);
+      expect(astro.getThrustCharges()).toBe(0);
+      expect(astro.isGrounded).toBe(false);
+
+      // Second airborne thrust attempt is REJECTED
+      astro.velocity = 2.0; // falling under gravity
+      const secondThrust = astro.thrust();
+      expect(secondThrust).toBe(false);
+      expect(astro.velocity).toBe(2.0); // unchanged!
+      expect(astro.getThrustCharges()).toBe(0);
+
+      // Landing recharges thrust
+      astro.sprite.y = 520 - ASTRONAUT.body.height / 2;
+      astro.velocity = 10;
+      astro.update(16.667); // Collides with ground
+      expect(astro.isGrounded).toBe(true);
+      expect(astro.getThrustCharges()).toBe(1);
+
+      // Can thrust again after landing
+      expect(astro.thrust()).toBe(true);
+      expect(astro.velocity).toBe(JUMP_VELOCITY);
+      expect(astro.getThrustCharges()).toBe(0);
+    });
+
+    it('supports future capacity of 2 (double-thrust without redesign)', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 495);
+      astro.setGroundY(520);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 2 });
+
+      expect(astro.getMaxThrustCharges()).toBe(2);
+      expect(astro.getThrustCharges()).toBe(2);
+
+      // First thrust
+      expect(astro.thrust()).toBe(true);
+      expect(astro.velocity).toBe(JUMP_VELOCITY);
+      expect(astro.getThrustCharges()).toBe(1);
+
+      // Simulate partial flight / falling
+      astro.velocity = 1.5;
+
+      // Second airborne thrust succeeds (double jump!)
+      expect(astro.thrust()).toBe(true);
+      expect(astro.velocity).toBe(JUMP_VELOCITY);
+      expect(astro.getThrustCharges()).toBe(0);
+
+      // Third airborne thrust is rejected
+      astro.velocity = 3.0;
+      expect(astro.thrust()).toBe(false);
+      expect(astro.velocity).toBe(3.0);
+
+      // Landing recharges to full capacity of 2
+      astro.sprite.y = 520 - ASTRONAUT.body.height / 2;
+      astro.velocity = 5;
+      astro.update(16.667);
+      expect(astro.isGrounded).toBe(true);
+      expect(astro.getThrustCharges()).toBe(2);
+    });
+
+    it('ignores moveUp and moveDown direct overrides in ground mode', () => {
+      astronaut.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astronaut.velocity = 0;
+
+      astronaut.moveUp();
+      expect(astronaut.velocity).toBe(0); // Ignored in ground mode
+
+      astronaut.moveDown();
+      expect(astronaut.velocity).toBe(0); // Ignored in ground mode
+
+      // Horizontal movement remains fully responsive
+      astronaut.moveLeft();
+      expect(astronaut.horizontalVelocity).toBe(-5);
+      astronaut.moveRight();
+      expect(astronaut.horizontalVelocity).toBe(5);
+    });
+
+    it('restores full thrust capacity upon reset()', () => {
+      astronaut.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astronaut.thrust();
+      expect(astronaut.getThrustCharges()).toBe(0);
+
+      astronaut.reset(150, 250);
+      expect(astronaut.getThrustCharges()).toBe(1);
+    });
+  });
 });

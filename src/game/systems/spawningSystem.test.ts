@@ -273,4 +273,70 @@ describe('SpawningSystem', () => {
       expect(y).toBeLessThanOrEqual(600);
     });
   });
+
+  describe('independent orb spawning & obstacle enable/disable capabilities', () => {
+    it('disables planet obstacles while orbs still spawn on cadence', () => {
+      const createPlanetSpy = vi.spyOn(entities, 'createPlanet');
+      const createOrbSpy = vi.spyOn(entities, 'createOrb');
+
+      spawning.setLevelConfig({
+        obstacles: {
+          enabled: false,
+          minPlanetRadius: 20,
+          maxPlanetRadius: 50,
+          secondaryPlanetChance: 0,
+        },
+        spawnInterval: 1500,
+        orbSpawnChance: 1.0, // 100% orb spawn chance
+      });
+
+      state.startGame();
+
+      // Tick through multiple intervals past initial delay
+      for (let t = 500; t <= 5000; t += 500) {
+        state.updateTime(500);
+        spawning.update(0.5, state.getState());
+      }
+
+      // No planets should ever be created
+      expect(createPlanetSpy).not.toHaveBeenCalled();
+
+      // Orbs should have spawned independently
+      expect(createOrbSpy).toHaveBeenCalled();
+      expect(createOrbSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('spawns orbs strictly within configured reachable vertical range', () => {
+      const groundHeight = 80;
+      entities.setGround({ enabled: true, height: groundHeight }, 'alien-crust');
+      const createOrbSpy = vi.spyOn(entities, 'createOrb');
+
+      // Configure reachable range for single jet jump (e.g. 360 to 480)
+      spawning.setLevelConfig({
+        obstacles: { enabled: false, minPlanetRadius: 20, maxPlanetRadius: 50, secondaryPlanetChance: 0 },
+        orbs: {
+          minY: 360,
+          maxY: 480,
+          spawnChance: 1.0,
+          spawnInterval: 500,
+        },
+      });
+
+      state.startGame();
+
+      for (let i = 0; i < 20; i++) {
+        state.updateTime(500);
+        spawning.update(0.5, state.getState());
+      }
+
+      expect(createOrbSpy).toHaveBeenCalled();
+      expect(createOrbSpy.mock.calls.length).toBeGreaterThanOrEqual(5);
+
+      for (const call of createOrbSpy.mock.calls) {
+        const orbY = call[1];
+        expect(orbY).toBeGreaterThanOrEqual(360);
+        expect(orbY).toBeLessThanOrEqual(480);
+      }
+    });
+  });
 });

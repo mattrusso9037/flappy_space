@@ -5,7 +5,7 @@ import { Planet } from '../entities/Planet';
 import { Orb } from '../entities/Orb';
 import { Star } from '../entities/Star';
 import { Ground } from '../entities/Ground';
-import { GroundGameplayDefinition } from '../campaign/campaignTypes';
+import { GroundGameplayDefinition, MovementGameplayDefinition } from '../campaign/campaignTypes';
 import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { EventBus, GameEvent } from '../eventBus';
 import defaultAssetManager from '../assetManager';
@@ -25,6 +25,7 @@ export class EntitySystem {
   private app: PIXI.Application | null = null;
   private astronaut: Astronaut | null = null;
   private ground: Ground | null = null;
+  private movementConfig?: MovementGameplayDefinition;
   private obstacles: Obstacle[] = [];
   private orbs: Orb[] = [];
   private stars: Star[] = [];
@@ -112,6 +113,8 @@ export class EntitySystem {
     
     // Clear stars
     this.clearStars();
+
+    this.movementConfig = undefined;
     
     this.logger.info('EntityManager: All entities cleared');
   }
@@ -155,6 +158,20 @@ export class EntitySystem {
   public getGroundY(): number | null {
     return this.ground ? this.ground.y : null;
   }
+
+  /**
+   * Set movement configuration for the active level.
+   */
+  public setMovementConfig(movement?: MovementGameplayDefinition): void {
+    this.movementConfig = movement;
+    if (this.astronaut) {
+      this.astronaut.setMovementConfig(movement);
+    }
+  }
+
+  public getMovementConfig(): MovementGameplayDefinition | undefined {
+    return this.movementConfig;
+  }
   
   /**
    * Create an astronaut entity
@@ -174,6 +191,9 @@ export class EntitySystem {
     
     this.astronaut = new Astronaut(presentation, ASTRONAUT.startX, ASTRONAUT.startY);
     this.astronaut.setGroundY(this.ground ? this.ground.y : null);
+    if (this.movementConfig) {
+      this.astronaut.setMovementConfig(this.movementConfig);
+    }
     this.pilotLayer.addChild(this.astronaut.sprite);
     this.logger.info('Astronaut created and added to stage');
     

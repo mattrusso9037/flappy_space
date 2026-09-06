@@ -2,7 +2,7 @@ import { GameState, GameStateService } from '../gameStateService';
 import { EntitySystem } from './entitySystem';
 import { ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { DEFAULT_CAMPAIGN } from '../campaign/defaultCampaign';
-import { ObstacleGameplayDefinition, GroundGameplayDefinition } from '../campaign/campaignTypes';
+import { ObstacleGameplayDefinition, GroundGameplayDefinition, OrbGameplayDefinition } from '../campaign/campaignTypes';
 import { Planet } from '../entities/Planet';
 import { getLogger } from '../../utils/logger';
 
@@ -20,6 +20,11 @@ export interface LevelConfig {
   orbFrequency?: number;
   obstacles?: ObstacleGameplayDefinition;
   ground?: GroundGameplayDefinition;
+  orbs?: OrbGameplayDefinition;
+  orbSpawnRange?: {
+    minY: number;
+    maxY: number;
+  };
   /** Optional display metadata only - does NOT dictate gameplay difficulty */
   levelNumber?: number;
 }
@@ -62,6 +67,7 @@ export class SpawningSystem {
     },
   };
   private hasSpawnedFirstObstacle: boolean = false;
+  private hasSpawnedFirstOrb: boolean = false;
   
   public constructor(
     entities: EntitySystem,
@@ -90,6 +96,7 @@ export class SpawningSystem {
     this.lastOrbTime = 0;
     this.pendingOrbSpawnRemainingMs = 0;
     this.hasSpawnedFirstObstacle = false;
+    this.hasSpawnedFirstOrb = false;
   }
 
   /**
@@ -104,6 +111,9 @@ export class SpawningSystem {
         spawnInterval: def.gameplay.spawnInterval,
         orbSpawnChance: def.gameplay.orbSpawnChance,
         obstacles: def.gameplay.obstacles,
+        ground: def.gameplay.ground,
+        orbs: def.gameplay.orbs,
+        orbSpawnRange: def.gameplay.orbSpawnRange,
         levelNumber: def.gameplay.levelNumber ?? levelOrConfig,
       });
     } else {
@@ -119,10 +129,18 @@ export class SpawningSystem {
     this.levelConfig = {
       ...this.levelConfig,
       ...config,
-      // If nested obstacles are partially supplied, merge them
+      // Ensure nested obstacles default enabled to true if omitted, without leaking from prior levels
       obstacles: config.obstacles
-        ? { ...(this.levelConfig.obstacles ?? { minPlanetRadius: 20, maxPlanetRadius: 45, secondaryPlanetChance: 0 }), ...config.obstacles }
+        ? {
+            minPlanetRadius: config.obstacles.minPlanetRadius ?? 20,
+            maxPlanetRadius: config.obstacles.maxPlanetRadius ?? 45,
+            secondaryPlanetChance: config.obstacles.secondaryPlanetChance ?? 0,
+            enabled: config.obstacles.enabled ?? true,
+          }
         : this.levelConfig.obstacles,
+      ground: config.ground,
+      orbs: config.orbs,
+      orbSpawnRange: config.orbSpawnRange,
     };
     logger.info('SpawningSystem: Level config updated', this.levelConfig);
   }
@@ -158,25 +176,52 @@ export class SpawningSystem {
     }
 
     const currentTime = gameState.time;
-    
-    // Ensure first obstacle is spawned with an initial delay
-    if (!this.hasSpawnedFirstObstacle && currentTime > 1500) {
-      logger.info('SpawningSystem: Spawning first obstacle');
-      this.spawnObstacle(gameState);
-      this.lastObstacleTime = currentTime;
-      this.hasSpawnedFirstObstacle = true;
+    const obstaclesEnabled = this.levelConfig.obstacles?.enabled !== false;
+    const independentOrbs = !obstaclesEnabled || this.levelConfig.orbs?.spawnInterval !== undefined;
+
+    if (obstaclesEnabled) {
+      // Ensure first obstacle is spawned with an initial delay
+      if (!this.hasSpawnedFirstObstacle && currentTime > 1500) {
+        logger.info('SpawningSystem: Spawning first obstacle');
+        this.spawnObstacle(gameState);
+        this.lastObstacleTime = currentTime;
+        this.hasSpawnedFirstObstacle = true;
+      }
+      // Then spawn regular obstacles according to interval
+      else if (this.hasSpawnedFirstObstacle && currentTime - this.lastObstacleTime > this.levelConfig.spawnInterval) {
+        logger.info(`SpawningSystem: Spawning obstacle at time=${currentTime.toFixed(2)}`);
+        this.spawnObstacle(gameState);
+        this.lastObstacleTime = currentTime;
+        
+        // Stagger orb spawn using simulation time countdown governed by explicit orbSpawnChance
+        if (!independentOrbs) {
+          const orbChance = this.levelConfig.orbs?.spawnChance ?? this.levelConfig.orbSpawnChance ?? ORB_SPAWN_CHANCE;
+          if (Math.random() < orbChance) {
+            logger.info('SpawningSystem: Scheduling delayed orb spawn in simulation time', { orbChance });
+            this.pendingOrbSpawnRemainingMs = this.levelConfig.spawnInterval * 0.4;
+          }
+        }
+      }
     }
-    // Then spawn regular obstacles according to interval
-    else if (this.hasSpawnedFirstObstacle && currentTime - this.lastObstacleTime > this.levelConfig.spawnInterval) {
-      logger.info(`SpawningSystem: Spawning obstacle at time=${currentTime.toFixed(2)}`);
-      this.spawnObstacle(gameState);
-      this.lastObstacleTime = currentTime;
-      
-      // Stagger orb spawn using simulation time countdown governed by explicit orbSpawnChance
-      const orbChance = this.levelConfig.orbSpawnChance ?? ORB_SPAWN_CHANCE;
-      if (Math.random() < orbChance) {
-        logger.info('SpawningSystem: Scheduling delayed orb spawn in simulation time', { orbChance });
-        this.pendingOrbSpawnRemainingMs = this.levelConfig.spawnInterval * 0.4;
+
+    // Independent orb spawning cadence (when obstacles are disabled, or explicit orbs.spawnInterval configured)
+    if (independentOrbs) {
+      const orbInterval = this.levelConfig.orbs?.spawnInterval ?? this.levelConfig.spawnInterval;
+      const orbChance = this.levelConfig.orbs?.spawnChance ?? this.levelConfig.orbSpawnChance ?? ORB_SPAWN_CHANCE;
+
+      if (!this.hasSpawnedFirstOrb && currentTime > 1500) {
+        logger.info('SpawningSystem: Initial independent orb spawn check');
+        this.hasSpawnedFirstOrb = true;
+        this.lastOrbTime = currentTime;
+        if (Math.random() < orbChance) {
+          this.spawnOrb();
+        }
+      } else if (this.hasSpawnedFirstOrb && currentTime - this.lastOrbTime > orbInterval) {
+        logger.info(`SpawningSystem: Independent orb spawn check at time=${currentTime.toFixed(2)}`);
+        this.lastOrbTime = currentTime;
+        if (Math.random() < orbChance) {
+          this.spawnOrb();
+        }
       }
     }
   }
@@ -255,9 +300,16 @@ export class SpawningSystem {
     const radius = safeRandomInRange(12, 18);
     const groundY = this.entities.getGroundY() ?? GAME_HEIGHT;
     
-    const minY = GAME_HEIGHT * 0.2;
-    const maxY = Math.min(GAME_HEIGHT * 0.8, groundY - radius - 10);
-    const orbY = safeRandomInRange(minY, Math.max(minY, maxY));
+    const defaultMinY = GAME_HEIGHT * 0.2;
+    const defaultMaxY = Math.min(GAME_HEIGHT * 0.8, groundY - radius - 10);
+
+    const configuredMinY = this.levelConfig.orbs?.minY ?? this.levelConfig.orbSpawnRange?.minY;
+    const configuredMaxY = this.levelConfig.orbs?.maxY ?? this.levelConfig.orbSpawnRange?.maxY;
+
+    const minY = configuredMinY !== undefined ? configuredMinY : defaultMinY;
+    const maxY = Math.min(configuredMaxY !== undefined ? configuredMaxY : defaultMaxY, groundY - radius - 10);
+
+    const orbY = safeRandomInRange(Math.min(minY, maxY), Math.max(minY, maxY));
     
     this.entities.createOrb(
       GAME_WIDTH + radius,

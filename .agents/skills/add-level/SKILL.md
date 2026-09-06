@@ -29,8 +29,11 @@ Before writing code or editing files, inspect and understand:
 Level authoring operates strictly through data configuration. Distinguish existing reusable capabilities from missing engine capabilities before modifying code.
 
 ### Existing Reusable Capabilities (Configure via `LevelDefinition`):
-- **Deep space flight**: Default full-height gameplay corridor with lethal bottom boundary.
-- **Ground / planetary surface**: Optional solid terrain surface via `gameplay.ground: { enabled: true, height: number }` and `presentation.terrainId?: TerrainId` (e.g. `'alien-crust'`). Bottom boundary becomes walkable/landable surface.
+- **Deep space flight**: Default full-height gameplay corridor with lethal bottom boundary and unlimited thrust.
+- **Ground / planetary surface**: Solid terrain surface via `gameplay.ground: { enabled: true, height: number }` and `presentation.terrainId?: TerrainId` (e.g. `'alien-crust'`). Bottom boundary becomes walkable/landable surface.
+- **Ground traversal & thrust capacity**: `gameplay.movement: { mode: 'ground', maxThrustCharges: 1 }`. Left/right walking + jet-assisted jump. One thrust per landing; landing recharges thrust. Future double-jump via `maxThrustCharges: 2` without redesign. Omit for default flight mode.
+- **Obstacle enable/disable**: `gameplay.obstacles: { enabled: false, ... }` to disable planet obstacles while preserving other gameplay.
+- **Configurable orb range & independent spawning**: `gameplay.orbs: { minY: number, maxY: number, spawnInterval?: number, spawnChance?: number }` or `gameplay.orbSpawnRange: { minY, maxY }`. Configures vertical corridor so orbs spawn within reachable jump range.
 - **Environment presets**: Visual backgrounds via `presentation.environmentId` (`'deep-nebula'`, `'alien-surface'`, `'violet-reach'`, `'solar-storm'`).
 - **Terrain presets**: Visual ground styling via `presentation.terrainId` (`'alien-crust'`).
 - **Music tracks**: Background audio via `presentation.musicId` (`'weightless-space'`).

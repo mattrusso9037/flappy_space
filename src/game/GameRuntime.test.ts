@@ -389,6 +389,9 @@ it('cleanly transitions between groundless and ground-enabled levels without cap
   expect(runtime.systems.entities.getGroundY()).toBeNull();
   const astro1 = runtime.systems.entities.getAstronaut()!;
   expect(astro1.getGroundY()).toBeNull();
+  expect(astro1.getMovementMode()).toBe('flight');
+  expect(astro1.getMaxThrustCharges()).toBe(Infinity);
+  expect(runtime.systems.spawning.getLevelConfig().obstacles?.enabled).not.toBe(false);
 
   // Falling to bottom in space is lethal
   astro1.sprite.y = 600 - 25;
@@ -407,13 +410,25 @@ it('cleanly transitions between groundless and ground-enabled levels without cap
   expect(ground?.y).toBe(520);
   const astro2 = runtime.systems.entities.getAstronaut()!;
   expect(astro2.getGroundY()).toBe(520);
+  expect(astro2.getMovementMode()).toBe('ground');
+  expect(astro2.getMaxThrustCharges()).toBe(1);
+  expect(astro2.getThrustCharges()).toBe(1);
+  expect(runtime.systems.spawning.getLevelConfig().obstacles?.enabled).toBe(false);
+  expect(runtime.systems.spawning.getLevelConfig().orbs?.minY).toBe(360);
+  expect(runtime.systems.spawning.getLevelConfig().orbs?.maxY).toBe(480);
 
-  // Falling to ground surface lands safely
+  // Ground movement jump & landing recharge
+  expect(astro2.thrust()).toBe(true);
+  expect(astro2.getThrustCharges()).toBe(0);
+  expect(astro2.thrust()).toBe(false); // Second airborne jump rejected
+
+  // Falling to ground surface lands safely and recharges thrust
   astro2.sprite.y = 520 - 25;
   astro2.velocity = 10;
   astro2.update(16.667);
   expect(astro2.dead).toBe(false);
   expect(astro2.isGrounded).toBe(true);
+  expect(astro2.getThrustCharges()).toBe(1);
 
   // 3. Load groundless level again (sector-03)
   const sector03 = DEFAULT_CAMPAIGN.levels['sector-03'];
@@ -424,8 +439,12 @@ it('cleanly transitions between groundless and ground-enabled levels without cap
   expect(runtime.systems.entities.getGroundY()).toBeNull();
   const astro3 = runtime.systems.entities.getAstronaut()!;
   expect(astro3.getGroundY()).toBeNull();
+  expect(astro3.getMovementMode()).toBe('flight');
+  expect(astro3.getMaxThrustCharges()).toBe(Infinity);
+  expect(astro3.getThrustCharges()).toBe(Infinity);
+  expect(runtime.systems.spawning.getLevelConfig().obstacles?.enabled).not.toBe(false);
 
-  // Bottom boundary must be lethal again
+  // Bottom boundary must be lethal again in sector-03
   astro3.sprite.y = 600 - 25;
   astro3.velocity = 10;
   astro3.update(16.667);

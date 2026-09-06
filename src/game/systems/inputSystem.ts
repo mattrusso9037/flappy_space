@@ -348,8 +348,8 @@ export class InputSystem {
       }
     } 
 
-    // Handle debug mode toggle
-    else if (e.key === 'd' || e.key === 'D') {
+    // Handle debug mode toggle (Backquote, F3, or Shift+D; avoids collision with WASD D-key move right)
+    else if ((e.code === 'Backquote' || e.key === '`' || e.key === 'F3' || (e.shiftKey && (e.key === 'd' || e.key === 'D'))) && !e.repeat) {
       logger.info('Debug mode toggle');
       this.state.toggleDebugMode();
     } else if (e.key === 'r' || e.key === 'R') {
