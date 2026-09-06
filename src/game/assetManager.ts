@@ -17,7 +17,12 @@ export interface AssetDefinition {
 const gameAssets: AssetDefinition[] = [
   {
     name: 'astronaut',
-    url: './assets/astro-sprite.png', // Using ./ for more explicit relative path
+    url: './assets/astronaut/astronaut.json',
+    type: 'spritesheet'
+  },
+  {
+    name: 'astronaut-static',
+    url: './assets/astro-sprite.png',
     type: 'texture'
   }
   // Add more assets here as needed
@@ -133,13 +138,6 @@ export class AssetManager {
     
     try {
       const asset = PIXI.Assets.get(name);
-      if (!asset) {
-        logger.error(`Texture '${name}' not found. Available assets:`, 
-          this.assets.map(a => a.name).join(', '));
-        // Return a default texture or placeholder to prevent crashes
-        return PIXI.Texture.WHITE;
-      }
-
       if (asset instanceof PIXI.Texture) {
         return asset;
       }
@@ -147,12 +145,28 @@ export class AssetManager {
       // If a Spritesheet was requested via getTexture, try to return its default or first frame
       if (asset && typeof asset === 'object' && 'textures' in asset) {
         const sheet = asset as PIXI.Spritesheet;
+        if (sheet.textures && name in sheet.textures) {
+          return sheet.textures[name];
+        }
         const firstKey = Object.keys(sheet.textures)[0];
         if (firstKey && sheet.textures[firstKey]) {
           return sheet.textures[firstKey];
         }
       }
-      
+
+      // Check all loaded spritesheets for this texture name
+      for (const def of this.assets) {
+        if (def.type === 'spritesheet') {
+          const sheet = this.getSpritesheet(def.name);
+          if (sheet?.textures && name in sheet.textures) {
+            return sheet.textures[name];
+          }
+        }
+      }
+
+      logger.error(`Texture '${name}' not found. Available assets:`, 
+        this.assets.map(a => a.name).join(', '));
+      // Return a default texture or placeholder to prevent crashes
       return PIXI.Texture.WHITE;
     } catch (error) {
       logger.error(`Error getting texture '${name}':`, error);

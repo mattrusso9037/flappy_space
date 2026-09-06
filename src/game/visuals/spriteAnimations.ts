@@ -61,28 +61,28 @@ export const ASTRONAUT_SPRITE_DEFINITION: SpriteAssetDefinition = {
   },
   animations: {
     idle: {
-      frames: ['idle_00', 'idle_01', 'idle_02', 'idle_03'],
-      fps: 8,
-      loop: true,
+      frames: ['idle_00'],
+      fps: 1,
+      loop: false,
     },
     thrust: {
-      frames: ['thrust_00', 'thrust_01', 'thrust_02', 'thrust_03'],
-      fps: 14,
+      frames: ['idle_00', 'idle_01', 'idle_02', 'idle_03', 'idle_04', 'idle_05', 'idle_06', 'idle_07'],
+      fps: 20,
       loop: false,
     },
     hit: {
-      frames: ['hit_00', 'hit_01'],
+      frames: ['idle_05', 'idle_06'],
       fps: 10,
       loop: false,
     },
     death: {
-      frames: ['death_00', 'death_01', 'death_02', 'death_03'],
+      frames: ['idle_00', 'idle_02', 'idle_04', 'idle_06'],
       fps: 12,
       loop: false,
     },
     warp: {
-      frames: ['warp_00', 'warp_01', 'warp_02', 'warp_03'],
-      fps: 12,
+      frames: ['idle_00', 'idle_01', 'idle_02', 'idle_03', 'idle_04', 'idle_05', 'idle_06', 'idle_07'],
+      fps: 16,
       loop: true,
     },
   },

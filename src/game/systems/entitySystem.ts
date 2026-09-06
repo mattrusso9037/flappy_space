@@ -112,13 +112,17 @@ export class EntitySystem {
       return this.astronaut;
     }
     
+    const thrustFrames = this.assetMgr.getAnimationFrames('astronaut', 'thrust');
+    const idleFrames = this.assetMgr.getAnimationFrames('astronaut', 'idle');
+    const frames = thrustFrames.length > 0 ? thrustFrames : idleFrames;
     const astronautTexture = this.assetMgr.getTexture('astronaut');
-    if (!astronautTexture) {
-      this.logger.error('Failed to get astronaut texture');
+    const source = frames.length > 0 ? frames : astronautTexture;
+    if (!source) {
+      this.logger.error('Failed to get astronaut texture or frames');
       return null;
     }
     
-    this.astronaut = new Astronaut(astronautTexture, ASTRONAUT.startX, ASTRONAUT.startY);
+    this.astronaut = new Astronaut(source, ASTRONAUT.startX, ASTRONAUT.startY);
     this.pilotLayer.addChild(this.astronaut.sprite);
     this.logger.info('Astronaut created and added to stage');
     

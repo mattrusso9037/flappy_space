@@ -144,4 +144,87 @@ describe('Astronaut Entity', () => {
     astronaut.moveLeft();
     expect(astronaut.horizontalVelocity).toBe(0);
   });
+
+  it('instantiates with AnimatedSprite stopped on frame 0 when frame array is provided', () => {
+    const frames = [new PIXI.Texture(), new PIXI.Texture()];
+    const animatedAstronaut = new Astronaut(frames, 100, 200);
+
+    expect(animatedAstronaut.sprite).toBeInstanceOf(PIXI.AnimatedSprite);
+    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
+    expect(anim.playing).toBe(false);
+    expect(anim.currentFrame).toBe(0);
+    expect(animatedAstronaut.collisionDimensions).toEqual({ width: 35, height: 35 });
+  });
+
+  it('triggers animation on flap() and returns to resting frame 0 on completion', () => {
+    const frames = [new PIXI.Texture(), new PIXI.Texture()];
+    const animatedAstronaut = new Astronaut(frames, 100, 200);
+    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
+
+    expect(anim.playing).toBe(false);
+    animatedAstronaut.flap();
+    expect(anim.playing).toBe(true);
+
+    // Call onComplete
+    anim.onComplete?.();
+    expect(anim.playing).toBe(false);
+    expect(anim.currentFrame).toBe(0);
+  });
+
+  it('triggers animation on moveUp()', () => {
+    const frames = [new PIXI.Texture(), new PIXI.Texture()];
+    const animatedAstronaut = new Astronaut(frames, 100, 200);
+    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
+
+    expect(anim.playing).toBe(false);
+    animatedAstronaut.moveUp();
+    expect(anim.playing).toBe(true);
+  });
+
+  it('maintains fixed collision dimensions regardless of visual dimensions or frame changes', () => {
+    const frames = [new PIXI.Texture(), new PIXI.Texture()];
+    const animatedAstronaut = new Astronaut(frames, 200, 300);
+
+    const initialHitbox = animatedAstronaut.getHitbox();
+    expect(initialHitbox.maxX - initialHitbox.minX).toBe(35);
+    expect(initialHitbox.maxY - initialHitbox.minY).toBe(35);
+
+    // Change display dimensions
+    animatedAstronaut.sprite.width = 120;
+    animatedAstronaut.sprite.height = 200;
+
+    const afterResizeHitbox = animatedAstronaut.getHitbox();
+    expect(afterResizeHitbox.maxX - afterResizeHitbox.minX).toBe(35);
+    expect(afterResizeHitbox.maxY - afterResizeHitbox.minY).toBe(35);
+    expect((afterResizeHitbox.minX + afterResizeHitbox.maxX) / 2).toBe(200);
+    expect((afterResizeHitbox.minY + afterResizeHitbox.maxY) / 2).toBe(300);
+  });
+
+  it('stops animation on die() and stops on frame 0 on reset()', () => {
+    const frames = [new PIXI.Texture(), new PIXI.Texture()];
+    const animatedAstronaut = new Astronaut(frames, 100, 200);
+    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
+
+    animatedAstronaut.flap();
+    expect(anim.playing).toBe(true);
+    animatedAstronaut.die();
+    expect(anim.playing).toBe(false);
+
+    animatedAstronaut.reset(150, 250);
+    expect(anim.playing).toBe(false);
+    expect(anim.currentFrame).toBe(0);
+    expect(animatedAstronaut.dead).toBe(false);
+  });
+
+  it('switches animation frames and fps via playAnimation()', () => {
+    const frames1 = [new PIXI.Texture(), new PIXI.Texture()];
+    const frames2 = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
+    const animatedAstronaut = new Astronaut(frames1, 100, 200);
+    const anim = animatedAstronaut.sprite as PIXI.AnimatedSprite;
+
+    animatedAstronaut.playAnimation(frames2, 14, false);
+    expect(anim.textures).toBe(frames2);
+    expect(anim.animationSpeed).toBeCloseTo(14 / 60, 4);
+    expect(anim.loop).toBe(false);
+  });
 });

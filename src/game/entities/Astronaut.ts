@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { GRAVITY, JUMP_VELOCITY, MAX_VELOCITY, GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { GRAVITY, JUMP_VELOCITY, MAX_VELOCITY, GAME_HEIGHT, GAME_WIDTH, ASTRONAUT } from '../config';
 import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('Astronaut');
@@ -21,12 +21,26 @@ export class Astronaut {
   rotation: number;
   dead: boolean;
   thrustRemaining = 0;
+  public readonly collisionDimensions = { width: 35, height: 35 };
   private deathElapsed = 0;
 
-  constructor(texture: PIXI.Texture, x: number, y: number) {
-    this.sprite = new PIXI.Sprite(texture);
-    this.sprite.width = 50;
-    this.sprite.height = 50;
+  constructor(textureOrFrames: PIXI.Texture | PIXI.Texture[], x: number, y: number) {
+    if (Array.isArray(textureOrFrames)) {
+      const anim = new PIXI.AnimatedSprite(textureOrFrames);
+      anim.animationSpeed = 1 / 60;
+      anim.loop = false;
+      anim.onComplete = () => {
+        anim.gotoAndStop(0);
+      };
+      anim.gotoAndStop(0);
+      this.sprite = anim;
+      // Preserve natural aspect ratio (128:341) to prevent smushing
+      this.sprite.scale.set(0.28);
+    } else {
+      this.sprite = new PIXI.Sprite(textureOrFrames);
+      this.sprite.width = 50;
+      this.sprite.height = 50;
+    }
     this.sprite.x = x;
     this.sprite.y = y;
     this.sprite.anchor.set(0.5);
@@ -66,29 +80,32 @@ export class Astronaut {
     this.rotation = damp(this.rotation, targetRotation, deltaMS / 1000);
     this.sprite.rotation = this.rotation;
 
-    // Check vertical boundaries
-    if (this.sprite.y - this.sprite.height / 2 < 0) {
-      this.sprite.y = this.sprite.height / 2;
+    // Check vertical boundaries using logical body dimensions
+    const halfH = ASTRONAUT.height / 2;
+    const halfW = ASTRONAUT.width / 2;
+
+    if (this.sprite.y - halfH < 0) {
+      this.sprite.y = halfH;
       this.velocity = 0;
       logger.info('Hit top boundary');
     }
 
-    if (this.sprite.y + this.sprite.height / 2 > GAME_HEIGHT) {
-      this.sprite.y = GAME_HEIGHT - this.sprite.height / 2;
+    if (this.sprite.y + halfH > GAME_HEIGHT) {
+      this.sprite.y = GAME_HEIGHT - halfH;
       this.velocity = 0;
       logger.info('Hit bottom boundary - dying');
       this.die();
     }
 
     // Check horizontal boundaries
-    if (this.sprite.x - this.sprite.width / 2 < 0) {
-      this.sprite.x = this.sprite.width / 2;
+    if (this.sprite.x - halfW < 0) {
+      this.sprite.x = halfW;
       this.horizontalVelocity = 0;
       logger.info('Hit left boundary');
     }
 
-    if (this.sprite.x + this.sprite.width / 2 > GAME_WIDTH) {
-      this.sprite.x = GAME_WIDTH - this.sprite.width / 2;
+    if (this.sprite.x + halfW > GAME_WIDTH) {
+      this.sprite.x = GAME_WIDTH - halfW;
       this.horizontalVelocity = 0;
       logger.info('Hit right boundary');
     }
@@ -96,9 +113,8 @@ export class Astronaut {
 
   getHitbox(): PIXI.Bounds {
     const bounds = new PIXI.Bounds();
-    const hitboxScale = 0.7;
-    const width = this.sprite.width * hitboxScale;
-    const height = this.sprite.height * hitboxScale;
+    const width = this.collisionDimensions.width;
+    const height = this.collisionDimensions.height;
 
     bounds.minX = this.sprite.x - width / 2;
     bounds.maxX = this.sprite.x + width / 2;
@@ -116,6 +132,9 @@ export class Astronaut {
     logger.debug(`Flap! Setting velocity to ${JUMP_VELOCITY}`);
     this.velocity = JUMP_VELOCITY;
     this.thrustRemaining = MOTION.thrust;
+    if (this.sprite instanceof PIXI.AnimatedSprite) {
+      this.sprite.gotoAndPlay(0);
+    }
   }
 
   moveLeft(): void {
@@ -144,6 +163,9 @@ export class Astronaut {
     logger.debug(`Move up! Setting vertical velocity to -${VERTICAL_SPEED}`);
     this.velocity = -VERTICAL_SPEED;
     this.thrustRemaining = MOTION.thrust;
+    if (this.sprite instanceof PIXI.AnimatedSprite) {
+      this.sprite.gotoAndPlay(0);
+    }
   }
 
   moveDown(): void {
@@ -159,6 +181,9 @@ export class Astronaut {
     logger.info('Dying...');
     this.dead = true;
     this.sprite.tint = 0xFF5555;
+    if (this.sprite instanceof PIXI.AnimatedSprite) {
+      this.sprite.stop();
+    }
   }
 
   /** Presentation only; no collision dimensions, physics, or source texture changes. */
@@ -184,5 +209,17 @@ export class Astronaut {
     this.sprite.alpha = 1;
     this.thrustRemaining = 0;
     this.deathElapsed = 0;
+    if (this.sprite instanceof PIXI.AnimatedSprite) {
+      this.sprite.gotoAndStop(0);
+    }
+  }
+
+  playAnimation(frames: PIXI.Texture[], fps = 8, loop = true): void {
+    if (this.sprite instanceof PIXI.AnimatedSprite && frames.length > 0) {
+      this.sprite.textures = frames;
+      this.sprite.animationSpeed = fps / 60;
+      this.sprite.loop = loop;
+      this.sprite.gotoAndPlay(0);
+    }
   }
 }
