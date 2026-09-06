@@ -104,6 +104,9 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 - React owns dialogue/video overlays; Pixi owns realtime in-engine cinematic presentation.
 - In-engine cutscene timing uses simulation time. No unmanaged timers or additional tickers.
 - Use the repo-local `add-dialogue`, `add-in-engine-cutscene`, and `add-video-cutscene` skills when authoring story content. Keep campaign wiring optional and preserve the canonical story architecture.
+- **Dialogue Guardrails**:
+  - **Dedicated Avatar Component**: Avatar presentation is owned exclusively by `<DialogueAvatar />` (`src/components/story/DialogueAvatar.tsx`). Inlining avatar rendering logic into `DialogueOverlay.tsx` or other components is prohibited.
+  - **Domain / Presentation Boundary**: Dialogue domain logic and validation (`characters.ts`, `dialogues.ts`) must never import from or depend on React presentation components.
 - **Camera constraint**: Camera steps transform only `RenderSystem.worldCamera` — never `app.stage`. This preserves HUD, fade overlay, and debug graphics in viewport-space. See [STORY_ARCHITECTURE.md §5.E–G](./STORY_ARCHITECTURE.md) for the canonical container hierarchy and camera semantics.
 - **Story QA**: Use `story-preview.html` on the dev server to QA any dialogue, in-engine cutscene, or video cutscene using real production registries and renderers. Supports `?dialogue=<id>`, `?cutscene=<id>`, and `?video=<id>` query parameters.
 

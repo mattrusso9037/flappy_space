@@ -36,6 +36,7 @@ export const SECTOR_01: LevelDefinition = {
 export const SECTOR_02: LevelDefinition = {
   id: 'sector-02',
   name: 'Alien Surface',
+  intro: { type: 'cutscene', id: 'matter-gun-discovery' },
   gameplay: {
     speeds: {
       planet: BASE_SPEEDS.planet * LEVEL_MULTIPLIERS[1],

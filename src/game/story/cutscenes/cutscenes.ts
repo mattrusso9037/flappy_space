@@ -15,10 +15,49 @@ export const FIRST_SIGNAL_CUTSCENE: CutsceneDefinition = {
   ],
 };
 
+export const MATTER_GUN_DISCOVERY_CUTSCENE: CutsceneDefinition = {
+  id: 'matter-gun-discovery',
+  steps: [
+    { type: 'music', musicId: 'weightless-space' },
+    {
+      type: 'scene',
+      duration: 1.0,
+      scene: {
+        backdrop: 'surface',
+        actors: [
+          {
+            id: 'astronaut-pilot',
+            kind: 'pilot',
+            keyframes: [
+              { time: 0, x: 260, y: 472, scale: 1, rotation: 0, alpha: 1 },
+              { time: 1.0, x: 285, y: 472, scale: 1, rotation: 0, alpha: 1 },
+            ],
+          },
+          {
+            id: 'matter-gun-item',
+            kind: 'matter-gun',
+            keyframes: [
+              { time: 0, x: 380, y: 512, scale: 1, rotation: 0, alpha: 1 },
+              { time: 1.0, x: 380, y: 512, scale: 1, rotation: 0, alpha: 1 },
+            ],
+          },
+        ],
+      },
+    },
+    { type: 'fade', direction: 'in', duration: 0.5 },
+    { type: 'camera', action: { x: -30, y: -30, zoom: 1.15 }, duration: 1.0 },
+    { type: 'wait', duration: 0.3 },
+    { type: 'dialogue', dialogueId: 'matter-gun-found' },
+    { type: 'camera', action: { x: 0, y: 0, zoom: 1 }, duration: 1.0 },
+    { type: 'fade', direction: 'out', duration: 0.5 },
+  ],
+};
+
 const CUTSCENE_REGISTRY: Map<CutsceneId, CutsceneDefinition> = new Map();
 
 CUTSCENE_REGISTRY.set(FIRST_SIGNAL_CUTSCENE.id, FIRST_SIGNAL_CUTSCENE);
 CUTSCENE_REGISTRY.set(OPENING_SPACEWALK.id, OPENING_SPACEWALK);
+CUTSCENE_REGISTRY.set(MATTER_GUN_DISCOVERY_CUTSCENE.id, MATTER_GUN_DISCOVERY_CUTSCENE);
 
 export function registerCutscene(definition: CutsceneDefinition): void {
   CUTSCENE_REGISTRY.set(definition.id, definition);
@@ -40,6 +79,7 @@ export function clearCutsceneRegistry(): void {
   CUTSCENE_REGISTRY.clear();
   CUTSCENE_REGISTRY.set(FIRST_SIGNAL_CUTSCENE.id, FIRST_SIGNAL_CUTSCENE);
   CUTSCENE_REGISTRY.set(OPENING_SPACEWALK.id, OPENING_SPACEWALK);
+  CUTSCENE_REGISTRY.set(MATTER_GUN_DISCOVERY_CUTSCENE.id, MATTER_GUN_DISCOVERY_CUTSCENE);
 }
 
 export function validateCutsceneDefinition(cutscene: CutsceneDefinition): string[] {

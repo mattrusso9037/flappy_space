@@ -19,6 +19,28 @@ export enum InputKey {
   D = 'KeyD',
 }
 
+/**
+ * Format an InputKey or keyboard code string into a human-readable label.
+ * E.g., 'KeyE' -> 'E', 'Digit1' -> '1', 'Space' -> 'SPACE'.
+ */
+export function formatInputKey(key: InputKey | string): string {
+  if (key.startsWith('Key')) return key.slice(3).toUpperCase();
+  if (key.startsWith('Digit')) return key.slice(5);
+  if (key.toLowerCase() === 'space') return 'SPACE';
+  if (key === 'ArrowUp') return 'UP ARROW';
+  if (key === 'ArrowDown') return 'DOWN ARROW';
+  if (key === 'ArrowLeft') return 'LEFT ARROW';
+  if (key === 'ArrowRight') return 'RIGHT ARROW';
+  return key.toUpperCase();
+}
+
+/**
+ * Returns the human-readable key label for using the player tool.
+ */
+export function getUseToolKeyLabel(): string {
+  return formatInputKey(InputKey.USE_TOOL);
+}
+
 // Input events
 export enum InputEvent {
   JUMP = 'jump',

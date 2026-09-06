@@ -65,6 +65,8 @@ describe('GameFlow', () => {
     expect(progress.unlockedLevelIds).toContain('sector-02');
     expect(progress.currentLevelId).toBe('sector-02');
     expect(progress.highScores['sector-01']).toBe(500);
+    expect(flow.getPhase()).toEqual({ type: 'cutscene', cutsceneId: 'matter-gun-discovery' });
+    flow.completeStoryPhase();
     expect(flow.getPhase()).toEqual({ type: 'playing', levelId: 'sector-02' });
 
     // Verify checkpoint was persisted
@@ -83,7 +85,7 @@ describe('GameFlow', () => {
   });
 
   it('does NOT advance campaign progression on game over', () => {
-    flow.startLevel('sector-02');
+    flow.startLevel('sector-02', { skipIntro: true });
 
     flow.handleGameOver('sector-02');
 
@@ -137,7 +139,7 @@ describe('GameFlow', () => {
   });
 
   it('returns to title phase and resets properly', () => {
-    flow.startLevel('sector-02');
+    flow.startLevel('sector-02', { skipIntro: true });
     expect(flow.getPhase().type).toBe('playing');
 
     flow.returnToTitle();
@@ -186,7 +188,9 @@ describe('GameFlow', () => {
       score: 450,
     });
 
-    // GameFlow automatically catches LEVEL_COMPLETED and starts sector-02
+    // GameFlow automatically catches LEVEL_COMPLETED and starts sector-02 intro cutscene
+    expect(attachedFlow.getPhase()).toEqual({ type: 'cutscene', cutsceneId: 'matter-gun-discovery' });
+    attachedFlow.completeStoryPhase();
     expect(attachedFlow.getPhase()).toEqual({ type: 'playing', levelId: 'sector-02' });
     expect(runtime.state.getState().level).toBe(2);
     expect(attachedFlow.getProgress().completedLevelIds).toContain('sector-01');

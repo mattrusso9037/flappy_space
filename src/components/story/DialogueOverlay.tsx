@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { DialogueDefinition, DialogueId } from '../../game/story/dialogue/dialogueTypes';
+import {
+  DialogueDefinition,
+  DialogueId,
+  DialogueVariables,
+  resolveDialogueText,
+} from '../../game/story/dialogue/dialogueTypes';
 import { getDialogue } from '../../game/story/dialogue/dialogues';
 import { getLogger } from '../../utils/logger';
+import { DialogueAvatar } from './DialogueAvatar';
 import './story.css';
 
 const logger = getLogger('DialogueOverlay');
@@ -10,12 +16,14 @@ export interface DialogueOverlayProps {
   dialogueId: DialogueId;
   onComplete: () => void;
   customDefinition?: DialogueDefinition;
+  variables?: DialogueVariables;
 }
 
 export const DialogueOverlay: React.FC<DialogueOverlayProps> = ({
   dialogueId,
   onComplete,
   customDefinition,
+  variables,
 }) => {
   const definition = customDefinition || getDialogue(dialogueId);
   const [currentLineIndex, setCurrentLineIndex] = useState(0);
@@ -101,7 +109,7 @@ export const DialogueOverlay: React.FC<DialogueOverlayProps> = ({
           <div className="dialogue-speaker-wrap">
             <span className="dialogue-status-dot" aria-hidden="true" />
             <span className="dialogue-speaker" data-testid="dialogue-speaker">
-              {currentLine.speaker}
+              {resolveDialogueText(currentLine.speaker, variables)}
             </span>
           </div>
           <span className="dialogue-counter" data-testid="dialogue-counter">
@@ -110,13 +118,14 @@ export const DialogueOverlay: React.FC<DialogueOverlayProps> = ({
         </div>
 
         <div className="dialogue-body">
-          {currentLine.portraitId && (
-            <div className="dialogue-portrait" data-testid="dialogue-portrait">
-              {currentLine.portraitId}
-            </div>
-          )}
+          {currentLine.characterId ? (
+            <DialogueAvatar
+              characterId={currentLine.characterId}
+              portraitId={currentLine.portraitId}
+            />
+          ) : null}
           <p className="dialogue-text" data-testid="dialogue-text">
-            {currentLine.text}
+            {resolveDialogueText(currentLine.text, variables)}
           </p>
         </div>
 

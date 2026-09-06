@@ -37,4 +37,21 @@ describe('cinematic actor tracks', () => {
     expect(sampleActor(pilot, 10).alpha).toBe(0);
     expect(sampleActor(pilot, 12).x).toBe(sampleActor(portal, 12).x);
   });
+
+  it('validates surface scenes with matter-gun actor kind', () => {
+    const gunScene = {
+      backdrop: 'surface' as const,
+      actors: [
+        {
+          id: 'gun',
+          kind: 'matter-gun' as const,
+          keyframes: [
+            { time: 0, x: 380, y: 512, scale: 1, rotation: 0, alpha: 1 },
+            { time: 1, x: 380, y: 512, scale: 1, rotation: 0, alpha: 1 },
+          ],
+        },
+      ],
+    };
+    expect(validateScene(gunScene, 1)).toEqual([]);
+  });
 });
