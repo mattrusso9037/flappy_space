@@ -143,7 +143,8 @@ Follow this systematic sequence whenever adding or modifying a level:
   ```
   - `terrainId` must resolve to a registered preset in `src/game/visuals/terrainPresets.ts`.
 - Groundless levels simply omit `gameplay.ground` and `presentation.terrainId`.
-- **Scrolling separation**: In ground traversal mode (`movement.mode: 'ground'`), the ground does NOT auto-scroll under the player's feet. Instead, it remains stationary while traversing the viewport, and dynamically progresses forward/backward when the player moves against the screen boundaries (end/beginning).
+- **World/camera separation**: In ground traversal mode (`movement.mode: 'ground'`), the astronaut and all gameplay geometry use world coordinates. `CameraSystem` follows within its dead zone and clamps to `gameplay.world.width` in bounded mode; `RenderSystem.worldCamera` applies the presentation transform. Entities never decide camera behavior and ground never scrolls its own presentation.
+- **Looping traversal**: Configure `gameplay.world: { width: 2400, traversal: 'loop' }`. Width is the repeat length in pixels, finite and at least 800. Requires ground movement and enabled ground. Omitted traversal defaults to bounded. World coordinates remain continuous; terrain repeats and sky stays filled. Scenarios remain at authored world positions, not repeated each lap. Test both directions across seams, effect alignment, bounded object retention, and reset to flight. Preview Traverse left/right and Traversal thrust controls exercise production simulation.
 - **Cross-Level Transition Hygiene**: Whenever a level introduces a capability (e.g. ground surface or ground movement), verify that moving to the next level (e.g. flight level) cleanly clears ground geometry and restores flight dynamics without capability leakage.
 
 ---

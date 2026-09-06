@@ -56,6 +56,17 @@ export const SECTOR_02: LevelDefinition = {
       mode: 'ground',
       maxThrustCharges: 1,
     },
+    world: {
+      width: 2400,
+      traversal: 'loop',
+    },
+    scenarios: [
+      {
+        id: 'crystal-chamber',
+        trigger: { x: 1600, y: 0, width: 400, height: 600 },
+        cameraBounds: { x: 1600, y: 0, width: 800, height: 600 },
+      },
+    ],
     orbs: {
       spawnChance: 0.6,
       minY: 360,
@@ -70,6 +81,7 @@ export const SECTOR_02: LevelDefinition = {
   },
   nextLevelId: 'sector-03',
 };
+
 
 export const SECTOR_03: LevelDefinition = {
   id: 'sector-03',

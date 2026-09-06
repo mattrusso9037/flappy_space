@@ -575,16 +575,16 @@ describe('Astronaut Entity', () => {
         expect(astro.horizontalVelocity).toBe(5);
         astro.update(16.667);
       }
-      expect(astro.sprite.x).toBeGreaterThan(320);
+      expect(astro.worldX).toBeGreaterThan(320);
 
       // Hold left across 5 frames
-      const currentX = astro.sprite.x;
+      const currentX = astro.worldX;
       for (let i = 0; i < 5; i++) {
         astro.moveLeft(); // simulating held left input driving movement
         expect(astro.horizontalVelocity).toBe(-5);
         astro.update(16.667);
       }
-      expect(astro.sprite.x).toBeLessThan(currentX);
+      expect(astro.worldX).toBeLessThan(currentX);
     });
 
     it('demonstrates release behavior: decelerates to zero when directional input is released', () => {
@@ -652,70 +652,88 @@ describe('Astronaut Entity', () => {
       expect(hitbox.minY).toBeLessThan(highestOrbY); // Hitbox extends above the orb center!
     });
 
-    it('reports zero boundaryScrollVelocity while moving in the open play area', () => {
+  });
+
+  describe('World-space movement (ground mode)', () => {
+    function makeGroundAstronaut(x: number, worldWidth = 2400) {
       const presentation = createMockPresentation();
-      const astro = new Astronaut(presentation, 400, 300);
-      astro.moveRight();
-      astro.update(16.667);
-      expect(astro.getBoundaryScrollVelocity()).toBe(0);
+      const astro = new Astronaut(presentation, x, 400);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.setWorldWidth(worldWidth);
+      return astro;
+    }
+
+    it('accumulates worldX beyond GAME_WIDTH when moving right', () => {
+      const astro = makeGroundAstronaut(150);
+      // Walk repeatedly right
+      for (let i = 0; i < 200; i++) {
+        astro.moveRight();
+        astro.update(16.667);
+      }
+      expect(astro.worldX).toBeGreaterThan(GAME_WIDTH);
     });
 
-    it('reports positive boundaryScrollVelocity matching horizontalVelocity in the right 33% zone', () => {
-      const presentation = createMockPresentation();
-      // GAME_WIDTH=800, scrollZone=0.33*800=264 → right zone starts at x=536.
-      // Place at x=600, well inside the right 33% zone.
-      const astro = new Astronaut(presentation, 600, 300);
+    it('keeps its display object in world space in ground mode', () => {
+      const astro = makeGroundAstronaut(150);
       astro.moveRight();
       astro.update(16.667);
-      // boundaryScrollVelocity must be positive and equal to actual horizontalVelocity
-      // (post-friction), not a constant — this is the sync contract.
-      expect(astro.getBoundaryScrollVelocity()).toBeGreaterThan(0);
-      expect(astro.getBoundaryScrollVelocity()).toBe(astro.horizontalVelocity);
+      expect(astro.sprite.x).toBe(astro.worldX);
     });
 
-    it('reports negative boundaryScrollVelocity matching horizontalVelocity in the left 33% zone', () => {
-      const presentation = createMockPresentation();
-      // scrollZone=264 → left zone ends at x=264.
-      // Place at x=200, inside the left 33% zone.
-      const astro = new Astronaut(presentation, 200, 300);
+    it('clamps worldX at world left bound (halfW = 25)', () => {
+      const astro = makeGroundAstronaut(25);
       astro.moveLeft();
       astro.update(16.667);
-      // Must be negative and equal to actual horizontalVelocity (post-friction).
-      expect(astro.getBoundaryScrollVelocity()).toBeLessThan(0);
-      expect(astro.getBoundaryScrollVelocity()).toBe(astro.horizontalVelocity);
+      const halfW = ASTRONAUT.body.width / 2; // 25
+      expect(astro.worldX).toBeGreaterThanOrEqual(halfW);
     });
 
-    it('reports zero boundaryScrollVelocity when moving left in the right zone (wrong direction)', () => {
-      const presentation = createMockPresentation();
-      // Right zone but moving left — should not scroll.
-      const astro = new Astronaut(presentation, 600, 300);
-      astro.moveLeft();
-      astro.update(16.667);
-      expect(astro.getBoundaryScrollVelocity()).toBe(0);
+    it('clamps worldX at world right bound (worldWidth - halfW)', () => {
+      const astro = makeGroundAstronaut(2375, 2400);
+      for (let i = 0; i < 50; i++) {
+        astro.moveRight();
+        astro.update(16.667);
+      }
+      const halfW = ASTRONAUT.body.width / 2; // 25
+      expect(astro.worldX).toBeLessThanOrEqual(2400 - halfW);
     });
 
-    it('clears boundaryScrollVelocity when astronaut moves back into the open area', () => {
-      const presentation = createMockPresentation();
-      const astro = new Astronaut(presentation, 600, 300);
-      astro.moveRight();
-      astro.update(16.667);
-      expect(astro.getBoundaryScrollVelocity()).toBeGreaterThan(0);
+    it('resets worldX to the reset position', () => {
+      const astro = makeGroundAstronaut(150);
+      for (let i = 0; i < 100; i++) {
+        astro.moveRight();
+        astro.update(16.667);
+      }
+      expect(astro.worldX).toBeGreaterThan(150);
+      astro.reset(150, 400);
+      expect(astro.worldX).toBe(150);
+    });
+  });
 
-      // Teleport to center (outside the 33% zone) and update without input
-      astro.sprite.x = 400;
-      astro.update(16.667);
-      expect(astro.getBoundaryScrollVelocity()).toBe(0);
+  describe('World-space movement (flight mode)', () => {
+    it('clamps sprite.x at left viewport boundary in flight mode', () => {
+      const astro = new Astronaut(PIXI.Texture.EMPTY, 25, 300);
+      astro.setMovementConfig({ mode: 'flight' });
+      for (let i = 0; i < 20; i++) {
+        astro.moveLeft();
+        astro.update(16.667);
+      }
+      const halfW = ASTRONAUT.body.width / 2;
+      expect(astro.sprite.x).toBeGreaterThanOrEqual(halfW);
+      expect(astro.worldX).toBe(astro.sprite.x);
     });
 
-    it('resets boundaryScrollVelocity to 0 on reset()', () => {
-      const presentation = createMockPresentation();
-      const astro = new Astronaut(presentation, 600, 300);
-      astro.moveRight();
-      astro.update(16.667);
-      expect(astro.getBoundaryScrollVelocity()).toBeGreaterThan(0);
-
-      astro.reset(150, 250);
-      expect(astro.getBoundaryScrollVelocity()).toBe(0);
+    it('clamps sprite.x at right viewport boundary in flight mode', () => {
+      const astro = new Astronaut(PIXI.Texture.EMPTY, GAME_WIDTH - 25, 300);
+      astro.setMovementConfig({ mode: 'flight' });
+      for (let i = 0; i < 20; i++) {
+        astro.moveRight();
+        astro.update(16.667);
+      }
+      const halfW = ASTRONAUT.body.width / 2;
+      expect(astro.sprite.x).toBeLessThanOrEqual(GAME_WIDTH - halfW);
+      expect(astro.worldX).toBe(astro.sprite.x);
     });
   });
 });

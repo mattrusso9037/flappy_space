@@ -94,3 +94,23 @@ describe('Campaign Definition & Data Migration', () => {
     expect(typeof progress.updatedAt).toBe('string');
   });
 });
+
+it('validates traversal mode, loop length, and required ground capability', () => {
+  const campaign = structuredClone(DEFAULT_CAMPAIGN);
+  const gameplay = campaign.levels['sector-02'].gameplay;
+  for (const width of [800, 3200, 10000]) {
+    gameplay.world = { width, traversal: 'loop' };
+    gameplay.scenarios = [];
+    expect(validateCampaignDefinition(campaign).valid).toBe(true);
+  }
+  for (const width of [0, 799, NaN, Infinity]) {
+    gameplay.world = { width, traversal: 'loop' };
+    expect(validateCampaignDefinition(campaign).valid).toBe(false);
+  }
+  gameplay.world = { width: 2400, traversal: 'loop' };
+  Object.assign(gameplay.world, { traversal: 'invalid' });
+  expect(validateCampaignDefinition(campaign).errors.some(e => e.includes('world.traversal'))).toBe(true);
+  gameplay.world = { width: 2400, traversal: 'loop' };
+  gameplay.movement = { mode: 'flight' };
+  expect(validateCampaignDefinition(campaign).valid).toBe(false);
+});

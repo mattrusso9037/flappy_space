@@ -41,7 +41,7 @@ The visual presentation follows a strict separation of concerns between DOM-leve
 - **React Application Shell**: Owns the DOM overlay hierarchy, start/game-over screens, error/loading states, responsive window resizing, audio toggles, dialogue overlays (`DialogueOverlay`), and video cutscene presentation (`VideoCutsceneOverlay`). Story UI strictly adheres to existing mission-control visual tokens (`--space-void`, `--space-hull`, `--space-cyan`, etc.), and video presentation maintains a clean, letterboxed aesthetic without unrelated player chrome. React **never** receives per-frame entity simulation ticks.
 - **PixiJS Canvas**: Owns all realtime visual rendering, scene graphs, sprites, particles, in-engine cutscene visuals/camera transforms, and render loops. The controlled astronaut visual identity pipeline strictly applies to in-engine cinematics as well.
 - **HUD Ownership**: The in-game HUD (`Scoreboard`) is owned by `UISystem` inside the Pixi scene graph. It renders in viewport coordinates (inverting `app.stage.scale`) so HUD borders, typography, and gauge ticks remain razor-sharp at native display resolution.
-- **World & Effects Ownership**: `RenderSystem` manages deep-space atmosphere and parallax stars; `FlightEffects` manages bounded particle pools and transient burst rings. Both advance purely via simulation deltas (`deltaSeconds`).
+- **World & Effects Ownership**: `RenderSystem` manages deep-space atmosphere and parallax stars; `FlightEffects` manages bounded particle pools and transient burst rings. Both advance purely via simulation deltas (`deltaSeconds`). FlightEffects lives under worldCamera so existing sparks, collection bursts, and the astronaut share the same transform. Effects advance once after physics and camera updates.
 
 ---
 
@@ -63,7 +63,7 @@ Depth sorting is controlled via container `zIndex` values defined in `src/game/v
 ### Planetary Terrain Presentation
 - **Layer & Lifecycle**: Terrain belongs to the world layer (`DEPTH.world`) and is owned by `EntitySystem`.
 - **Token Discipline**: Terrain colors and styles strictly consume canonical design tokens (`INK.void`, `INK.hull`, `INK.violet`, `INK.cyan`) declared in `src/game/visuals/terrainPresets.ts`. Raw ad-hoc hex values are prohibited.
-- **Simulation Delta Motion**: Decorative surface features (crystals, rock spires, crust ridges) scroll purely via simulation time delta (`deltaSeconds`) matched to world velocity.
+- **World traversal**: Ground geometry and gameplay objects are authored in world coordinates. Camera movement is a separate presentation concern owned by `RenderSystem.worldCamera`; decorative terrain must not simulate traversal through viewport offsets. Looping worlds keep continuous astronaut coordinates and repeat three shared-geometry terrain tiles every `gameplay.world.width` pixels. RenderSystem positions the tiles around the camera without rebuilding geometry. Atmosphere and stars cancel ground camera translation to keep the sky viewport-filled; cinematic camera transforms still apply.
 - **Decoupled Collision**: Visual terrain presets never own or mutate collision boundaries. Physical ground geometry (`gameplay.ground.height`) and visual surface appearance (`presentation.terrainId`) are strictly separate concerns.
 
 ---

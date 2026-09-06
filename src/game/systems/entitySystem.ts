@@ -5,7 +5,7 @@ import { Planet } from '../entities/Planet';
 import { Orb } from '../entities/Orb';
 import { Star } from '../entities/Star';
 import { Ground } from '../entities/Ground';
-import { GroundGameplayDefinition, MovementGameplayDefinition } from '../campaign/campaignTypes';
+import { GroundGameplayDefinition, MovementGameplayDefinition, WorldDefinition } from '../campaign/campaignTypes';
 import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { EventBus, GameEvent } from '../eventBus';
 import defaultAssetManager from '../assetManager';
@@ -26,6 +26,7 @@ export class EntitySystem {
   private astronaut: Astronaut | null = null;
   private ground: Ground | null = null;
   private movementConfig?: MovementGameplayDefinition;
+  private worldDef?: WorldDefinition;
   private obstacles: Obstacle[] = [];
   private orbs: Orb[] = [];
   private stars: Star[] = [];
@@ -115,6 +116,7 @@ export class EntitySystem {
     this.clearStars();
 
     this.movementConfig = undefined;
+    this.worldDef = undefined;
     
     this.logger.info('EntityManager: All entities cleared');
   }
@@ -139,13 +141,17 @@ export class EntitySystem {
         typeof terrainIdOrDef === 'string'
           ? resolveTerrainPresentation(terrainIdOrDef)
           : (terrainIdOrDef ?? resolveTerrainPresentation());
-      this.ground = new Ground(groundDef.height, terrain);
+      const worldWidth = this.worldDef?.width;
+      this.ground = new Ground(groundDef.height, terrain, worldWidth, this.worldDef?.traversal === 'loop');
       this.worldLayer.addChild(this.ground.container);
-      this.logger.info(`Ground added to world layer at y=${this.ground.y}`);
+      this.logger.info(`Ground added to world layer at y=${this.ground.y}, worldWidth=${this.ground.worldWidth}`);
     }
 
     if (this.astronaut) {
       this.astronaut.setGroundY(this.ground?.y ?? null);
+      if (this.worldDef?.width && this.movementConfig?.mode === 'ground') {
+        this.astronaut.setWorldWidth(this.worldDef.width, this.worldDef.traversal === 'loop');
+      }
     }
 
     return this.ground;
@@ -166,11 +172,33 @@ export class EntitySystem {
     this.movementConfig = movement;
     if (this.astronaut) {
       this.astronaut.setMovementConfig(movement);
+      if (movement?.mode === 'ground' && this.worldDef?.width) {
+        this.astronaut.setWorldWidth(this.worldDef.width, this.worldDef.traversal === 'loop');
+      } else if (movement?.mode !== 'ground') {
+        this.astronaut.setWorldWidth(0); // clear world width in flight mode
+      }
     }
   }
 
   public getMovementConfig(): MovementGameplayDefinition | undefined {
     return this.movementConfig;
+  }
+
+  /**
+   * Set world definition for the active level.
+   * Must be called before setGround() so the correct worldWidth is passed.
+   */
+  public setWorldDef(worldDef?: WorldDefinition): void {
+    this.worldDef = worldDef;
+  }
+
+  public getWorldDef(): WorldDefinition | undefined {
+    return this.worldDef;
+  }
+
+  /** True when active gameplay entities use a traversable world coordinate space. */
+  public isWorldSpace(): boolean {
+    return this.worldDef !== undefined;
   }
   
   /**
@@ -193,6 +221,9 @@ export class EntitySystem {
     this.astronaut.setGroundY(this.ground ? this.ground.y : null);
     if (this.movementConfig) {
       this.astronaut.setMovementConfig(this.movementConfig);
+      if (this.movementConfig.mode === 'ground' && this.worldDef?.width) {
+        this.astronaut.setWorldWidth(this.worldDef.width, this.worldDef.traversal === 'loop');
+      }
     }
     this.pilotLayer.addChild(this.astronaut.sprite);
     this.logger.info('Astronaut created and added to stage');
@@ -521,4 +552,4 @@ export class EntitySystem {
     this.initialized = false;
     this.logger.info('EntityManager disposed');
   }
-} 
+}

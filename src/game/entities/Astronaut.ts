@@ -34,7 +34,12 @@ export class Astronaut {
   private movementMode: MovementMode = 'flight';
   private maxThrustCharges: number = Infinity;
   private thrustCharges: number = Infinity;
-  private boundaryScrollVelocity: number = 0;
+  /** World-space X position. In ground mode, this is the canonical position.
+   *  In flight mode, mirrors sprite.x (viewport-space). */
+  public worldX: number = 0;
+  /** World width in game pixels. Used to clamp worldX in ground mode. */
+  private worldWidth: number = 0;
+  private loopingWorld = false;
 
   constructor(source: ResolvedSpritePresentation | PIXI.Texture, x: number, y: number) {
     if (source instanceof PIXI.Texture) {
@@ -61,6 +66,7 @@ export class Astronaut {
     this.velocity = 0;
     this.rotation = 0;
     this.dead = false;
+    this.worldX = x;
 
     logger.info('Astronaut created');
   }
@@ -90,8 +96,13 @@ export class Astronaut {
     return this.thrustCharges;
   }
 
-  public getBoundaryScrollVelocity(): number {
-    return this.boundaryScrollVelocity;
+  /**
+   * Set the world width for ground-mode clamping.
+   * Call from GameRuntime when loading a level with a WorldDefinition.
+   */
+  public setWorldWidth(width: number, looping = false): void {
+    this.worldWidth = width;
+    this.loopingWorld = looping;
   }
 
   public rechargeThrust(): void {
@@ -110,8 +121,6 @@ export class Astronaut {
   update(deltaMS: number = 16.667): void {
     if (this.dead) return;
 
-    this.boundaryScrollVelocity = 0;
-
     // Scale delta time to make physics consistent (normalize to 60 FPS time step)
     const delta = deltaMS / 16.667;
 
@@ -123,7 +132,16 @@ export class Astronaut {
 
     // Update position
     this.sprite.y += this.velocity * delta;
-    this.sprite.x += this.horizontalVelocity * delta;
+    if (this.movementMode === 'ground') {
+      // Ground mode: worldX is canonical and the display object stays in world space.
+      // RenderSystem.worldCamera is solely responsible for converting it to screen space.
+      this.worldX += this.horizontalVelocity * delta;
+      this.sprite.x = this.worldX;
+    } else {
+      // Flight mode: sprite.x IS the world position (viewport-space).
+      this.sprite.x += this.horizontalVelocity * delta;
+      this.worldX = this.sprite.x;
+    }
 
     // Apply horizontal deceleration (crisp friction on solid ground; gentle drift in air/space)
     const friction = (this.isGrounded && this.movementMode === 'ground') ? 0.5 : 0.1;
@@ -140,8 +158,6 @@ export class Astronaut {
 
     // Check vertical boundaries using logical body dimensions (never visual frame dimensions)
     const halfH = ASTRONAUT.body.height / 2;
-    const halfW = ASTRONAUT.body.width / 2;
-
     if (this.sprite.y - halfH < 0) {
       this.sprite.y = halfH;
       this.velocity = 0;
@@ -177,43 +193,46 @@ export class Astronaut {
       }
     }
 
-    // Check horizontal boundaries using logical body dimensions.
-    // Scroll zone is evaluated BEFORE the hard clamp so that
-    // boundaryScrollVelocity is set even when the player is pinned to the
-    // edge wall — otherwise the else-if branch would be skipped and the
-    // ground would freeze while the player is pressing into the boundary.
-    // We use the actual post-friction horizontalVelocity so the ground
-    // scrolls at exactly the same rate as the player moves — the classic
-    // side-scroller illusion where the world moves under the player's feet.
-    const scrollZone = 0.33 * GAME_WIDTH;
-
-    // 1. Scroll zone detection (uses pre-clamp velocity)
-    if (this.sprite.x <= scrollZone && this.horizontalVelocity < 0) {
-      this.boundaryScrollVelocity = this.horizontalVelocity;
-    } else if (this.sprite.x >= GAME_WIDTH - scrollZone && this.horizontalVelocity > 0) {
-      this.boundaryScrollVelocity = this.horizontalVelocity;
-    }
-
-    // 2. Hard wall clamp (zeroes velocity after scroll is recorded)
-    if (this.sprite.x - halfW <= 0) {
-      this.sprite.x = halfW;
-      this.horizontalVelocity = 0;
-      logger.debug('Hit left boundary');
-    }
-    if (this.sprite.x + halfW >= GAME_WIDTH) {
-      this.sprite.x = GAME_WIDTH - halfW;
-      this.horizontalVelocity = 0;
-      logger.debug('Hit right boundary');
+    // Horizontal boundaries
+    if (this.movementMode === 'ground') {
+      // Ground mode: clamp worldX to world bounds and keep the display in world space.
+      const halfW = ASTRONAUT.body.width / 2;
+      const maxX = this.worldWidth > 0 ? this.worldWidth - halfW : Number.POSITIVE_INFINITY;
+      if (!this.loopingWorld) this.worldX = Math.max(halfW, Math.min(maxX, this.worldX));
+      this.sprite.x = this.worldX;
+    } else {
+      // Flight mode: clamp sprite.x to viewport bounds.
+      const halfW = ASTRONAUT.body.width / 2;
+      if (this.sprite.x - halfW <= 0) {
+        this.sprite.x = halfW;
+        this.horizontalVelocity = 0;
+        logger.debug('Hit left boundary');
+      }
+      if (this.sprite.x + halfW >= GAME_WIDTH) {
+        this.sprite.x = GAME_WIDTH - halfW;
+        this.horizontalVelocity = 0;
+        logger.debug('Hit right boundary');
+      }
+      this.worldX = this.sprite.x;
     }
   }
 
   getHitbox(): PIXI.Bounds {
+    return this.createHitbox(this.movementMode === 'ground' ? this.worldX : this.sprite.x);
+  }
+
+  /** Display-local hitbox. RenderSystem applies the camera for debug presentation. */
+  getScreenHitbox(): PIXI.Bounds {
+    return this.createHitbox(this.sprite.x);
+  }
+
+  private createHitbox(x: number): PIXI.Bounds {
     const bounds = new PIXI.Bounds();
     const width = this.collisionDimensions.width;
     const height = this.collisionDimensions.height;
 
-    bounds.minX = this.sprite.x - width / 2;
-    bounds.maxX = this.sprite.x + width / 2;
+    bounds.minX = x - width / 2;
+    bounds.maxX = x + width / 2;
     bounds.minY = this.sprite.y - height / 2;
     bounds.maxY = this.sprite.y + height / 2;
 
@@ -363,9 +382,9 @@ export class Astronaut {
   reset(x: number, y: number): void {
     this.sprite.x = x;
     this.sprite.y = y;
+    this.worldX = x;
     this.velocity = 0;
     this.horizontalVelocity = 0;
-    this.boundaryScrollVelocity = 0;
     this.rotation = 0;
     this.dead = false;
     this.isGrounded = false;

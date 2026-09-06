@@ -15,7 +15,7 @@ import { DEEP_NEBULA, resolveEnvironment } from '../environments/environments';
  *
  * A `worldCamera` container sits between `app.stage` and the world layers
  * (atmosphere, stars, world entities, pilot). Camera steps transform only this
- * container, leaving the HUD, fade overlay, effects, and debug graphics untouched.
+ * container, leaving the HUD, fade overlay, and debug graphics untouched.
  *
  * Container hierarchy:
  *   app.stage
@@ -23,8 +23,8 @@ import { DEEP_NEBULA, resolveEnvironment } from '../environments/environments';
  *     │     ├── atmosphere    (nebula + bg rect)
  *     │     ├── starLayer     (EntitySystem stars)
  *     │     ├── worldLayer    (EntitySystem planets/orbs)
- *     │     └── pilotLayer    (EntitySystem astronaut)
- *     ├── effects             (UISystem FlightEffects — viewport-space, outside camera)
+ *     │     ├── pilotLayer    (EntitySystem astronaut)
+ *     │     └── effects       (UISystem FlightEffects, world-space)
  *     ├── HUD                 (UISystem — viewport-space, outside camera)
  *     ├── debugGraphics       (RenderSystem — outside camera)
  *     └── fadeGraphics        (RenderSystem — full-screen fade, outside camera)
@@ -41,7 +41,7 @@ export class RenderSystem {
   private fadeGraphics = new PIXI.Graphics({ zIndex: DEPTH.hud + 5, eventMode: 'none' });
   /**
    * World-space camera container. Camera steps transform this container only.
-   * HUD, effects, fade, and debug are children of app.stage — outside this container.
+   * HUD, fade, and debug are children of app.stage — outside this container.
    */
   readonly worldCamera = new PIXI.Container({ label: 'worldCamera', zIndex: 0, sortableChildren: true, eventMode: 'none' });
   private cinematic = new CinematicSceneRenderer();
@@ -170,6 +170,32 @@ export class RenderSystem {
     this.worldCamera.pivot.set(0, 0);
     this.worldCamera.position.set(0, 0);
     this.worldCamera.scale.set(1);
+    this.atmosphere.x = 0;
+    this.debugGraphics.x = 0;
+    const stars = this.worldCamera.getChildByLabel('stars');
+    if (stars) stars.x = 0;
+  }
+
+  /**
+   * Apply a ground-traversal camera X offset to the worldCamera container.
+   *
+   * The world is stationary at x=0. Scrolling is achieved by translating
+   * worldCamera.x to -cameraX so the viewport window moves through world space:
+   *   worldCamera.x = -cameraX  →  left edge of viewport shows world coordinate cameraX.
+   *
+   * ## Separation of concerns
+   * - CameraSystem computes cameraX (policy: dead zone, world clamping, scenario lock).
+   * - GameRuntime calls this method each tick with the result.
+   * - Flight levels never call this; their worldCamera.x stays at 0.
+   */
+  setGroundCameraX(cameraX: number): void {
+    this.worldCamera.x = cameraX === 0 ? 0 : -cameraX;
+    this.atmosphere.x = cameraX;
+    const stars = this.worldCamera.getChildByLabel('stars');
+    if (stars) stars.x = cameraX;
+    const ground = this.entities.getGround?.();
+    if (ground?.looping) ground.container.x = Math.floor(cameraX / ground.worldWidth) * ground.worldWidth;
+    this.debugGraphics.x = -cameraX;
   }
 
   setCinematicScene(scene: CinematicScene | null, time = 0): void {
@@ -218,23 +244,11 @@ export class RenderSystem {
     if (astronaut && !this.state.getState().isStarted && !astronaut.dead) {
       astronaut.sprite.rotation = Math.sin(this.elapsed * 1.4) * 0.055;
     }
-    const ground = this.entities.getGround();
-    const isGroundMode = this.entities.getMovementConfig()?.mode === 'ground';
-    if (ground && this.state.getState().isStarted && !this.state.getState().isGameOver) {
-      if (!isGroundMode) {
-        ground.updatePresentation(seconds, this.scrollSpeed);
-      } else {
-        const boundaryScrollVelocity = astronaut?.getBoundaryScrollVelocity() ?? 0;
-        if (boundaryScrollVelocity !== 0) {
-          ground.updatePresentation(seconds, boundaryScrollVelocity);
-        }
-      }
-    }
     const g = this.debugGraphics;
     if (!this.state.getState().debugMode) { if (g.context.instructions.length) g.clear(); return; }
     g.clear();
     if (astronaut) {
-      const bounds = astronaut.getHitbox();
+      const bounds = astronaut.getScreenHitbox();
       g.rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY)
         .stroke({ color: INK.cyan, width: 1 });
     }

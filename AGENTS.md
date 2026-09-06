@@ -81,6 +81,11 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 - Avoid unmanaged `setTimeout` or `setInterval` for gameplay sequencing.
 - Use simulation time delta countdowns inside `update(deltaSeconds)` so pause, resume, reset, and test clocks work deterministically.
 
+### E.1 World Movement and Camera Ownership
+- World movement and camera movement are separate concerns. Ground traversal uses world coordinates, never presentation scrolling.
+- `Astronaut` owns movement and world position only. Entities never decide camera behavior.
+- Scenario state is gameplay-owned by a gameplay system; camera rendering is presentation-owned by `RenderSystem.worldCamera`.
+
 ### F. Level Authoring & Reusable Capability Architecture
 - **RULE**: `LevelDefinition` is configuration, not an escape hatch into runtime architecture. When a reusable capability such as ground already exists, new levels must consume it through the canonical definition contract (`gameplay.ground`, `presentation.terrainId`). Runtime, system, and entity changes are prohibited unless the requested feature requires a genuinely new reusable engine capability.
 - **RULE**: Introducing a new reusable level capability requires updating its canonical type contract, validation, tests, documentation, and relevant repo-local authoring skill before the feature is considered complete. Levels must never be implemented using level-ID branches in runtime systems. Consult the repo-local `add-level` skill.

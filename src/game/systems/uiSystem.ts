@@ -32,7 +32,7 @@ export class UISystem {
     if (this.effects) this.effects.container.visible = visible;
   }
 
-  initialize(target: PIXI.Application | PIXI.Container | undefined = this.app): void {
+  initialize(target: PIXI.Application | PIXI.Container | undefined = this.app, worldCamera?: PIXI.Container): void {
     if (this.initialized) return;
     if (!target) throw new Error('UISystem needs a stage');
     const stage = 'stage' in target ? target.stage : target;
@@ -43,7 +43,8 @@ export class UISystem {
     this.hud.addChild(this.scoreboard.getContainer());
     this.effects = new FlightEffects();
     this.effects.container.zIndex = DEPTH.effects;
-    stage.addChild(this.effects.container, this.hud);
+    (worldCamera ?? stage).addChild(this.effects.container);
+    stage.addChild(this.hud);
     this.banner = new PIXI.Container({ visible: false });
     this.bannerPlate = new PIXI.Graphics();
     this.banner.addChild(this.bannerPlate);
@@ -70,7 +71,8 @@ export class UISystem {
       if (this.bannerTitle) this.bannerTitle.text = `SECTOR ${String(level).padStart(2, '0')} CLEARED`;
       if (this.bannerDetail) this.bannerDetail.text = this.state.getState().isGameOver
         ? 'ALL SECTORS COMPLETE' : 'ENERGY LOCKED  /  ENGAGING WARP';
-      this.effects?.burst(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'warp');
+      const center = this.effects?.container.toLocal({ x: GAME_WIDTH / 2, y: GAME_HEIGHT / 2 }, stage);
+      if (center) this.effects?.burst(center.x, center.y, 'warp');
     }));
     this.update(0);
   }

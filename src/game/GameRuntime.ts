@@ -13,6 +13,8 @@ import { MOTION } from './visuals/tokens';
 import { LevelDefinition } from './campaign/campaignTypes';
 import { DEFAULT_CAMPAIGN } from './campaign/defaultCampaign';
 import { CutsceneRunner } from './story/cutscenes/CutsceneRunner';
+import { CameraSystem } from './systems/CameraSystem';
+import { ScenarioSystem } from './systems/ScenarioSystem';
 import { getLogger } from '../utils/logger';
 
 const logger = getLogger('GameRuntime');
@@ -53,6 +55,10 @@ export class GameRuntime {
   private cutsceneRunner: CutsceneRunner | null = null;
   private subscriptions: Subscription[] = [];
   private onTickBound: (ticker: PIXI.Ticker) => void;
+  /** Ground-mode-only camera follow service. Null in flight mode. */
+  private cameraSystem: CameraSystem | null = null;
+  /** Ground-mode-only scenario zone tracker. Null in flight mode. */
+  private scenarioSystem: ScenarioSystem | null = null;
 
   public constructor(options: GameRuntimeOptions) {
     this.app = options.app;
@@ -84,7 +90,7 @@ export class GameRuntime {
     this.systems.entities.initialize(this.app, this.systems.rendering.worldCamera);
     this.systems.physics.initialize();
     this.systems.spawning.initialize();
-    this.systems.ui.initialize(this.app);
+    this.systems.ui.initialize(this.app, this.systems.rendering.worldCamera);
 
     // Wire runtime-level event subscriptions
     this.setupRuntimeSubscriptions();
@@ -110,6 +116,8 @@ export class GameRuntime {
     logger.info('Resetting GameRuntime session...');
     this.levelTransitionCountdown = null;
     this.cutsceneRunner = null;
+    this.cameraSystem?.reset();
+    this.scenarioSystem?.reset();
     this.systems.ui.reset();
     this.systems.rendering.reset(); // also calls resetCamera()
     this.systems.entities.clearAll();
@@ -161,10 +169,33 @@ export class GameRuntime {
     this.systems.rendering.setScrollSpeed(levelDefinition.gameplay.speeds.planet);
     this.systems.entities.clearAll();
     this.systems.spawning.resetSpawning();
+
+    // Set world definition before setGround so ground is built with correct worldWidth.
+    this.systems.entities.setWorldDef(levelDefinition.gameplay.world);
+    this.systems.rendering.resetCamera();
     this.systems.entities.setGround(levelDefinition.gameplay.ground, levelDefinition.presentation.terrainId);
     this.systems.entities.setMovementConfig(levelDefinition.gameplay.movement);
     this.systems.entities.createAstronaut();
     this.systems.rendering.createBackground();
+
+    // Tear down existing world systems before creating new ones.
+    this.cameraSystem = null;
+    this.scenarioSystem = null;
+
+    const worldDef = levelDefinition.gameplay.world;
+    if (worldDef) {
+      this.cameraSystem = new CameraSystem();
+      this.scenarioSystem = new ScenarioSystem(
+        this.events,
+        this.cameraSystem,
+        levelDefinition.gameplay.scenarios ?? []
+      );
+      logger.info(`World-space mode enabled for ${levelDefinition.id}, worldWidth=${worldDef.width}`);
+    } else {
+      // Ensure worldCamera is reset to neutral for flight levels.
+      this.systems.rendering.resetCamera();
+      logger.info(`Flight mode for ${levelDefinition.id}: worldCamera reset to neutral`);
+    }
   }
 
   /**
@@ -257,8 +288,6 @@ export class GameRuntime {
       return;
     }
 
-    this.systems.ui.update(deltaSeconds);
-
     // 1. Update background/stars regardless of game active state
     try {
       this.systems.rendering.updateBackground(deltaSeconds);
@@ -269,12 +298,14 @@ export class GameRuntime {
     // Skip simulation updates if paused, not started, or game over
     const gameState = this.state.getState();
     if (!gameState.isStarted || gameState.isGameOver) {
+      this.systems.ui.update(deltaSeconds);
       this.systems.rendering.update(deltaSeconds);
       return;
     }
 
     // If waiting for level transition, count down simulation time
     if (this.levelTransitionCountdown !== null) {
+      this.systems.ui.update(deltaSeconds);
       this.levelTransitionCountdown -= deltaSeconds;
       if (this.levelTransitionCountdown <= 0) {
         this.levelTransitionCountdown = null;
@@ -313,6 +344,17 @@ export class GameRuntime {
       logger.error('Error updating physics system', err);
     }
 
+    // 3.5 World-space camera and scenario update (ground mode only)
+    if (this.cameraSystem && this.scenarioSystem) {
+      const astronaut = this.systems.entities.getAstronaut();
+      const worldDef = this.currentLevelDefinition.gameplay.world;
+      if (astronaut && worldDef) {
+        this.scenarioSystem.update(astronaut.worldX);
+        const cameraX = this.cameraSystem.update(astronaut.worldX, worldDef.width, worldDef.traversal === 'loop', deltaSeconds);
+        this.systems.rendering.setGroundCameraX(cameraX);
+      }
+    }
+
     // 4. Update spawning (obstacles, orbs)
     try {
       this.systems.spawning.update(deltaSeconds, this.state.getState());
@@ -329,7 +371,7 @@ export class GameRuntime {
 
     // 6. Update UI (scoreboards, particle bursts)
     try {
-      this.systems.ui.update(0);
+      this.systems.ui.update(deltaSeconds);
     } catch (err) {
       logger.error('Error updating UI system', err);
     }
@@ -344,6 +386,8 @@ export class GameRuntime {
     logger.info('Disposing GameRuntime...');
     this.levelTransitionCountdown = null;
     this.cutsceneRunner = null;
+    this.cameraSystem = null;
+    this.scenarioSystem = null;
     this.systems.rendering.resetCamera(); // ensure no camera leak on dispose
 
     if (this.app.ticker) {

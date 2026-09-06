@@ -19,6 +19,10 @@ describe('Ground Entity', () => {
     expect(ground.container.children.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('defaults to GAME_WIDTH when no worldWidth is provided', () => {
+    expect(ground.worldWidth).toBe(GAME_WIDTH);
+  });
+
   it('supports explicit configured height via number or options object', () => {
     const numericGround = new Ground(120);
     expect(numericGround.height).toBe(120);
@@ -31,6 +35,12 @@ describe('Ground Entity', () => {
     optionsGround.destroy();
   });
 
+  it('accepts worldWidth via third constructor argument', () => {
+    const wideGround = new Ground(80, 'alien-crust', 2400);
+    expect(wideGround.worldWidth).toBe(2400);
+    wideGround.destroy();
+  });
+
   it('resolves canonical terrain presentation tokens without raw color values', () => {
     expect(ground.terrain).toBe(ALIEN_CRUST_TERRAIN);
     expect(ground.terrain.bedrockColor).toBe(INK.void);
@@ -39,98 +49,9 @@ describe('Ground Entity', () => {
     expect(ground.terrain.accentColor).toBe(INK.cyan);
   });
 
-  it('asserts actual simulation-delta surface feature scrolling displacement', () => {
-    const spans = ground.getDetailSpans();
-    expect(spans.length).toBeGreaterThan(3);
-
-    const testSpan = spans[3];
-    const initialX = testSpan.graphics.x;
-    expect(testSpan.baseX).toBe(initialX);
-
-    const deltaSeconds = 0.5;
-    const scrollSpeed = 2.0;
-    const expectedMovement = scrollSpeed * 60 * deltaSeconds; // 60 pixels
-
-    ground.updatePresentation(deltaSeconds, scrollSpeed);
-
-    expect(ground.getScrollOffset()).toBe(expectedMovement);
-    // Since initialX is well ahead of wrap boundary, graphics.x matches baseX - expectedMovement exactly
-    expect(testSpan.graphics.x).toBeCloseTo(initialX - expectedMovement, 2);
-  });
-
-  it('wraps scrolling surface features smoothly across loop boundary', () => {
-    const wrapDistance = GAME_WIDTH * 1.6;
-    // Advance ground past the wrap distance
-    const totalSeconds = (wrapDistance + 100) / (60 * 3.0);
-    ground.updatePresentation(totalSeconds, 3.0);
-
-    const spans = ground.getDetailSpans();
-    for (const span of spans) {
-      expect(span.graphics.x).toBeGreaterThanOrEqual(-span.width);
-      expect(span.graphics.x).toBeLessThanOrEqual(wrapDistance);
-    }
-  });
-
-  it('supports backward surface feature scrolling displacement with negative scrollSpeed', () => {
-    const spans = ground.getDetailSpans();
-    const testSpan = spans[3];
-    const initialX = testSpan.graphics.x;
-
-    const deltaSeconds = 0.5;
-    const scrollSpeed = -2.0;
-    const expectedMovement = scrollSpeed * 60 * deltaSeconds; // -60 pixels
-
-    ground.updatePresentation(deltaSeconds, scrollSpeed);
-
-    expect(ground.getScrollOffset()).toBe(expectedMovement);
-    expect(testSpan.graphics.x).toBeCloseTo(initialX - expectedMovement, 2);
-  });
-
-  it('wraps backward scrolling surface features smoothly across loop boundary', () => {
-    const wrapDistance = GAME_WIDTH * 1.6;
-    // Scroll backward past the wrap distance
-    const totalSeconds = (wrapDistance + 100) / (60 * 3.0);
-    ground.updatePresentation(totalSeconds, -3.0);
-
-    const spans = ground.getDetailSpans();
-    for (const span of spans) {
-      expect(span.graphics.x).toBeGreaterThanOrEqual(-span.width);
-      expect(span.graphics.x).toBeLessThanOrEqual(wrapDistance);
-    }
-  });
-
-  it('safely ignores zero scroll speed without changing scroll offset', () => {
-    const initialOffset = ground.getScrollOffset();
-    ground.updatePresentation(0.016, 0);
-    expect(ground.getScrollOffset()).toBe(initialOffset);
-  });
-
-  it('safely ignores non-positive, NaN, and infinite delta times and scroll speeds', () => {
-    const initialOffset = ground.getScrollOffset();
-
-    ground.updatePresentation(0, 3.0);
-    expect(ground.getScrollOffset()).toBe(initialOffset);
-
-    ground.updatePresentation(-1, 3.0);
-    expect(ground.getScrollOffset()).toBe(initialOffset);
-
-    ground.updatePresentation(NaN, 3.0);
-    expect(ground.getScrollOffset()).toBe(initialOffset);
-
-    ground.updatePresentation(Infinity, 3.0);
-    expect(ground.getScrollOffset()).toBe(initialOffset);
-
-    ground.updatePresentation(0.016, NaN);
-    expect(ground.getScrollOffset()).toBe(initialOffset);
-
-    ground.updatePresentation(0.016, Infinity);
-    expect(ground.getScrollOffset()).toBe(initialOffset);
-  });
-
-  it('destroys container, cleans up detail spans, and does not destroy shared global resources', () => {
+  it('destroys container without error', () => {
     ground.destroy();
     expect(ground.container.destroyed).toBe(true);
-    expect(ground.getDetailSpans()).toHaveLength(0);
   });
 
   it('has zero campaign or system dependencies and can be instantiated anywhere in isolation', () => {
@@ -138,5 +59,13 @@ describe('Ground Entity', () => {
     expect(isolated.y).toBe(GAME_HEIGHT - 60);
     expect(isolated.terrainId).toBe('alien-crust');
     isolated.destroy();
+  });
+
+  it('builds terrain covering the full world width in world-space mode', () => {
+    const wideGround = new Ground(80, 'alien-crust', 2400);
+    // The container should have been built; worldWidth is 2400
+    expect(wideGround.worldWidth).toBe(2400);
+    expect(wideGround.container.children.length).toBeGreaterThanOrEqual(2);
+    wideGround.destroy();
   });
 });

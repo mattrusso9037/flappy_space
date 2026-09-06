@@ -955,3 +955,10 @@ Any future work involving:
 - persistent campaign state
 
 must follow this specification unless the specification is intentionally updated first.
+### Ground world traversal
+
+`gameplay.world: { width: 2400, traversal: 'loop' }` defines a repeating terrain length in game pixels. Width must be finite and at least `GAME_WIDTH` (800). World traversal requires ground movement and enabled ground. Omit `traversal` or use `'bounded'` to clamp player and camera to the authored width.
+
+Loop mode keeps world coordinates continuous in both directions, repeats terrain every `width` pixels, and maintains a viewport-filled sky. It never teleports the astronaut or camera at a seam. Scenario triggers retain their authored world positions; they are not duplicated each lap. Scenario camera entry and exit use simulation-time speed limits. Dynamic pickups and obstacles spawn ahead of travel and are discarded beyond two viewport widths from the player. Reset and level transitions clear traversal, effects, and camera state.
+
+Use the visual preview's Traverse left/right controls to simulate one screen of movement, and Traversal thrust to inspect effects without resetting position.

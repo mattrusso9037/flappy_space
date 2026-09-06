@@ -251,7 +251,7 @@ export class SpawningSystem {
     
     // Create the primary planet with level speed
     const planet = this.entities.createPlanet(
-      GAME_WIDTH + radius,
+      this.getSpawnX(radius),
       planetY,
       radius,
       this.levelConfig.speeds.planet
@@ -277,7 +277,7 @@ export class SpawningSystem {
       secondPlanetY = Math.max(minSecondY, Math.min(secondPlanetY, maxSecondY));
       
       const secondPlanet = this.entities.createPlanet(
-        GAME_WIDTH + radius + 100 + Math.random() * 150,
+        this.getSpawnX(radius + 100 + Math.random() * 150),
         secondPlanetY,
         secondRadius,
         this.levelConfig.speeds.secondaryPlanet
@@ -306,11 +306,28 @@ export class SpawningSystem {
     const orbY = safeRandomInRange(Math.min(minY, maxY), Math.max(minY, maxY));
     
     this.entities.createOrb(
-      GAME_WIDTH + radius,
+      this.getSpawnX(radius),
       orbY,
       radius,
       this.levelConfig.speeds.orb
     );
+  }
+
+  /**
+   * Spawn flight content just beyond the viewport, but keep world-space content
+   * in the authored world ahead of the astronaut. The camera, not entity motion,
+   * then brings it on screen.
+   */
+  private getSpawnX(offset: number): number {
+    const world = this.entities.getWorldDef();
+    if (!world) return GAME_WIDTH + offset;
+
+    const astronautX = this.entities.getAstronaut()?.worldX ?? 0;
+    if (world.traversal === 'loop') {
+      const direction = (this.entities.getAstronaut()?.horizontalVelocity ?? 0) < 0 ? -1 : 1;
+      return astronautX + direction * (GAME_WIDTH + offset);
+    }
+    return Math.min(world.width - offset, Math.max(GAME_WIDTH + offset, astronautX + GAME_WIDTH + offset));
   }
   
   /**

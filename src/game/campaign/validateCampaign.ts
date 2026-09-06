@@ -2,7 +2,8 @@ import { CampaignDefinition, StoryTransition } from './campaignTypes';
 import { isEnvironmentId } from '../environments/environments';
 import { isMusicTrackId } from '../audio/musicCatalog';
 import { isTerrainId } from '../visuals/terrainPresets';
-import { GAME_HEIGHT } from '../config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+
 import { hasDialogue } from '../story/dialogue/dialogues';
 import { hasCutscene } from '../story/cutscenes/cutscenes';
 import { hasVideoCutscene } from '../story/video/videoCutscenes';
@@ -198,6 +199,67 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
           errors.push(`${prefix} orbs.maxY must be greater than or equal to orbs.minY.`);
         }
       }
+
+      // World definition validation
+      if (level.gameplay.world !== undefined) {
+        const world = level.gameplay.world;
+        if (world.traversal !== undefined && world.traversal !== 'bounded' && world.traversal !== 'loop') {
+          errors.push(`${prefix} world.traversal must be 'bounded' or 'loop'.`);
+        }
+        if (level.gameplay.movement?.mode !== 'ground' || !level.gameplay.ground?.enabled) {
+          errors.push(`${prefix} gameplay.world requires ground movement and enabled ground.`);
+        }
+        if (typeof world.width !== 'number' || !Number.isFinite(world.width) || world.width < GAME_WIDTH) {
+          errors.push(`${prefix} world.width must be a finite number >= GAME_WIDTH (${GAME_WIDTH}).`);
+        }
+      }
+
+      // Scenario validation (requires world)
+      if (level.gameplay.scenarios !== undefined) {
+        if (!level.gameplay.world) {
+          errors.push(`${prefix} gameplay.scenarios requires gameplay.world to be present.`);
+        }
+        if (!Array.isArray(level.gameplay.scenarios)) {
+          errors.push(`${prefix} gameplay.scenarios must be an array.`);
+        } else {
+          const worldWidth = level.gameplay.world?.width ?? GAME_WIDTH;
+          for (const [i, scenario] of level.gameplay.scenarios.entries()) {
+            const sp = `${prefix} scenarios[${i}]`;
+            if (!scenario.id || typeof scenario.id !== 'string') {
+              errors.push(`${sp} must have a non-empty string id.`);
+            }
+            // Validate trigger rect
+            const t = scenario.trigger;
+            if (!t || typeof t !== 'object') {
+              errors.push(`${sp} must have a trigger rectangle.`);
+            } else {
+              if (typeof t.x !== 'number' || t.x < 0 || t.x >= worldWidth)
+                errors.push(`${sp} trigger.x must be in [0, worldWidth).`);
+              if (typeof t.y !== 'number' || t.y < 0)
+                errors.push(`${sp} trigger.y must be >= 0.`);
+              if (typeof t.width !== 'number' || t.width <= 0)
+                errors.push(`${sp} trigger.width must be positive.`);
+              if (typeof t.height !== 'number' || t.height <= 0)
+                errors.push(`${sp} trigger.height must be positive.`);
+            }
+            // Validate cameraBounds rect
+            const cb = scenario.cameraBounds;
+            if (!cb || typeof cb !== 'object') {
+              errors.push(`${sp} must have a cameraBounds rectangle.`);
+            } else {
+              if (typeof cb.x !== 'number' || cb.x < 0)
+                errors.push(`${sp} cameraBounds.x must be >= 0.`);
+              if (typeof cb.y !== 'number' || cb.y < 0)
+                errors.push(`${sp} cameraBounds.y must be >= 0.`);
+              if (typeof cb.width !== 'number' || cb.width <= 0)
+                errors.push(`${sp} cameraBounds.width must be positive.`);
+              if (typeof cb.height !== 'number' || cb.height <= 0)
+                errors.push(`${sp} cameraBounds.height must be positive.`);
+            }
+          }
+        }
+      }
+
     }
 
     // Progression link

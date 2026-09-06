@@ -14,34 +14,52 @@ const logger = getLogger('Ground');
 export interface GroundOptions {
   height?: number;
   terrain?: TerrainPresentationDefinition | TerrainId;
+  /** World width in pixels. Defaults to GAME_WIDTH for flight/non-world levels. */
+  worldWidth?: number;
 }
 
 /**
  * Ground entity representing the solid planetary surface of an alien planet.
- * Renders an alien crust terrain with bioluminescent crest and scrolling surface features.
- * Level-agnostic: knows only geometric height and visual terrain presentation tokens.
+ *
+ * In world-space mode (worldWidth > GAME_WIDTH), the ground container spans the
+ * full world width and is placed at x=0 in world space. The RenderSystem's
+ * worldCamera transform scrolls it into view as the camera pans.
+ *
+ * In viewport mode (worldWidth = GAME_WIDTH or omitted), the ground spans exactly
+ * the viewport — identical to the original behavior, preserving flight levels.
+ *
+ * Level-agnostic: knows only geometric height, world width, and visual terrain tokens.
+ * Does not scroll its own presentation; camera movement drives the visual traversal.
  */
 export class Ground {
   public readonly container: PIXI.Container;
   public readonly y: number;
   public readonly height: number;
+  public readonly worldWidth: number;
   public readonly terrain: TerrainPresentationDefinition;
 
   private bedrockGraphics: PIXI.Graphics;
   private surfaceContainer: PIXI.Container;
-  private detailSpans: { graphics: PIXI.Graphics; baseX: number; width: number }[] = [];
-  private scrollOffset: number = 0;
 
   constructor(
     configOrHeight?: number | GroundGameplayDefinition | GroundOptions,
-    terrainOverride?: TerrainPresentationDefinition | TerrainId
+    terrainOverride?: TerrainPresentationDefinition | TerrainId,
+    worldWidthOverride?: number,
+    public readonly looping = false
   ) {
     if (typeof configOrHeight === 'number') {
       this.height = configOrHeight;
+      this.worldWidth = worldWidthOverride ?? GAME_WIDTH;
     } else if (configOrHeight && 'height' in configOrHeight && typeof configOrHeight.height === 'number') {
       this.height = configOrHeight.height;
+      this.worldWidth =
+        worldWidthOverride ??
+        ('worldWidth' in configOrHeight && typeof configOrHeight.worldWidth === 'number'
+          ? configOrHeight.worldWidth
+          : GAME_WIDTH);
     } else {
       this.height = 80;
+      this.worldWidth = worldWidthOverride ?? GAME_WIDTH;
     }
 
     this.y = GAME_HEIGHT - this.height;
@@ -72,8 +90,22 @@ export class Ground {
 
     this.container.addChild(this.bedrockGraphics, this.surfaceContainer);
     this.buildTerrain();
+    if (this.looping) {
+      for (const offset of [-this.worldWidth, this.worldWidth]) {
+        const tile = new PIXI.Container({ x: offset });
+        tile.addChild(new PIXI.Graphics(this.bedrockGraphics.context));
+        for (const detail of this.surfaceContainer.children) {
+          if (detail instanceof PIXI.Graphics) {
+            const copy = new PIXI.Graphics(detail.context);
+            copy.position.copyFrom(detail.position);
+            tile.addChild(copy);
+          }
+        }
+        this.container.addChild(tile);
+      }
+    }
 
-    logger.info(`Ground created at y=${this.y}, height=${this.height}, terrain=${this.terrain.id}`);
+    logger.info(`Ground created at y=${this.y}, height=${this.height}, worldWidth=${this.worldWidth}, terrain=${this.terrain.id}`);
   }
 
   public get terrainId(): TerrainId {
@@ -85,31 +117,23 @@ export class Ground {
     return this.terrain.id;
   }
 
-  public getDetailSpans(): readonly { readonly graphics: PIXI.Graphics; readonly baseX: number; readonly width: number }[] {
-    return this.detailSpans;
-  }
-
-  public getScrollOffset(): number {
-    return this.scrollOffset;
-  }
-
   private buildTerrain(): void {
     const g = this.bedrockGraphics;
     g.clear();
 
-    // 1. Solid planetary bedrock down to GAME_HEIGHT (uses canonical token from terrain preset)
-    g.rect(0, this.y, GAME_WIDTH, this.height).fill(this.terrain.bedrockColor);
+    // 1. Solid planetary bedrock across the full world width
+    g.rect(0, this.y, this.worldWidth, this.height).fill(this.terrain.bedrockColor);
 
     // 2. Upper strata stratum (weathered crust layer)
-    g.rect(0, this.y, GAME_WIDTH, 14).fill(this.terrain.strataColor);
+    g.rect(0, this.y, this.worldWidth, 14).fill(this.terrain.strataColor);
 
     // 3. Bioluminescent neon crest line (crest token core + accent token edge)
     g.moveTo(0, this.y)
-      .lineTo(GAME_WIDTH, this.y)
+      .lineTo(this.worldWidth, this.y)
       .stroke({ color: this.terrain.crestColor, width: 2.5 });
 
     g.moveTo(0, this.y)
-      .lineTo(GAME_WIDTH, this.y)
+      .lineTo(this.worldWidth, this.y)
       .stroke({ color: this.terrain.accentColor, width: 1, alpha: 0.65 });
 
     // 4. Soft atmospheric ground haze gradient just above the surface
@@ -122,16 +146,15 @@ export class Ground {
         { offset: 1, color: `${this.terrain.hazeColor}25` },
       ],
     });
-    g.rect(0, this.y - 30, GAME_WIDTH, 30).fill(hazeGradient);
+    g.rect(0, this.y - 30, this.worldWidth, 30).fill(hazeGradient);
     g.once('destroyed', () => hazeGradient.destroy());
 
-    // 5. Procedural scrolling surface details (crystals, rock spires, crust ridges)
+    // 5. Procedural surface details (crystals, rock spires, crust ridges) at fixed world positions.
+    // Distributed across the full world width — camera movement makes them scroll naturally.
     this.surfaceContainer.removeChildren().forEach(c => c.destroy());
-    this.detailSpans = [];
 
-    // Distribute surface features across two canvas widths to tile smoothly
-    const featureCount = 12;
-    const spacing = (GAME_WIDTH * 1.6) / featureCount;
+    const spacing = this.worldWidth / 12;
+    const featureCount = Math.ceil(this.worldWidth / spacing);
 
     for (let i = 0; i < featureCount; i++) {
       const detailG = new PIXI.Graphics();
@@ -176,40 +199,11 @@ export class Ground {
 
       detailG.position.set(x, this.y);
       this.surfaceContainer.addChild(detailG);
-      this.detailSpans.push({ graphics: detailG, baseX: x, width: 24 });
     }
-  }
-
-  /**
-   * Update scrolling ground surface details based on level scroll speed.
-   * Supports both forward (positive) and backward (negative) scroll speeds.
-   * Presentation only; does not affect collision geometry or surface Y coordinate.
-   */
-  public updatePresentation(deltaSeconds: number, scrollSpeed: number): void {
-    if (!Number.isFinite(deltaSeconds) || deltaSeconds <= 0 || !Number.isFinite(scrollSpeed) || scrollSpeed === 0) return;
-
-    // Movement matches obstacle scroll velocity: speed * 60 * deltaSeconds
-    const movement = scrollSpeed * 60 * deltaSeconds;
-    this.scrollOffset += movement;
-
-    const wrapDistance = GAME_WIDTH * 1.6;
-
-    for (const span of this.detailSpans) {
-      const minX = -span.width;
-      const rawOffset = span.baseX - this.scrollOffset - minX;
-      const wrappedOffset = ((rawOffset % wrapDistance) + wrapDistance) % wrapDistance;
-      span.graphics.x = wrappedOffset + minX;
-    }
-  }
-
-  /** Backwards-compatible alias for updatePresentation */
-  public update(deltaSeconds: number, scrollSpeed: number): void {
-    this.updatePresentation(deltaSeconds, scrollSpeed);
   }
 
   public destroy(): void {
     this.container.destroy({ children: true });
-    this.detailSpans = [];
     logger.info('Ground destroyed');
   }
 }

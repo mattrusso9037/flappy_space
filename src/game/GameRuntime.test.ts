@@ -293,7 +293,7 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     runtime.initialize(); runtime.reset(); runtime.start();
     const star = runtime.systems.entities.getStars()[0];
     runtime.events.emit(GameEvent.ORB_COLLECTED, { x: 100, y: 100 });
-    const effects = app.stage.getChildByLabel('flight-effects')!;
+    const effects = app.stage.getChildByLabel('flight-effects', true)!;
     const spark = effects.children.find(child => child.visible)!;
     runtime.pause();
     const x = star.graphics.x, sparkX = spark.x, alpha = spark.alpha;
@@ -410,11 +410,11 @@ it('cleanly transitions between groundless and ground-enabled levels without cap
   expect(ground).not.toBeNull();
   expect(ground?.height).toBe(80);
   expect(ground?.y).toBe(520);
-  expect(ground?.getScrollOffset()).toBe(0);
+  expect(ground?.worldWidth).toBe(2400);
 
   // In ground mode, ground remains stationary during render update
   runtime.systems.rendering.update(0.1);
-  expect(ground?.getScrollOffset()).toBe(0);
+  expect(ground?.worldWidth).toBe(2400);
 
   const astro2 = runtime.systems.entities.getAstronaut()!;
   expect(astro2.getGroundY()).toBe(520);
@@ -458,5 +458,87 @@ it('cleanly transitions between groundless and ground-enabled levels without cap
   astro3.update(16.667);
   expect(astro3.dead).toBe(true);
 
+  runtime.dispose();
+});
+
+it('keeps looping terrain, sky, and thrust aligned beyond both world boundaries and resets to flight', () => {
+  const app = new PIXI.Application();
+  app.stage = new PIXI.Container();
+  app.ticker = new PIXI.Ticker();
+  const runtime = createFlappySpaceRuntime(app);
+  runtime.initialize();
+  runtime.reset(DEFAULT_CAMPAIGN.levels['sector-02']);
+  runtime.start();
+  const pilot = runtime.systems.entities.getAstronaut()!;
+  const camera = runtime.systems.rendering.worldCamera;
+  const effects = camera.getChildByLabel('flight-effects')!;
+  const ground = runtime.systems.entities.getGround()!;
+  const childCount = ground.container.children.length;
+  for (const x of [2399, 2401, 7201, -2401]) {
+    pilot.worldX = x;
+    pilot.sprite.x = x;
+    pilot.sprite.y = 480;
+    pilot.velocity = 0;
+    pilot.rechargeThrust();
+    pilot.flap();
+    runtime.onTick({ deltaMS: 30 } as PIXI.Ticker);
+    expect(pilot.worldX).toBe(x);
+    const spark = effects.children.filter(c => c.visible).at(-1)!;
+    const position = spark.getGlobalPosition();
+    const pilotPosition = pilot.sprite.getGlobalPosition();
+    expect(position.x).toBeCloseTo(pilotPosition.x - 12);
+    expect(position.y).toBeCloseTo(pilotPosition.y + 13);
+    runtime.systems.rendering.setGroundCameraX(x - 536);
+    expect(camera.getChildByLabel('atmosphere')!.getGlobalPosition().x).toBe(0);
+    expect(camera.getChildByLabel('stars')!.getGlobalPosition().x).toBe(0);
+    const bounds = ground.container.getBounds();
+    expect(bounds.minX).toBeLessThanOrEqual(0);
+    expect(bounds.maxX).toBeGreaterThanOrEqual(800);
+    expect(ground.container.children.length).toBe(childCount);
+    runtime.systems.ui.reset();
+  }
+  runtime.reset(DEFAULT_CAMPAIGN.levels['sector-03']);
+  expect(camera.x).toBe(0);
+  expect(camera.getChildByLabel('atmosphere')!.x).toBe(0);
+  expect(camera.getChildByLabel('stars')!.x).toBe(0);
+  expect(runtime.systems.entities.getGround()).toBeNull();
+  expect(effects.children.every(c => !c.visible)).toBe(true);
+  runtime.dispose();
+});
+
+it.each([800, 3200])('uses an authored %i pixel loop and bounds spawned content in either direction', (width) => {
+  const app = new PIXI.Application();
+  app.stage = new PIXI.Container();
+  app.ticker = new PIXI.Ticker();
+  const runtime = createFlappySpaceRuntime(app);
+  runtime.initialize();
+  const level = structuredClone(DEFAULT_CAMPAIGN.levels['sector-02']);
+  level.gameplay.world = { width, traversal: 'loop' };
+  level.gameplay.scenarios = [];
+  level.gameplay.orbs.spawnChance = 1;
+  runtime.reset(level);
+  runtime.start();
+  const entities = runtime.systems.entities;
+  const pilot = entities.getAstronaut()!;
+  pilot.sprite.y = 480;
+  for (const direction of [1, -1]) {
+    pilot.worldX = width * 3 * direction;
+    pilot.sprite.x = pilot.worldX;
+    if (direction > 0) pilot.moveRight(); else pilot.moveLeft();
+    const old = entities.createOrb(pilot.worldX - direction * 2400, 400, 12, 0);
+    runtime.systems.physics.update(1 / 60);
+    expect(entities.getOrbs()).not.toContain(old);
+    runtime.state.updateTime(3000);
+    runtime.systems.spawning.update(3, runtime.state.getState());
+    const spawned = entities.getOrbs().at(-1)!;
+    expect((spawned.x - pilot.worldX) * direction).toBeGreaterThan(800);
+    const cameraX = pilot.worldX - 536;
+    runtime.systems.rendering.setGroundCameraX(cameraX);
+    const ground = entities.getGround()!;
+    expect(ground.worldWidth).toBe(width);
+    expect(ground.container.x).toBe(Math.floor(cameraX / width) * width);
+    expect(ground.container.getBounds().minX).toBeLessThanOrEqual(0);
+    expect(ground.container.getBounds().maxX).toBeGreaterThanOrEqual(800);
+  }
   runtime.dispose();
 });

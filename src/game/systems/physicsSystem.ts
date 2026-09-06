@@ -1,3 +1,4 @@
+import { GAME_WIDTH } from '../config';
 import { Obstacle } from '../entities/Obstacle';
 import { GameStateService } from '../gameStateService';
 import { EntitySystem } from './entitySystem';
@@ -141,15 +142,16 @@ export class PhysicsSystem {
     }
     
     // Update obstacles and check for collisions
+    const worldSpace = this.entities.isWorldSpace();
     const obstacles = this.entities.getObstacles();
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const obstacle = obstacles[i];
       
       // Update obstacle position, passing deltaTime
-      obstacle.update(deltaTime);
+      if (!worldSpace) obstacle.update(deltaTime);
       
       // Check if astronaut has passed the obstacle
-      if (astronaut && obstacle.isPassed(astronaut.sprite.x)) {
+      if (!worldSpace && astronaut && obstacle.isPassed(astronaut.sprite.x)) {
         // Emit obstacle passed event
         this.events.emit(GameEvent.OBSTACLE_PASSED, obstacle);
         
@@ -170,7 +172,7 @@ export class PhysicsSystem {
       }
       
       // Remove obstacles that are off screen
-      if (obstacle.isOffScreen()) {
+      if ((!worldSpace && obstacle.isOffScreen()) || (this.entities.getWorldDef()?.traversal === 'loop' && astronaut && Math.abs(obstacle.x - astronaut.worldX) > GAME_WIDTH * 2)) {
         this.entities.removeObstacle(obstacle);
       }
     }
@@ -181,7 +183,7 @@ export class PhysicsSystem {
       const orb = orbs[i];
       
       // Update orb position, passing deltaTime
-      orb.update(deltaTime);
+      if (!worldSpace) orb.update(deltaTime);
       
       // Check for collision with astronaut
       if (astronaut && !astronaut.dead && !orb.collected && orb.checkCollision(astronaut)) {
@@ -201,7 +203,7 @@ export class PhysicsSystem {
       }
       
       // Remove orbs that are off screen or collected
-      if (orb.isOffScreen() || orb.collected) {
+      if ((!worldSpace && orb.isOffScreen()) || orb.collected || (this.entities.getWorldDef()?.traversal === 'loop' && astronaut && Math.abs(orb.x - astronaut.worldX) > GAME_WIDTH * 2)) {
         this.entities.removeOrb(orb);
       }
     }
@@ -216,4 +218,4 @@ export class PhysicsSystem {
     this.initialized = false;
     logger.info('PhysicsSystem disposed');
   }
-} 
+}

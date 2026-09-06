@@ -42,6 +42,41 @@ export interface GroundGameplayDefinition {
   height: number;
 }
 
+/** Axis-aligned rectangle in world space (all values in game pixels). */
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * World-space definition for ground traversal levels.
+ * Enables the world/camera system; absent means viewport-only (flight) mode.
+ */
+export interface WorldDefinition {
+  /** Total world width in game pixels. Must be >= GAME_WIDTH (800). */
+  width: number;
+  /** Repeat terrain every width pixels with continuous world coordinates. Defaults to bounded. */
+  traversal?: 'bounded' | 'loop';
+}
+
+/**
+ * An authored scenario zone within the world.
+ * Entering the trigger bounds locks the camera to the camera area.
+ * Completing the scenario unlocks the camera and prevents re-entry.
+ */
+export interface ScenarioDefinition {
+  id: string;
+  /** World-space trigger rectangle: player entering this rect starts the scenario. */
+  trigger: Rect;
+  /**
+   * World-space camera view rectangle when locked.
+   * cameraBounds.x is used as the left edge of the locked camera view.
+   */
+  cameraBounds: Rect;
+}
+
 export type MovementMode = 'flight' | 'ground';
 
 export type MovementGameplayDefinition =
@@ -91,6 +126,19 @@ export interface LevelGameplayDefinition {
 
   /** Optional movement mode and thrust capacity configuration */
   movement?: MovementGameplayDefinition;
+
+  /**
+   * Optional world-space definition. When present, enables world/camera traversal
+   * for ground levels. Astronaut moves in world coordinates; RenderSystem applies
+   * camera transforms. Absent for flight levels (viewport-only).
+   */
+  world?: WorldDefinition;
+
+  /**
+   * Optional authored scenario zones. Camera locks to cameraBounds on trigger entry;
+   * unlocks on completion. Requires gameplay.world to be present.
+   */
+  scenarios?: ScenarioDefinition[];
 
   /** Optional display metadata only - does NOT dictate gameplay difficulty */
   levelNumber?: number;

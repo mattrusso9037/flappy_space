@@ -99,8 +99,28 @@ async function setup(): Promise<void> {
     runtime.pause();
   };
 
+  const traverse = (direction: 'left' | 'right') => {
+    const pilot = runtime.systems.entities.getAstronaut();
+    if (!pilot || pilot.getMovementMode() !== 'ground') return;
+    const start = pilot.worldX;
+    runtime.resume();
+    for (let frame = 0; frame < 600 && Math.abs(pilot.worldX - start) < GAME_WIDTH; frame++) {
+      if (direction === 'right') pilot.moveRight(); else pilot.moveLeft();
+      runtime.onTick({ deltaMS: 1000 / 60 } as Ticker);
+    }
+    runtime.pause();
+    status.value = `Traversal / world X ${pilot.worldX.toFixed(0)} / camera X ${(-runtime.systems.rendering.worldCamera.x).toFixed(0)}`;
+  };
+
   const actions: Record<string, () => void> = {
     'load-level': loadLevel,
+    'traverse-right': () => traverse('right'),
+    'traverse-left': () => traverse('left'),
+    'traverse-thrust': () => {
+      runtime.systems.entities.getAstronaut()?.flap();
+      step(0.05);
+      status.value = 'Traversal thrust / paused';
+    },
     scene,
     thrust: () => {
       scene();

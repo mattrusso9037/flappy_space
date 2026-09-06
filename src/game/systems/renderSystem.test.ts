@@ -186,8 +186,8 @@ describe('RenderSystem — cinematic camera', () => {
   });
 });
 
-describe('RenderSystem — ground presentation & scrolling', () => {
-  it('keeps ground stationary in ground mode, while scrolling in flight mode', () => {
+describe('RenderSystem — setGroundCameraX (world-space camera)', () => {
+  it('translates worldCamera.x to -cameraX on setGroundCameraX()', () => {
     const app = new Application();
     app.stage = new Container();
     const state = new GameStateService();
@@ -197,46 +197,34 @@ describe('RenderSystem — ground presentation & scrolling', () => {
     render.initialize();
     entities.initialize(app, render.worldCamera);
 
-    // Setup ground entity
-    const ground = entities.setGround({ enabled: true, height: 80 });
-    expect(ground).not.toBeNull();
-    expect(ground!.getScrollOffset()).toBe(0);
+    render.setGroundCameraX(400);
+    expect(render.worldCamera.x).toBe(-400);
 
-    // Start game so updates run
-    state.startGame();
-    render.setScrollSpeed(3.0);
+    render.setGroundCameraX(0);
+    expect(render.worldCamera.x).toBe(0);
 
-    // 1. In ground traversal mode with astronaut in middle: ground is stationary
-    entities.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
-    render.update(0.1);
-    expect(ground!.getScrollOffset()).toBe(0);
+    render.setGroundCameraX(1600);
+    expect(render.worldCamera.x).toBe(-1600);
 
-    // 1b. In ground mode with astronaut inside the right 33% zone: ground progresses forward
-    const astronaut = entities.createAstronaut()!;
-    expect(astronaut).not.toBeNull();
-    astronaut.reset(600, 495); // right 33% zone (GAME_WIDTH=800, scrollZone=264 → zone starts at 536)
-    astronaut.moveRight();
-    astronaut.update(16.667);
-    expect(astronaut.getBoundaryScrollVelocity()).toBeGreaterThan(0);
+    render.dispose();
+    entities.dispose();
+  });
 
-    render.update(0.1);
-    const forwardOffset = ground!.getScrollOffset();
-    expect(forwardOffset).toBeGreaterThan(0);
+  it('resetCamera restores worldCamera.x to 0', () => {
+    const app = new Application();
+    app.stage = new Container();
+    const state = new GameStateService();
+    const entities = new EntitySystem(app);
+    const render = new RenderSystem(app, entities, state);
 
-    // 1c. In ground mode with astronaut inside the left 33% zone: ground progresses backward
-    astronaut!.reset(200, 495); // left 33% zone
-    astronaut!.moveLeft();
-    astronaut!.update(16.667);
-    expect(astronaut!.getBoundaryScrollVelocity()).toBeLessThan(0);
+    render.initialize();
+    entities.initialize(app, render.worldCamera);
 
-    render.update(0.1);
-    expect(ground!.getScrollOffset()).toBeLessThan(forwardOffset);
+    render.setGroundCameraX(1200);
+    expect(render.worldCamera.x).toBe(-1200);
 
-    // 2. In flight mode: ground scrolls with world
-    entities.setMovementConfig({ mode: 'flight' });
-    const preFlightOffset = ground!.getScrollOffset();
-    render.update(0.1);
-    expect(ground!.getScrollOffset()).toBeGreaterThan(preFlightOffset);
+    render.resetCamera();
+    expect(render.worldCamera.x).toBe(0);
 
     render.dispose();
     entities.dispose();

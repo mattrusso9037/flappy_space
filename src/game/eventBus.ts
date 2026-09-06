@@ -30,6 +30,9 @@ export enum GameEvent {
   HIDE_START_PROMPT = 'HIDE_START_PROMPT',
   RESTART_GAME = 'RESTART_GAME',
   ASSETS_LOADED = 'ASSETS_LOADED',
+  SCENARIO_ENTERED = 'SCENARIO_ENTERED',
+  SCENARIO_EXITED = 'SCENARIO_EXITED',
+  SCENARIO_COMPLETED = 'SCENARIO_COMPLETED',
 }
 
 export interface OrbCollectedData {
@@ -73,6 +76,10 @@ export interface EntityEventData {
   entity: unknown;
 }
 
+export interface ScenarioEventData {
+  scenarioId: string;
+}
+
 // Canonical strongly-typed event map
 export interface FlappyGameEvents {
   [GameEvent.SCORE_CHANGED]: number;
@@ -99,6 +106,9 @@ export interface FlappyGameEvents {
   [GameEvent.HIDE_START_PROMPT]: null | void;
   [GameEvent.RESTART_GAME]: null | void;
   [GameEvent.ASSETS_LOADED]: string[];
+  [GameEvent.SCENARIO_ENTERED]: ScenarioEventData;
+  [GameEvent.SCENARIO_EXITED]: ScenarioEventData;
+  [GameEvent.SCENARIO_COMPLETED]: ScenarioEventData;
 }
 
 export interface EventPayload<T = unknown> {
