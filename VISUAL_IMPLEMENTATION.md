@@ -173,14 +173,15 @@ The HUD implements a **Perimeter-Anchored Avionics System**:
 
 ---
 
-## 9. Critical Constraint: Locked Astronaut Asset
+## 9. Character Asset Constraint: Controlled Astronaut Visual Identity
 
 > [!IMPORTANT]
-> **The existing astronaut sprite artwork is locked.**
+> **The astronaut visual identity is controlled, not permanently immutable.**
 >
-> - **DO NOT** replace, redraw, regenerate, recolor, or generate a new astronaut sprite or sprite sheet.
-> - **DO NOT** replace the PNG asset in `public/assets/astro-sprite.png`.
-> - **Runtime presentation enhancements ARE allowed**: Velocity pitch rotation, thruster spark emission points, death alpha fade, and warp acceleration trails.
+> - Intentional sprite-sheet upgrades must use the canonical sprite-animation pipeline (`add-sprite-animation` skill) and preserve gameplay dimensions, visual identity, and architectural boundaries.
+> - **DO NOT** casually regenerate, replace, or restyle the astronaut during unrelated tasks.
+> - Logical collision dimensions (fixed 35×35 hitbox) must remain strictly decoupled from visual frame dimensions.
+> - Runtime presentation enhancements remain supported: velocity pitch rotation, thruster emission anchors, death sequence presentation, and warp acceleration trails.
 
 ---
 

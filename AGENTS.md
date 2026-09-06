@@ -94,6 +94,11 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 - **Camera constraint**: Camera steps transform only `RenderSystem.worldCamera` — never `app.stage`. This preserves HUD, fade overlay, and debug graphics in viewport-space. See [STORY_ARCHITECTURE.md §5.E–G](./STORY_ARCHITECTURE.md) for the canonical container hierarchy and camera semantics.
 - **Story QA**: Use `story-preview.html` on the dev server to QA any dialogue, in-engine cutscene, or video cutscene using real production registries and renderers. Supports `?dialogue=<id>`, `?cutscene=<id>`, and `?video=<id>` query parameters.
 
+### H. Sprite Animation Architecture
+- Use the repo-local `add-sprite-animation` skill when adding or replacing atlas-based animated sprites.
+- Sprite animation is presentation only and must not change logical collision dimensions or gameplay behavior.
+- The astronaut visual identity is controlled, not permanently immutable. Intentional sprite-sheet upgrades must use the canonical sprite-animation pipeline and preserve gameplay dimensions, visual identity, and architectural boundaries. Do not casually regenerate, replace, or restyle the astronaut during unrelated tasks.
+- **Sprite QA**: Use `sprite-preview.html` on the dev server to QA any animated sprite using production registries. Supports `?asset=<id>` and `?animation=<state>` query parameters.
 
 ---
 
@@ -130,7 +135,7 @@ Comprehensive PixiJS v8 reference skills and cheatsheets are maintained for AI a
 - Always target Pixi.js v8 modern APIs (e.g., `app.init()`, `app.canvas`, shape-then-fill Graphics).
 - Preserve headless testing compatibility.
 - Do not add `@pixi/react`.
-- Consult [VISUAL_IMPLEMENTATION.md](./VISUAL_IMPLEMENTATION.md) for canonical depth order, design tokens, rendering layers, motion conventions, particle effects, and the locked astronaut asset constraint.
+- Consult [VISUAL_IMPLEMENTATION.md](./VISUAL_IMPLEMENTATION.md) for canonical depth order, design tokens, rendering layers, motion conventions, particle effects, and the controlled astronaut visual identity constraint.
 
 ---
 
@@ -138,6 +143,7 @@ Comprehensive PixiJS v8 reference skills and cheatsheets are maintained for AI a
 
 ```
 flappy_space/
+├── .agents/skills/            # Repo-local skills (add-level, add-story, add-sprite-animation)
 ├── .cursor/rules/             # Cursor rules (project-info points to AGENTS.md)
 ├── .github/workflows/         # GitHub Actions CI automation
 ├── electron/                  # Electron main & preload scripts
@@ -156,8 +162,8 @@ flappy_space/
 │   │   ├── entities/          # Entities (Astronaut, Planet, Orb, Star)
 │   │   ├── story/             # Story registries (dialogue, cutscenes, video) and CutsceneRunner
 │   │   ├── systems/           # Systems (Physics, Render, Spawning, Audio, UI, Entity)
-│   │   └── visuals/           # Design tokens, motion, particle effects
-│   ├── test/                  # Test setup and Canvas mocks
+│   │   └── visuals/           # Design tokens, motion, particle effects, sprite animations
+│   ├── test/                  # Test setup, mocks, and QA preview entry points
 │   └── utils/                 # Logger and diagnostic utilities
 ├── AGENTS.md                  # Primary AI Agent Guardrails Guide (Source of Truth)
 ├── CAMPAIGN_FLOW_ARCHITECTURE.md # Canonical campaign definition and flow guide
@@ -165,6 +171,9 @@ flappy_space/
 ├── VISUAL_IMPLEMENTATION.md   # Canonical visual architecture, layers, tokens, and constraints
 ├── eslint.config.js           # ESLint configuration
 ├── package.json               # Scripts, dependencies, and metadata
+├── sprite-preview.html        # Dev-only visual QA harness for sprite animations
+├── story-preview.html         # Dev-only visual QA harness for story sequences
+├── visual-preview.html        # Dev-only visual QA harness for gameplay levels
 ├── tsconfig.json              # TypeScript root configuration
 └── vite.config.ts             # Vite bundler & Vitest test runner configuration
 ```

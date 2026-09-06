@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Flappy Spaceman — Sprite Animation Preview</title>
+  </head>
+  <body>
+    <nav id="controls" aria-label="Sprite preview controls">
+      <label for="asset-select">ASSET</label>
+      <select id="asset-select" aria-label="Select asset"></select>
+
+      <label for="animation-select">ANIMATION</label>
+      <select id="animation-select" aria-label="Select animation"></select>
+
+      <label for="fps-input">FPS</label>
+      <input id="fps-input" type="number" min="1" max="60" value="8" aria-label="Animation FPS" />
+
+      <button id="btn-play" class="btn" type="button">▶ PLAY</button>
+      <button id="btn-pause" class="btn" type="button">⏸ PAUSE</button>
+      <button id="btn-restart" class="btn" type="button">↺ RESTART</button>
+
+      <label class="checkbox-label" for="toggle-hitbox">
+        <input id="toggle-hitbox" type="checkbox" checked />
+        <span>HITBOX</span>
+      </label>
+
+      <label class="checkbox-label" for="toggle-grid">
+        <input id="toggle-grid" type="checkbox" checked />
+        <span>GRID</span>
+      </label>
+
+      <output id="status">Loading…</output>
+    </nav>
+
+    <main id="preview-area">
+      <!-- Pixi canvas is appended here at runtime -->
+    </main>
+
+    <div id="info-overlay">
+      <div id="info-content">
+        <div><span class="info-label">FRAME:</span> <span id="frame-counter">0 / 0</span></div>
+        <div><span class="info-label">STATE:</span> <span id="state-name">idle</span></div>
+        <div><span class="info-label">LOOP:</span> <span id="loop-indicator">true</span></div>
+        <div><span class="info-label">HITBOX:</span> <span id="hitbox-size">35 × 35</span></div>
+      </div>
+    </div>
+
+    <!-- Dev-facing error panel (hidden by default) -->
+    <div id="error-panel" class="hidden" role="alert">
+      <div class="error-card">
+        <h2 id="error-title">Error</h2>
+        <p><code id="error-message"></code></p>
+        <p>Check the browser console or asset definitions.</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/test/sprite-preview.ts"></script>
+  </body>
+</html>

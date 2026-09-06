@@ -13,6 +13,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         'visual-preview': resolve(__dirname, 'visual-preview.html'),
         'story-preview': resolve(__dirname, 'story-preview.html'),
+        'sprite-preview': resolve(__dirname, 'sprite-preview.html'),
       },
     },
   },
