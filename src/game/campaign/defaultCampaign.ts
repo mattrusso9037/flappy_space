@@ -33,7 +33,7 @@ export const SECTOR_01: LevelDefinition = {
 
 export const SECTOR_02: LevelDefinition = {
   id: 'sector-02',
-  name: 'Sector 02',
+  name: 'Alien Surface',
   gameplay: {
     speeds: {
       planet: BASE_SPEEDS.planet * LEVEL_MULTIPLIERS[1],
@@ -49,10 +49,15 @@ export const SECTOR_02: LevelDefinition = {
       maxPlanetRadius: 50,
       secondaryPlanetChance: 0.3,
     },
+    ground: {
+      enabled: true,
+      height: 80,
+      style: 'alien-crust',
+    },
     levelNumber: 2,
   },
   presentation: {
-    environmentId: 'deep-nebula',
+    environmentId: 'alien-surface',
     musicId: 'weightless-space',
   },
   nextLevelId: 'sector-03',

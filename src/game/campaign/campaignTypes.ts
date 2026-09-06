@@ -24,6 +24,14 @@ export interface ObstacleGameplayDefinition {
   secondaryPlanetChance: number;
 }
 
+export interface GroundGameplayDefinition {
+  enabled: boolean;
+  /** Height in game pixels from bottom of canvas. Defaults to 80px (ground at y = GAME_HEIGHT - 80 = 520). */
+  height?: number;
+  /** Visual ground style, e.g. 'alien-crust' | 'rocky' | 'default' */
+  style?: 'alien-crust' | 'rocky' | 'default';
+}
+
 export interface LevelGameplayDefinition {
   speeds: {
     planet: number;
@@ -37,6 +45,9 @@ export interface LevelGameplayDefinition {
   timeLimit: number;
 
   obstacles: ObstacleGameplayDefinition;
+
+  /** Optional planetary ground terrain definition */
+  ground?: GroundGameplayDefinition;
 
   /** Optional display metadata only - does NOT dictate gameplay difficulty */
   levelNumber?: number;

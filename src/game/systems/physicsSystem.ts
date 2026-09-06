@@ -125,11 +125,23 @@ export class PhysicsSystem {
       }
     }
     
+    // Sync ground boundary with astronaut
+    const groundY = this.entities.getGroundY();
+    if (astronaut && astronaut.getGroundY() !== groundY) {
+      astronaut.setGroundY(groundY);
+    }
+
+    // Update ground surface scrolling
+    const ground = this.entities.getGround();
+    if (ground) {
+      ground.update(deltaTime, this.scrollSpeed);
+    }
+
     // Update astronaut physics
     if (astronaut) {
       astronaut.update(deltaTime * 1000); // Convert seconds to milliseconds for astronaut
       
-      // Check if astronaut died from physics (e.g., hitting bottom of screen)
+      // Check if astronaut died from physics (e.g., hitting bottom of screen in space)
       if (astronaut.dead) {
         logger.info('PhysicsSystem: Astronaut died from physics (hit boundary)');
         this.events.emit(GameEvent.COLLISION_DETECTED, null);

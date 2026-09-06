@@ -60,10 +60,30 @@ export const SOLAR_STORM: EnvironmentDefinition = {
   },
 };
 
+export const ALIEN_SURFACE: EnvironmentDefinition = {
+  id: 'alien-surface',
+  name: 'Alien Surface',
+  backgroundColor: 0x0c071e,
+  nebula: {
+    primaryColor: '#2a124d',
+    secondaryColor: '#0d2838',
+    intermediateColor1: '#1e1136',
+    intermediateColor2: '#121f2d',
+    intensity: 0.75,
+    driftSpeed: 0.8,
+  },
+  stars: {
+    density: 0.6,
+    speedMultiplier: 0.85,
+    brightness: 0.8,
+  },
+};
+
 export const ENVIRONMENTS: Record<EnvironmentId, EnvironmentDefinition> = {
   'deep-nebula': DEEP_NEBULA,
   'violet-reach': VIOLET_REACH,
   'solar-storm': SOLAR_STORM,
+  'alien-surface': ALIEN_SURFACE,
 };
 
 export function getEnvironment(id: EnvironmentId): EnvironmentDefinition | undefined {

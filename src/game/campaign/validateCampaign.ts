@@ -125,6 +125,17 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
           );
         }
       }
+
+      // Ground validation
+      if (level.gameplay.ground !== undefined) {
+        const ground = level.gameplay.ground;
+        if (typeof ground.enabled !== 'boolean') {
+          errors.push(`${prefix} ground.enabled must be a boolean.`);
+        }
+        if (ground.height !== undefined && (typeof ground.height !== 'number' || ground.height <= 0 || Number.isNaN(ground.height))) {
+          errors.push(`${prefix} ground.height must be a positive number.`);
+        }
+      }
     }
 
     // Progression link

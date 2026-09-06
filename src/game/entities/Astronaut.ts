@@ -24,6 +24,8 @@ export class Astronaut {
   dead: boolean;
   thrustRemaining = 0;
   public readonly collisionDimensions = { width: 35, height: 35 };
+  public isGrounded: boolean = false;
+  private groundY: number | null = null;
   private deathElapsed = 0;
   private readonly presentation: ResolvedSpritePresentation;
   private currentAnimationState: string = 'none';
@@ -57,6 +59,14 @@ export class Astronaut {
     logger.info('Astronaut created');
   }
 
+  public setGroundY(groundY: number | null): void {
+    this.groundY = groundY;
+  }
+
+  public getGroundY(): number | null {
+    return this.groundY;
+  }
+
   update(deltaMS: number = 16.667): void {
     if (this.dead) return;
 
@@ -80,8 +90,8 @@ export class Astronaut {
       this.horizontalVelocity = Math.min(0, this.horizontalVelocity + 0.1 * delta);
     }
 
-    // Update rotation based on velocity
-    const targetRotation = (this.velocity / MAX_VELOCITY) * (Math.PI / 6); // 30 degrees max
+    // Update rotation based on velocity (stand upright when walking on ground)
+    const targetRotation = this.isGrounded ? 0 : (this.velocity / MAX_VELOCITY) * (Math.PI / 6); // 30 degrees max
     this.rotation = damp(this.rotation, targetRotation, deltaMS / 1000);
     this.sprite.rotation = this.rotation;
 
@@ -95,11 +105,29 @@ export class Astronaut {
       logger.info('Hit top boundary');
     }
 
-    if (this.sprite.y + halfH > GAME_HEIGHT) {
-      this.sprite.y = GAME_HEIGHT - halfH;
-      this.velocity = 0;
-      logger.info('Hit bottom boundary - dying');
-      this.die();
+    if (this.groundY !== null) {
+      // Solid planetary ground collision
+      if (this.sprite.y + halfH >= this.groundY) {
+        this.sprite.y = this.groundY - halfH;
+        this.velocity = 0;
+        if (!this.isGrounded) {
+          this.isGrounded = true;
+          if (!this.dead && this.presentation.animations['walk']) {
+            this.playAnimation('walk');
+          }
+        }
+      } else {
+        this.isGrounded = false;
+      }
+    } else {
+      // Space bottom boundary (lethal)
+      this.isGrounded = false;
+      if (this.sprite.y + halfH > GAME_HEIGHT) {
+        this.sprite.y = GAME_HEIGHT - halfH;
+        this.velocity = 0;
+        logger.info('Hit bottom boundary - dying');
+        this.die();
+      }
     }
 
     // Check horizontal boundaries using logical body dimensions
@@ -162,8 +190,12 @@ export class Astronaut {
         if (this.dead) return;
         // Stale completion guard: only transition if still playing this animation
         if (this.currentAnimationState === name) {
-          const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
-          this.playAnimation(defaultAnim);
+          if (this.isGrounded && this.presentation.animations['walk']) {
+            this.playAnimation('walk');
+          } else {
+            const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
+            this.playAnimation(defaultAnim);
+          }
         }
       };
       animSprite.gotoAndPlay(0);
@@ -178,6 +210,7 @@ export class Astronaut {
     logger.debug(`Thrust! Setting velocity to ${JUMP_VELOCITY}`);
     this.velocity = JUMP_VELOCITY;
     this.thrustRemaining = MOTION.thrust;
+    this.isGrounded = false;
 
     // Only start thrust animation if not already playing thrust (repeated flap does not restart animation)
     if (this.currentAnimationState !== 'thrust') {
@@ -260,6 +293,7 @@ export class Astronaut {
     this.horizontalVelocity = 0;
     this.rotation = 0;
     this.dead = false;
+    this.isGrounded = false;
     this.sprite.tint = 0xFFFFFF;
     this.sprite.rotation = 0;
     this.sprite.alpha = 1;

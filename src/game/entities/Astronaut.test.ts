@@ -8,6 +8,7 @@ import { ResolvedSpritePresentation } from '../visuals/spriteAnimationTypes';
 function createMockPresentation(): ResolvedSpritePresentation {
   const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
   const thrustFrames = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
+  const walkFrames = [new PIXI.Texture(), new PIXI.Texture()];
   return {
     definition: ASTRONAUT_SPRITE_DEFINITION,
     animations: {
@@ -22,6 +23,12 @@ function createMockPresentation(): ResolvedSpritePresentation {
         frames: thrustFrames,
         fps: 3,
         loop: false,
+      },
+      walk: {
+        name: 'walk',
+        frames: walkFrames,
+        fps: 3,
+        loop: true,
       },
     },
     fallbackTexture: new PIXI.Texture(),
@@ -379,6 +386,70 @@ describe('Astronaut Entity', () => {
       // If stale callback is somehow invoked, it must not disrupt idle
       staleCallback?.();
       expect(astro.getCurrentAnimation()).toBe('idle');
+    });
+
+    it('lands on ground without dying when groundY is configured', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 495);
+      const groundY = 520;
+      const halfHeight = ASTRONAUT.body.height / 2;
+
+      astro.setGroundY(groundY);
+      astro.velocity = 10;
+      astro.update(16.667);
+
+      expect(astro.sprite.y).toBe(groundY - halfHeight);
+      expect(astro.velocity).toBe(0);
+      expect(astro.dead).toBe(false);
+      expect(astro.isGrounded).toBe(true);
+      expect(astro.getCurrentAnimation()).toBe('walk');
+    });
+
+    it('damps rotation toward 0 (upright) while grounded', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 495);
+      const groundY = 520;
+
+      astro.setGroundY(groundY);
+      astro.rotation = 0.5; // Tilted from flight
+      astro.update(16.667);
+
+      expect(astro.isGrounded).toBe(true);
+      // Rotation should decrease toward 0
+      expect(astro.rotation).toBeLessThan(0.5);
+    });
+
+    it('launches off ground when thrust() is called, clearing isGrounded', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 495);
+      astro.setGroundY(520);
+      astro.update(16.667);
+      expect(astro.isGrounded).toBe(true);
+
+      astro.thrust();
+      expect(astro.velocity).toBe(JUMP_VELOCITY);
+      expect(astro.isGrounded).toBe(false);
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+    });
+
+    it('returns to walk when thrust animation completes if landed on ground', () => {
+      const presentation = createMockPresentation();
+      const astro = new Astronaut(presentation, 100, 495);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+      astro.setGroundY(520);
+      astro.update(16.667);
+      expect(astro.isGrounded).toBe(true);
+
+      astro.thrust();
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+
+      // Land back on ground
+      astro.sprite.y = 520 - ASTRONAUT.body.height / 2;
+      astro.isGrounded = true;
+
+      // Thrust completes
+      anim.onComplete?.();
+      expect(astro.getCurrentAnimation()).toBe('walk');
     });
   });
 });

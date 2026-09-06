@@ -48,9 +48,17 @@ describe('Campaign Definition & Data Migration', () => {
       expect(levelDef.gameplay.obstacles.maxPlanetRadius).toBe(40 + (index + 1) * 5);
       expect(levelDef.gameplay.obstacles.secondaryPlanetChance).toBe(index === 0 ? 0 : 0.3);
 
-      // Presentation
-      expect(levelDef.presentation.environmentId).toBe('deep-nebula');
+      // Presentation & Ground
+      expect(levelDef.presentation.environmentId).toBe(
+        id === 'sector-02' ? 'alien-surface' : 'deep-nebula'
+      );
       expect(levelDef.presentation.musicId).toBe('weightless-space');
+
+      if (id === 'sector-02') {
+        expect(levelDef.gameplay.ground).toBeDefined();
+        expect(levelDef.gameplay.ground?.enabled).toBe(true);
+        expect(levelDef.gameplay.ground?.height).toBe(80);
+      }
     });
 
     // Check chaining order

@@ -5,6 +5,7 @@ import {
   DEEP_NEBULA,
   VIOLET_REACH,
   SOLAR_STORM,
+  ALIEN_SURFACE,
   getEnvironment,
   isEnvironmentId,
   resolveEnvironment,
@@ -15,6 +16,7 @@ describe('Environment System', () => {
     expect(ENVIRONMENTS['deep-nebula']).toBe(DEEP_NEBULA);
     expect(ENVIRONMENTS['violet-reach']).toBe(VIOLET_REACH);
     expect(ENVIRONMENTS['solar-storm']).toBe(SOLAR_STORM);
+    expect(ENVIRONMENTS['alien-surface']).toBe(ALIEN_SURFACE);
   });
 
   it('validates structure and values of each preset', () => {
@@ -42,6 +44,7 @@ describe('Environment System', () => {
     expect(getEnvironment('deep-nebula')).toBe(DEEP_NEBULA);
     expect(getEnvironment('violet-reach')).toBe(VIOLET_REACH);
     expect(getEnvironment('solar-storm')).toBe(SOLAR_STORM);
+    expect(getEnvironment('alien-surface')).toBe(ALIEN_SURFACE);
     expect(getEnvironment('unknown-env')).toBeUndefined();
   });
 
@@ -49,6 +52,7 @@ describe('Environment System', () => {
     expect(isEnvironmentId('deep-nebula')).toBe(true);
     expect(isEnvironmentId('violet-reach')).toBe(true);
     expect(isEnvironmentId('solar-storm')).toBe(true);
+    expect(isEnvironmentId('alien-surface')).toBe(true);
     expect(isEnvironmentId('non-existent')).toBe(false);
   });
 

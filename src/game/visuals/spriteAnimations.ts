@@ -77,6 +77,11 @@ export const ASTRONAUT_SPRITE_DEFINITION: SpriteAssetDefinition = {
       fps: 18,
       loop: false,
     },
+    walk: {
+      frames: ['idle_00','idle_01','idle_02','idle_03','idle_04','idle_05','idle_06','idle_07'],
+      fps: 12,
+      loop: true,
+    },
   },
 };
 

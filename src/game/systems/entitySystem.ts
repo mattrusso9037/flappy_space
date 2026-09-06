@@ -4,6 +4,8 @@ import { Obstacle } from '../entities/Obstacle';
 import { Planet } from '../entities/Planet';
 import { Orb } from '../entities/Orb';
 import { Star } from '../entities/Star';
+import { Ground } from '../entities/Ground';
+import { GroundGameplayDefinition } from '../campaign/campaignTypes';
 import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { EventBus, GameEvent } from '../eventBus';
 import defaultAssetManager from '../assetManager';
@@ -17,6 +19,7 @@ import { getLogger } from '../../utils/logger';
 export class EntitySystem {
   private app: PIXI.Application | null = null;
   private astronaut: Astronaut | null = null;
+  private ground: Ground | null = null;
   private obstacles: Obstacle[] = [];
   private orbs: Orb[] = [];
   private stars: Star[] = [];
@@ -87,6 +90,15 @@ export class EntitySystem {
       this.logger.info('EntityManager: No astronaut to clear');
     }
     
+    // Clear ground
+    if (this.ground) {
+      if (this.worldLayer.children.includes(this.ground.container)) {
+        this.worldLayer.removeChild(this.ground.container);
+      }
+      this.ground.destroy();
+      this.ground = null;
+    }
+
     // Clear obstacles
     this.clearObstacles();
     
@@ -97,6 +109,39 @@ export class EntitySystem {
     this.clearStars();
     
     this.logger.info('EntityManager: All entities cleared');
+  }
+
+  /**
+   * Set or clear ground configuration for the active level.
+   */
+  public setGround(groundDef?: GroundGameplayDefinition | null): Ground | null {
+    if (this.ground) {
+      if (this.worldLayer.children.includes(this.ground.container)) {
+        this.worldLayer.removeChild(this.ground.container);
+      }
+      this.ground.destroy();
+      this.ground = null;
+    }
+
+    if (groundDef?.enabled) {
+      this.ground = new Ground(groundDef);
+      this.worldLayer.addChild(this.ground.container);
+      this.logger.info(`Ground added to world layer at y=${this.ground.y}`);
+    }
+
+    if (this.astronaut) {
+      this.astronaut.setGroundY(this.ground?.y ?? null);
+    }
+
+    return this.ground;
+  }
+
+  public getGround(): Ground | null {
+    return this.ground;
+  }
+
+  public getGroundY(): number | null {
+    return this.ground ? this.ground.y : null;
   }
   
   /**
@@ -116,6 +161,9 @@ export class EntitySystem {
     const presentation = resolveSpritePresentation(this.assetMgr, ASTRONAUT_SPRITE_DEFINITION);
     
     this.astronaut = new Astronaut(presentation, ASTRONAUT.startX, ASTRONAUT.startY);
+    if (this.ground) {
+      this.astronaut.setGroundY(this.ground.y);
+    }
     this.pilotLayer.addChild(this.astronaut.sprite);
     this.logger.info('Astronaut created and added to stage');
     
