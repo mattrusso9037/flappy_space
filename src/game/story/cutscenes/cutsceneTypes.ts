@@ -1,3 +1,4 @@
+import { CinematicScene } from './sceneTypes';
 import { MusicTrackId } from '../../audio/musicCatalog';
 import { DialogueId } from '../dialogue/dialogueTypes';
 
@@ -10,6 +11,7 @@ export interface CameraAction {
 }
 
 export type CutsceneStep =
+  | { type: 'scene'; duration: number; scene: CinematicScene }
   | {
       type: 'wait';
       duration: number;

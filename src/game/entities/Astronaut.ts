@@ -9,6 +9,22 @@ import { damp, MOTION } from '../visuals/tokens';
 const HORIZONTAL_SPEED = 5;
 const VERTICAL_SPEED = 5;
 
+const DEFAULT_IDLE_FPS = 3;
+const DEFAULT_THRUST_FPS = 6;
+
+export interface AstronautAnimationMap {
+  idle?: PIXI.Texture[];
+  thrust?: PIXI.Texture[];
+  idleFps?: number;
+  thrustFps?: number;
+  [key: string]: unknown;
+}
+
+export type AstronautVisualSource =
+  | PIXI.Texture
+  | PIXI.Texture[]
+  | AstronautAnimationMap;
+
 /**
  * Astronaut entity representing the player character.
  * Owns position, velocity, dimensions, and visual display object.
@@ -23,9 +39,15 @@ export class Astronaut {
   thrustRemaining = 0;
   public readonly collisionDimensions = { width: 35, height: 35 };
   private deathElapsed = 0;
+  private idleFrames: PIXI.Texture[] = [];
+  private thrustFrames: PIXI.Texture[] = [];
+  private idleFps: number = DEFAULT_IDLE_FPS;
+  private thrustFps: number = DEFAULT_THRUST_FPS;
+  private currentAnimationState: 'idle' | 'thrust' | 'none' = 'none';
 
-  constructor(textureOrFrames: PIXI.Texture | PIXI.Texture[], x: number, y: number) {
+  constructor(textureOrFrames: AstronautVisualSource, x: number, y: number) {
     if (Array.isArray(textureOrFrames)) {
+      this.thrustFrames = textureOrFrames;
       const anim = new PIXI.AnimatedSprite(textureOrFrames);
       anim.animationSpeed = 1 / 60;
       anim.loop = false;
@@ -36,10 +58,45 @@ export class Astronaut {
       this.sprite = anim;
       // Preserve natural aspect ratio (128:341) to prevent smushing
       this.sprite.scale.set(0.28);
-    } else {
+      this.currentAnimationState = 'thrust';
+    } else if (textureOrFrames instanceof PIXI.Texture) {
       this.sprite = new PIXI.Sprite(textureOrFrames);
       this.sprite.width = 50;
       this.sprite.height = 50;
+      this.currentAnimationState = 'none';
+    } else if (typeof textureOrFrames === 'object' && textureOrFrames !== null) {
+      this.idleFrames = textureOrFrames.idle ?? [];
+      this.thrustFrames = textureOrFrames.thrust ?? [];
+      if (typeof textureOrFrames.idleFps === 'number') this.idleFps = textureOrFrames.idleFps;
+      if (typeof textureOrFrames.thrustFps === 'number') this.thrustFps = textureOrFrames.thrustFps;
+
+      if (this.idleFrames.length > 0) {
+        const anim = new PIXI.AnimatedSprite(this.idleFrames);
+        anim.animationSpeed = this.idleFps / 60;
+        anim.loop = true;
+        anim.play();
+        this.sprite = anim;
+        this.sprite.scale.set(0.28);
+        this.currentAnimationState = 'idle';
+      } else if (this.thrustFrames.length > 0) {
+        const anim = new PIXI.AnimatedSprite(this.thrustFrames);
+        anim.animationSpeed = this.thrustFps / 60;
+        anim.loop = false;
+        anim.gotoAndStop(0);
+        this.sprite = anim;
+        this.sprite.scale.set(0.28);
+        this.currentAnimationState = 'thrust';
+      } else {
+        this.sprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
+        this.sprite.width = 50;
+        this.sprite.height = 50;
+        this.currentAnimationState = 'none';
+      }
+    } else {
+      this.sprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
+      this.sprite.width = 50;
+      this.sprite.height = 50;
+      this.currentAnimationState = 'none';
     }
     this.sprite.x = x;
     this.sprite.y = y;
@@ -124,6 +181,42 @@ export class Astronaut {
     return bounds;
   }
 
+  private triggerThrustAnimation(): void {
+    if (!(this.sprite instanceof PIXI.AnimatedSprite)) return;
+    const anim = this.sprite;
+
+    if (this.thrustFrames.length > 0) {
+      // Thrust should run through the whole sprite sheet only once;
+      // do not interrupt or restart if already playing thrust.
+      if (this.currentAnimationState === 'thrust' && anim.playing) {
+        return;
+      }
+
+      anim.textures = this.thrustFrames;
+      anim.animationSpeed = this.thrustFps / 60;
+      anim.loop = false;
+      this.currentAnimationState = 'thrust';
+      anim.onComplete = () => {
+        if (this.dead) return;
+        if (this.idleFrames.length > 0) {
+          anim.textures = this.idleFrames;
+          anim.animationSpeed = this.idleFps / 60;
+          anim.loop = true;
+          anim.gotoAndPlay(0);
+          this.currentAnimationState = 'idle';
+        } else {
+          anim.gotoAndStop(0);
+        }
+      };
+      anim.gotoAndPlay(0);
+    } else {
+      if (this.currentAnimationState === 'thrust' && anim.playing) {
+        return;
+      }
+      anim.gotoAndPlay(0);
+    }
+  }
+
   flap(): void {
     if (this.dead) {
       logger.debug('Flap attempted but astronaut is dead');
@@ -132,9 +225,7 @@ export class Astronaut {
     logger.debug(`Flap! Setting velocity to ${JUMP_VELOCITY}`);
     this.velocity = JUMP_VELOCITY;
     this.thrustRemaining = MOTION.thrust;
-    if (this.sprite instanceof PIXI.AnimatedSprite) {
-      this.sprite.gotoAndPlay(0);
-    }
+    this.triggerThrustAnimation();
   }
 
   moveLeft(): void {
@@ -163,9 +254,7 @@ export class Astronaut {
     logger.debug(`Move up! Setting vertical velocity to -${VERTICAL_SPEED}`);
     this.velocity = -VERTICAL_SPEED;
     this.thrustRemaining = MOTION.thrust;
-    if (this.sprite instanceof PIXI.AnimatedSprite) {
-      this.sprite.gotoAndPlay(0);
-    }
+    this.triggerThrustAnimation();
   }
 
   moveDown(): void {
@@ -210,7 +299,33 @@ export class Astronaut {
     this.thrustRemaining = 0;
     this.deathElapsed = 0;
     if (this.sprite instanceof PIXI.AnimatedSprite) {
-      this.sprite.gotoAndStop(0);
+      if (this.idleFrames.length > 0) {
+        this.sprite.textures = this.idleFrames;
+        this.sprite.animationSpeed = this.idleFps / 60;
+        this.sprite.loop = true;
+        this.sprite.gotoAndPlay(0);
+        this.currentAnimationState = 'idle';
+      } else {
+        this.sprite.gotoAndStop(0);
+      }
+    }
+  }
+
+  getCurrentAnimation(): 'idle' | 'thrust' | 'none' {
+    return this.currentAnimationState;
+  }
+
+  setAnimations(animations: AstronautAnimationMap): void {
+    this.idleFrames = animations.idle ?? [];
+    this.thrustFrames = animations.thrust ?? [];
+    if (typeof animations.idleFps === 'number') this.idleFps = animations.idleFps;
+    if (typeof animations.thrustFps === 'number') this.thrustFps = animations.thrustFps;
+    if (this.sprite instanceof PIXI.AnimatedSprite && this.idleFrames.length > 0) {
+      this.sprite.textures = this.idleFrames;
+      this.sprite.animationSpeed = this.idleFps / 60;
+      this.sprite.loop = true;
+      this.sprite.gotoAndPlay(0);
+      this.currentAnimationState = 'idle';
     }
   }
 

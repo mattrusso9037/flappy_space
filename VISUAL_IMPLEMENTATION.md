@@ -55,6 +55,7 @@ Depth sorting is controlled via container `zIndex` values defined in `src/game/v
 | **Stars** | `DEPTH.stars` (-20) | 3 layers of parallax stars with warp velocity stretching (`RenderSystem`). |
 | **World** | `DEPTH.world` (0) | Dynamic gameplay entities: procedural planets and collectible energy orbs (`EntitySystem`). |
 | **Pilot** | `DEPTH.pilot` (10) | Astronaut sprite, idle hovering bob, and flight tilt angle (`EntitySystem`). |
+| **Cinematic scene** | World-space z: 15 | Disposable cutscene actors and backdrop, owned by RenderSystem under worldCamera. |
 | **Effects** | `DEPTH.effects` (20) | Simulation-driven particles: thruster sparks, orb bursts, crash impacts (`FlightEffects`). |
 | **HUD** | `DEPTH.hud` (30) | Viewport-anchored avionics telemetry panels, multiplier gauges, warp banners (`UISystem`). |
 | **Debug** | `DEPTH.debug` (40) | Collision envelopes, hitboxes, and sensor bounds (`RenderSystem`). |

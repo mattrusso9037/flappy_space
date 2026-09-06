@@ -13,7 +13,7 @@
  *
  * Invalid IDs display a dev-facing error without crashing.
  */
-import { Application, Ticker } from 'pixi.js';
+import { Application } from 'pixi.js';
 import { createRoot, Root } from 'react-dom/client';
 import { createElement } from 'react';
 
@@ -148,6 +148,7 @@ async function ensurePixiApp(): Promise<Application> {
     );
   };
   window.addEventListener('resize', resize);
+  app.stage.once('destroyed', () => window.removeEventListener('resize', resize));
   resize();
   return app;
 }
@@ -162,9 +163,7 @@ async function ensureRuntime(): Promise<GameRuntime> {
   // Load the first campaign level for environment/stars
   const startDef = DEFAULT_CAMPAIGN.levels[DEFAULT_CAMPAIGN.startingLevelId];
   r.reset(startDef);
-  r.start();
-  // Don't advance gameplay — just let the world idle (stars, atmosphere)
-  r.pause();
+  // Leave gameplay unstarted; the runtime owns the cinematic clock.
   runtime = r;
   return r;
 }
@@ -214,6 +213,7 @@ async function playCutscene(id: string): Promise<void> {
   skipBtn.disabled = false;
 
   cutsceneRunner = new CutsceneRunner({
+    onSceneChange: (scene, time) => r.systems.rendering.setCinematicScene(scene, time),
     onComplete: () => {
       r.setCutsceneRunner(null);
       r.systems.rendering.setFadeAlpha(0);
@@ -258,19 +258,6 @@ async function playCutscene(id: string): Promise<void> {
   });
 
   r.setCutsceneRunner(cutsceneRunner);
-
-  // Drive the cutscene via the real Pixi ticker (as GameRuntime.onTick does)
-  const tickerCallback = (ticker: Ticker) => {
-    if (!cutsceneRunner?.isActive()) {
-      pixiApp?.ticker.remove(tickerCallback);
-      return;
-    }
-    const ds = ticker.deltaMS / 1000;
-    cutsceneRunner.update(ds);
-    r.systems.rendering.updateBackground(ds);
-    r.systems.rendering.update(ds);
-  };
-  pixiApp!.ticker.add(tickerCallback);
 
   cutsceneRunner.start(def);
   logger.info(`Cutscene preview started: ${id}`);
@@ -413,8 +400,6 @@ async function init(): Promise<void> {
     setStatus('Ready — select content and press PLAY');
   }
 
-  skipBtn.disabled = true;
-  restartBtn.disabled = true;
 }
 
 window.addEventListener('pagehide', () => { teardown(); }, { once: true });

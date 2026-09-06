@@ -14,6 +14,19 @@ describe('AssetManager', () => {
     expect(manager.isLoaded()).toBe(false);
   });
 
+  it('registers default cutscene textures including spaceship-broken and wormhole', () => {
+    const addSpy = vi.spyOn(PIXI.Assets, 'add');
+    new AssetManager();
+    expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({
+      alias: 'spaceship-broken',
+      src: './assets/spaceship/spaceship-broken.png',
+    }));
+    expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({
+      alias: 'wormhole',
+      src: './assets/wormhole/wormhole.png',
+    }));
+  });
+
   it('registers dynamic assets via registerAsset', () => {
     const addSpy = vi.spyOn(PIXI.Assets, 'add');
     manager.registerAsset({

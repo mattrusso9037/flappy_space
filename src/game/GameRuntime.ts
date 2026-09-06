@@ -181,6 +181,10 @@ export class GameRuntime {
 
   public setCutsceneRunner(runner: CutsceneRunner | null): void {
     this.cutsceneRunner = runner;
+    this.systems.ui.setPresentationVisible(!runner);
+    // Story presentation uses the runtime clock while the cutscene branch gates gameplay.
+    if (runner) this.isPaused = false;
+    if (!runner) this.systems.rendering.setCinematicScene(null);
   }
 
   public getCutsceneRunner(): CutsceneRunner | null {
@@ -210,7 +214,7 @@ export class GameRuntime {
    * Pause the game session.
    */
   public pause(): void {
-    if (this.isPaused || !this.state.getState().isStarted) return;
+    if (this.isPaused || (!this.state.getState().isStarted && !this.cutsceneRunner?.isActive())) return;
     this.isPaused = true;
     logger.info('GameRuntime paused');
   }

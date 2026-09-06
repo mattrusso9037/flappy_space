@@ -77,7 +77,15 @@ describe('GameDisplay Component', () => {
       expect(screen.queryByText('Flappy Spaceman')).not.toBeInTheDocument();
     });
 
-    // onGameStateChange must have been notified with isStarted: true
+    expect(screen.getByText('Skip Cutscene (ESC)')).toBeInTheDocument();
+    expect(handleGameStateChange).not.toHaveBeenCalledWith(
+      expect.objectContaining({ isStarted: true })
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByText('Skip Cutscene (ESC)'));
+    });
+
+    // Gameplay starts only after completing or skipping the opening.
     expect(handleGameStateChange).toHaveBeenCalledWith(
       expect.objectContaining<Partial<GameState>>({ isStarted: true })
     );

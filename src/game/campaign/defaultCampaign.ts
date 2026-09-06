@@ -6,6 +6,7 @@ export const DEFAULT_CAMPAIGN_ID = 'flappy-spaceman-main';
 export const SECTOR_01: LevelDefinition = {
   id: 'sector-01',
   name: 'Sector 01',
+  intro: { type: 'cutscene', id: 'opening-spacewalk' },
   gameplay: {
     speeds: {
       planet: BASE_SPEEDS.planet * LEVEL_MULTIPLIERS[0],

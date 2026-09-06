@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { Astronaut } from '../entities/Astronaut';
+import { Astronaut, AstronautVisualSource } from '../entities/Astronaut';
 import { Obstacle } from '../entities/Obstacle';
 import { Planet } from '../entities/Planet';
 import { Orb } from '../entities/Orb';
@@ -112,15 +112,14 @@ export class EntitySystem {
       return this.astronaut;
     }
     
-    const thrustFrames = this.assetMgr.getAnimationFrames('astronaut', 'thrust');
     const idleFrames = this.assetMgr.getAnimationFrames('astronaut', 'idle');
-    const frames = thrustFrames.length > 0 ? thrustFrames : idleFrames;
-    const astronautTexture = this.assetMgr.getTexture('astronaut');
-    const source = frames.length > 0 ? frames : astronautTexture;
-    if (!source) {
-      this.logger.error('Failed to get astronaut texture or frames');
-      return null;
-    }
+    const thrustFrames = this.assetMgr.getAnimationFrames('astronaut', 'thrust');
+    const astronautTexture = this.assetMgr.getTexture('astronaut-idle') || this.assetMgr.getTexture('astronaut');
+    
+    const source: AstronautVisualSource =
+      idleFrames.length > 0 || thrustFrames.length > 0
+        ? { idle: idleFrames, thrust: thrustFrames }
+        : astronautTexture;
     
     this.astronaut = new Astronaut(source, ASTRONAUT.startX, ASTRONAUT.startY);
     this.pilotLayer.addChild(this.astronaut.sprite);

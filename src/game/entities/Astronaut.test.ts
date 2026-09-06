@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as PIXI from 'pixi.js';
 import { Astronaut } from './Astronaut';
 import { GAME_HEIGHT, GAME_WIDTH, GRAVITY, JUMP_VELOCITY, MAX_VELOCITY } from '../config';
@@ -226,5 +226,102 @@ describe('Astronaut Entity', () => {
     expect(anim.textures).toBe(frames2);
     expect(anim.animationSpeed).toBeCloseTo(14 / 60, 4);
     expect(anim.loop).toBe(false);
+  });
+
+  describe('AstronautAnimationMap (idle in space + thrust on flap)', () => {
+    it('starts with looping idle animation in space', () => {
+      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+
+      expect(astro.getCurrentAnimation()).toBe('idle');
+      expect(anim.playing).toBe(true);
+      expect(anim.loop).toBe(true);
+      expect(anim.textures).toBe(idleFrames);
+      expect(astro.collisionDimensions).toEqual({ width: 35, height: 35 });
+    });
+
+    it('transitions to thrust on flap() and returns to looping idle on complete', () => {
+      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+
+      astro.flap();
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+      expect(anim.textures).toBe(thrustFrames);
+      expect(anim.loop).toBe(false);
+      expect(anim.playing).toBe(true);
+
+      // Finish thrust animation
+      anim.onComplete?.();
+      expect(astro.getCurrentAnimation()).toBe('idle');
+      expect(anim.textures).toBe(idleFrames);
+      expect(anim.loop).toBe(true);
+      expect(anim.playing).toBe(true);
+    });
+
+    it('transitions to thrust on moveUp()', () => {
+      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+
+      astro.moveUp();
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+      expect(anim.textures).toBe(thrustFrames);
+      expect(anim.loop).toBe(false);
+      expect(anim.playing).toBe(true);
+    });
+
+    it('stops on die() and restores looping idle on reset()', () => {
+      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+
+      astro.flap();
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+      astro.die();
+      expect(anim.playing).toBe(false);
+
+      astro.reset(150, 250);
+      expect(astro.dead).toBe(false);
+      expect(astro.getCurrentAnimation()).toBe('idle');
+      expect(anim.textures).toBe(idleFrames);
+      expect(anim.loop).toBe(true);
+      expect(anim.playing).toBe(true);
+    });
+
+    it('runs thrust animation through only once and does not restart when flap is pressed again during thrust', () => {
+      const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
+      const thrustFrames = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
+      const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
+      const anim = astro.sprite as PIXI.AnimatedSprite;
+
+      astro.flap();
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+      expect(anim.textures).toBe(thrustFrames);
+      expect(anim.loop).toBe(false);
+      expect(anim.playing).toBe(true);
+
+      // Advance frame
+      anim.currentFrame = 1;
+      const gotoAndPlaySpy = vi.spyOn(anim, 'gotoAndPlay');
+
+      // Flap again while thrust is still running
+      astro.flap();
+      // Should not restart frame to 0
+      expect(gotoAndPlaySpy).not.toHaveBeenCalled();
+      expect(anim.currentFrame).toBe(1);
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+
+      // Complete the thrust run
+      anim.onComplete?.();
+      expect(astro.getCurrentAnimation()).toBe('idle');
+      expect(anim.textures).toBe(idleFrames);
+      expect(anim.loop).toBe(true);
+    });
   });
 });

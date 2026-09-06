@@ -63,13 +63,74 @@
       "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
       "sourceSize": { "w": 128, "h": 341 },
       "anchor": { "x": 0.5, "y": 0.5 }
+    },
+    "thrust_00": {
+      "frame": { "x": 0, "y": 341, "w": 128, "h": 341 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
+      "sourceSize": { "w": 128, "h": 341 },
+      "anchor": { "x": 0.5, "y": 0.5 }
+    },
+    "thrust_01": {
+      "frame": { "x": 128, "y": 341, "w": 128, "h": 341 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
+      "sourceSize": { "w": 128, "h": 341 },
+      "anchor": { "x": 0.5, "y": 0.5 }
+    },
+    "thrust_02": {
+      "frame": { "x": 256, "y": 341, "w": 128, "h": 341 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
+      "sourceSize": { "w": 128, "h": 341 },
+      "anchor": { "x": 0.5, "y": 0.5 }
+    },
+    "thrust_03": {
+      "frame": { "x": 384, "y": 341, "w": 128, "h": 341 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
+      "sourceSize": { "w": 128, "h": 341 },
+      "anchor": { "x": 0.5, "y": 0.5 }
+    },
+    "thrust_04": {
+      "frame": { "x": 512, "y": 341, "w": 128, "h": 341 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
+      "sourceSize": { "w": 128, "h": 341 },
+      "anchor": { "x": 0.5, "y": 0.5 }
+    },
+    "thrust_05": {
+      "frame": { "x": 640, "y": 341, "w": 128, "h": 341 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
+      "sourceSize": { "w": 128, "h": 341 },
+      "anchor": { "x": 0.5, "y": 0.5 }
+    },
+    "thrust_06": {
+      "frame": { "x": 768, "y": 341, "w": 128, "h": 341 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
+      "sourceSize": { "w": 128, "h": 341 },
+      "anchor": { "x": 0.5, "y": 0.5 }
+    },
+    "thrust_07": {
+      "frame": { "x": 896, "y": 341, "w": 128, "h": 341 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 128, "h": 341 },
+      "sourceSize": { "w": 128, "h": 341 },
+      "anchor": { "x": 0.5, "y": 0.5 }
     }
   },
   "animations": {
     "idle": [
-      "idle_00"
-    ],
-    "thrust": [
       "idle_00",
       "idle_01",
       "idle_02",
@@ -78,6 +139,16 @@
       "idle_05",
       "idle_06",
       "idle_07"
+    ],
+    "thrust": [
+      "thrust_00",
+      "thrust_01",
+      "thrust_02",
+      "thrust_03",
+      "thrust_04",
+      "thrust_05",
+      "thrust_06",
+      "thrust_07"
     ]
   },
   "meta": {
@@ -85,7 +156,10 @@
     "version": "1.0",
     "image": "astronaut.png",
     "format": "RGBA8888",
-    "size": { "w": 1024, "h": 341 },
+    "size": {
+      "w": 1024,
+      "h": 682
+    },
     "scale": "1"
   }
 }

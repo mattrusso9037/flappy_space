@@ -1,3 +1,5 @@
+import { OPENING_SPACEWALK } from './openingSpacewalk';
+import { validateScene } from './sceneTypes';
 import { CutsceneDefinition, CutsceneId } from './cutsceneTypes';
 import { isMusicTrackId } from '../../audio/musicCatalog';
 import { hasDialogue } from '../dialogue/dialogues';
@@ -16,6 +18,7 @@ export const FIRST_SIGNAL_CUTSCENE: CutsceneDefinition = {
 const CUTSCENE_REGISTRY: Map<CutsceneId, CutsceneDefinition> = new Map();
 
 CUTSCENE_REGISTRY.set(FIRST_SIGNAL_CUTSCENE.id, FIRST_SIGNAL_CUTSCENE);
+CUTSCENE_REGISTRY.set(OPENING_SPACEWALK.id, OPENING_SPACEWALK);
 
 export function registerCutscene(definition: CutsceneDefinition): void {
   CUTSCENE_REGISTRY.set(definition.id, definition);
@@ -36,6 +39,7 @@ export function getAllCutscenes(): CutsceneDefinition[] {
 export function clearCutsceneRegistry(): void {
   CUTSCENE_REGISTRY.clear();
   CUTSCENE_REGISTRY.set(FIRST_SIGNAL_CUTSCENE.id, FIRST_SIGNAL_CUTSCENE);
+  CUTSCENE_REGISTRY.set(OPENING_SPACEWALK.id, OPENING_SPACEWALK);
 }
 
 export function validateCutsceneDefinition(cutscene: CutsceneDefinition): string[] {
@@ -49,6 +53,10 @@ export function validateCutsceneDefinition(cutscene: CutsceneDefinition): string
     cutscene.steps.forEach((step, index) => {
       const stepPrefix = `Cutscene "${cutscene.id}" step ${index} (${step.type}):`;
       switch (step.type) {
+        case 'scene':
+          if (!Number.isFinite(step.duration) || step.duration <= 0) errors.push(`${stepPrefix} duration must be positive and finite.`);
+          errors.push(...validateScene(step.scene, step.duration).map(error => `${stepPrefix} ${error}`));
+          break;
         case 'wait':
           if (typeof step.duration !== 'number' || step.duration <= 0) {
             errors.push(`${stepPrefix} duration must be a positive number.`);

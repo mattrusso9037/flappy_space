@@ -1,3 +1,4 @@
+import { CutsceneRunner } from './story/cutscenes/CutsceneRunner';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as PIXI from 'pixi.js';
 import { createFlappySpaceRuntime } from './createFlappySpaceRuntime';
@@ -338,3 +339,35 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
 });
 
 
+
+
+it('runs cinematics on the runtime clock without advancing gameplay, and restores HUD on reset', () => {
+  const app = new PIXI.Application();
+  app.stage = new PIXI.Container();
+  app.ticker = new PIXI.Ticker();
+  const runtime = createFlappySpaceRuntime(app);
+  runtime.initialize();
+  runtime.reset();
+  runtime.start();
+  runtime.pause();
+  const onSceneChange = vi.fn();
+  const runner = new CutsceneRunner({ onSceneChange });
+  runtime.setCutsceneRunner(runner);
+  runner.start({ id: 'clock', steps: [{ type: 'scene', duration: 5, scene: { actors: [] } }] });
+  const before = runtime.state.getState().timeRemaining;
+  const hud = app.stage.getChildByLabel('hud')!;
+  expect(hud.visible).toBe(false);
+  runtime.onTick({ deltaMS: 500 } as PIXI.Ticker);
+  expect(onSceneChange).toHaveBeenLastCalledWith({ actors: [] }, 0.5);
+  expect(runtime.state.getState().timeRemaining).toBe(before);
+  runtime.pause();
+  runtime.onTick({ deltaMS: 500 } as PIXI.Ticker);
+  expect(onSceneChange).toHaveBeenLastCalledWith({ actors: [] }, 0.5);
+  runtime.resume();
+  runtime.onTick({ deltaMS: 500 } as PIXI.Ticker);
+  expect(onSceneChange).toHaveBeenLastCalledWith({ actors: [] }, 1);
+  runtime.reset();
+  expect(hud.visible).toBe(true);
+  expect(runtime.getCutsceneRunner()).toBeNull();
+  runtime.dispose();
+});

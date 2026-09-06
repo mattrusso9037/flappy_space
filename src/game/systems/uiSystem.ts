@@ -27,6 +27,11 @@ export class UISystem {
   constructor(private app: PIXI.Application | undefined, private readonly events: EventBus,
     private readonly state: GameStateService, private readonly entities?: EntitySystem) {}
 
+  setPresentationVisible(visible: boolean): void {
+    if (this.hud) this.hud.visible = visible;
+    if (this.effects) this.effects.container.visible = visible;
+  }
+
   initialize(target: PIXI.Application | PIXI.Container | undefined = this.app): void {
     if (this.initialized) return;
     if (!target) throw new Error('UISystem needs a stage');
@@ -109,6 +114,7 @@ export class UISystem {
   }
 
   reset(): void {
+    this.setPresentationVisible(true);
     this.effects?.reset();
     this.bannerAge = MOTION.warp;
     this.thrustElapsed = 0;

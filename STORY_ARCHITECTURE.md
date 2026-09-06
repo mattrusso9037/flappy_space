@@ -195,6 +195,34 @@ export interface CutsceneDefinition {
 }
 ```
 
+### Scene actors and keyframes
+
+`{ type: 'scene', duration, scene: { actors } }` stages a cinematic world using
+`CinematicSceneRenderer`, owned by `RenderSystem` under `worldCamera` (z: 15).
+Actors support `ship`, `pilot`, `wormhole`, `repair-sparks`, and `tether` visuals.
+The pilot reuses the existing static astronaut texture; no gameplay entity is moved.
+
+Each actor has a unique `id`, a `kind`, and ordered `keyframes`. Every keyframe
+specifies `time` (seconds), `x`, `y` (game pixels), uniform `scale`, `rotation`
+(radians), and `alpha`. Values interpolate linearly between frames and clamp at
+both ends. Use multiple frames to author acceleration or a curved trajectory.
+Frame times must increase strictly within the scene duration. All values must be
+finite, scale nonnegative, and alpha within 0..1. `validateScene` enforces these
+contracts through `validateCutsceneDefinition`.
+
+The scene remains visible through subsequent fade/camera/dialogue steps until a
+new scene replaces it or the cutscene ends. Completion, skip, reset, phase cleanup,
+and disposal remove the actors without destroying shared textures. The gameplay
+HUD and effects are hidden while a runner is attached and restored when detached.
+Attaching a runner releases the story-transition gameplay pause; the runtime's
+cutscene branch prevents physics, spawning, and gameplay clocks from advancing.
+Explicit runtime pause still pauses presentation. The preview uses this same
+runtime ticker, with no additional cinematic ticker.
+
+`opening-spacewalk` is Sector 01's intro: hull repair, wormhole formation, pilot
+capture, then a fade into gameplay through the existing GameFlow continuation.
+Retries and previously seen intros follow the standard story flags below.
+
 ### B. Simulation Time Rule
 > **All in-engine cutscene timing MUST advance through deterministic simulation time:**
 > `CutsceneRunner.update(deltaSeconds)`

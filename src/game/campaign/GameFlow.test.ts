@@ -45,6 +45,8 @@ describe('GameFlow', () => {
 
   it('starts a new game on the configured starting level and persists initial checkpoint', () => {
     flow.startNewGame();
+    expect(flow.getPhase()).toEqual({ type: 'cutscene', cutsceneId: 'opening-spacewalk' });
+    flow.completeStoryPhase();
 
     expect(flow.getPhase()).toEqual({ type: 'playing', levelId: 'sector-01' });
     expect(mockSaveService.savedData).not.toBeNull();
@@ -53,6 +55,8 @@ describe('GameFlow', () => {
 
   it('advances progression and updates checkpoint on level completion', () => {
     flow.startNewGame();
+    expect(flow.getPhase()).toEqual({ type: 'cutscene', cutsceneId: 'opening-spacewalk' });
+    flow.completeStoryPhase();
 
     flow.handleLevelCompleted('sector-01', 500);
 
@@ -126,6 +130,8 @@ describe('GameFlow', () => {
 
   it('falls back safely to starting level if requested level ID does not exist', () => {
     flow.startLevel('non-existent-sector');
+    expect(flow.getPhase()).toEqual({ type: 'cutscene', cutsceneId: 'opening-spacewalk' });
+    flow.completeStoryPhase();
 
     expect(flow.getPhase()).toEqual({ type: 'playing', levelId: 'sector-01' });
   });
@@ -169,6 +175,8 @@ describe('GameFlow', () => {
     });
 
     attachedFlow.startNewGame();
+    expect(runtime.state.getState().isStarted).toBe(false);
+    attachedFlow.completeStoryPhase();
     expect(attachedFlow.getPhase()).toEqual({ type: 'playing', levelId: 'sector-01' });
     expect(runtime.state.getState().level).toBe(1);
 

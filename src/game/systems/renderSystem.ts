@@ -1,3 +1,5 @@
+import { CinematicSceneRenderer } from '../story/cutscenes/CinematicSceneRenderer';
+import { CinematicScene } from '../story/cutscenes/sceneTypes';
 import * as PIXI from 'pixi.js';
 import { EntitySystem } from './entitySystem';
 import { GameStateService } from '../gameStateService';
@@ -42,6 +44,7 @@ export class RenderSystem {
    * HUD, effects, fade, and debug are children of app.stage — outside this container.
    */
   readonly worldCamera = new PIXI.Container({ label: 'worldCamera', zIndex: 0, sortableChildren: true, eventMode: 'none' });
+  private cinematic = new CinematicSceneRenderer();
   private clouds: PIXI.Graphics[] = [];
   private currentEnvironment: EnvironmentDefinition = DEEP_NEBULA;
   private elapsed = 0;
@@ -62,7 +65,7 @@ export class RenderSystem {
     this.app.stage.addChild(this.worldCamera);
 
     // Atmosphere lives inside the world camera so it follows camera transforms.
-    this.worldCamera.addChild(this.atmosphere);
+    this.worldCamera.addChild(this.atmosphere, this.cinematic.container);
 
     // debug + fade overlays stay on app.stage (viewport-space, outside camera transform).
     this.app.stage.addChild(this.debugGraphics, this.fadeGraphics);
@@ -158,7 +161,12 @@ export class RenderSystem {
     this.worldCamera.scale.set(1);
   }
 
+  setCinematicScene(scene: CinematicScene | null, time = 0): void {
+    this.cinematic.render(scene, time);
+  }
+
   reset(): void {
+    this.cinematic.clear();
     this.setFadeAlpha(0);
     this.resetCamera();
     this.warpRemaining = 0;
@@ -218,6 +226,7 @@ export class RenderSystem {
   dispose(): void {
     if (!this.initialized) return;
     this.resetCamera();
+    this.cinematic.dispose();
     this.atmosphere.destroy({ children: true });
     this.debugGraphics.destroy();
     this.fadeGraphics.destroy();

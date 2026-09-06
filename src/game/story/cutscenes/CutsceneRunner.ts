@@ -1,3 +1,4 @@
+import { CinematicScene } from './sceneTypes';
 import { CutsceneDefinition, CutsceneStep, CameraAction } from './cutsceneTypes';
 import { DialogueId } from '../dialogue/dialogueTypes';
 import { getLogger } from '../../../utils/logger';
@@ -5,6 +6,7 @@ import { getLogger } from '../../../utils/logger';
 const logger = getLogger('CutsceneRunner');
 
 export interface CutsceneRunnerCallbacks {
+  onSceneChange?: (scene: CinematicScene | null, time: number) => void;
   onComplete?: () => void;
   onDialogueStart?: (dialogueId: DialogueId) => void;
   onMusicChange?: (musicId: string) => void;
@@ -72,6 +74,11 @@ export class CutsceneRunner {
     this.stepElapsedTime += deltaSeconds;
 
     switch (currentStep.type) {
+      case 'scene':
+        this.callbacks.onSceneChange?.(currentStep.scene, Math.min(this.stepElapsedTime, currentStep.duration));
+        if (this.stepElapsedTime >= currentStep.duration) this.advanceStep();
+        break;
+
       case 'wait':
         if (this.stepElapsedTime >= currentStep.duration) {
           this.advanceStep();
@@ -189,7 +196,12 @@ export class CutsceneRunner {
     const step = this.definition.steps[index];
     logger.debug(`Executing cutscene step ${index}: ${step.type}`);
 
-    if (step.type === 'camera') {
+    if (step.type === 'scene') {
+      this.callbacks.onSceneChange?.(step.scene, 0);
+    } else if (step.type === 'fade') {
+      this.currentFadeAlpha = step.direction === 'in' ? 1 : 0;
+      this.callbacks.onFadeChange?.(this.currentFadeAlpha);
+    } else if (step.type === 'camera') {
       // Record the camera state at the START of this step so interpolation begins from here.
       this.stepStartCamera = {
         x: this.currentCamera.x ?? 0,
@@ -208,6 +220,7 @@ export class CutsceneRunner {
     this.currentFadeAlpha = 0;
     this.currentCamera = { x: 0, y: 0, zoom: 1 };
     this.activeDialogueId = null;
+    this.callbacks.onSceneChange?.(null, 0);
     this.callbacks.onFadeChange?.(0);
     this.callbacks.onCameraChange?.({ x: 0, y: 0, zoom: 1 });
   }

@@ -89,6 +89,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
       }
       const runtime = runtimeRef.current;
       const runner = new CutsceneRunner({
+        onSceneChange: (scene, time) => runtime.systems.rendering.setCinematicScene(scene, time),
         onComplete: () => {
           runtime.setCutsceneRunner(null);
           runtime.systems.rendering.setFadeAlpha(0);

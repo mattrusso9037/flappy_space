@@ -379,3 +379,34 @@ describe('CutsceneRunner', () => {
     });
   });
 });
+
+it('drives scene time deterministically, pauses, and clears actors exactly once on skip', () => {
+  const onSceneChange = vi.fn();
+  const onComplete = vi.fn();
+  const scene = { actors: [] };
+  const runner = new CutsceneRunner({ onSceneChange, onComplete });
+  runner.start({ id: 'scene-clock', steps: [{ type: 'scene', scene, duration: 2 }] });
+  expect(onSceneChange).toHaveBeenLastCalledWith(scene, 0);
+  runner.update(0.5);
+  expect(onSceneChange).toHaveBeenLastCalledWith(scene, 0.5);
+  runner.pause();
+  runner.update(10);
+  expect(onSceneChange).toHaveBeenLastCalledWith(scene, 0.5);
+  runner.resume();
+  runner.update(0.5);
+  expect(onSceneChange).toHaveBeenLastCalledWith(scene, 1);
+  runner.skip();
+  runner.skip();
+  expect(onSceneChange).toHaveBeenLastCalledWith(null, 0);
+  expect(onComplete).toHaveBeenCalledTimes(1);
+});
+
+it('clears cinematic actors on natural completion', () => {
+  const onSceneChange = vi.fn();
+  const onComplete = vi.fn();
+  const runner = new CutsceneRunner({ onSceneChange, onComplete });
+  runner.start({ id: 'scene-end', steps: [{ type: 'scene', scene: { actors: [] }, duration: 1 }] });
+  runner.update(2);
+  expect(onSceneChange).toHaveBeenLastCalledWith(null, 0);
+  expect(onComplete).toHaveBeenCalledTimes(1);
+});

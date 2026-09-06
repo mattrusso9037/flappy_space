@@ -21,8 +21,23 @@ const gameAssets: AssetDefinition[] = [
     type: 'spritesheet'
   },
   {
+    name: 'astronaut-idle',
+    url: './assets/astronaut/astronaut-idle.png',
+    type: 'texture'
+  },
+  {
     name: 'astronaut-static',
-    url: './assets/astro-sprite.png',
+    url: './assets/astronaut/astronaut-idle.png',
+    type: 'texture'
+  },
+  {
+    name: 'spaceship-broken',
+    url: './assets/spaceship/spaceship-broken.png',
+    type: 'texture'
+  },
+  {
+    name: 'wormhole',
+    url: './assets/wormhole/wormhole.png',
     type: 'texture'
   }
   // Add more assets here as needed
