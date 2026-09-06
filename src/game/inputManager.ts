@@ -8,6 +8,7 @@ export enum InputKey {
   USE_TOOL = 'KeyE',
   SELECT_TOOL = 'Digit1',
   SELECT_GRAPPLE = 'Digit2',
+  SELECT_SHOVEL = 'Digit3',
   UNEQUIP_TOOL = 'Digit0',
   REMOVE_TOOL = 'KeyX',
   ARROW_UP = 'ArrowUp',
@@ -48,6 +49,7 @@ export enum InputEvent {
   USE_TOOL = 'use_tool',
   SELECT_TOOL = 'select_tool',
   SELECT_GRAPPLE = 'select_grapple',
+  SELECT_SHOVEL = 'select_shovel',
   UNEQUIP_TOOL = 'unequip_tool',
   REMOVE_TOOL = 'remove_tool',
   MOVE_UP = 'move_up',
@@ -181,7 +183,7 @@ export class InputManager {
    */
   private handleKeyDown = (event: KeyboardEvent): void => {
     const key = event.code as InputKey;
-    if (event.repeat && [InputKey.SELECT_GRAPPLE, InputKey.USE_TOOL, InputKey.SELECT_TOOL, InputKey.UNEQUIP_TOOL, InputKey.REMOVE_TOOL].includes(key)) return;
+    if (event.repeat && [InputKey.SELECT_SHOVEL, InputKey.SELECT_GRAPPLE, InputKey.USE_TOOL, InputKey.SELECT_TOOL, InputKey.UNEQUIP_TOOL, InputKey.REMOVE_TOOL].includes(key)) return;
     logger.debug(`KeyDown event - ${key}, enabled: ${this.enabled}`);
     
     // If key wasn't already down, trigger events
@@ -191,6 +193,7 @@ export class InputManager {
       // Handle each key type
       switch (key) {
         case InputKey.USE_TOOL: this.triggerEvent(InputEvent.USE_TOOL); break;
+        case InputKey.SELECT_SHOVEL: this.triggerEvent(InputEvent.SELECT_SHOVEL); break;
         case InputKey.SELECT_GRAPPLE: this.triggerEvent(InputEvent.SELECT_GRAPPLE); break;
         case InputKey.SELECT_TOOL: this.triggerEvent(InputEvent.SELECT_TOOL); break;
         case InputKey.UNEQUIP_TOOL: this.triggerEvent(InputEvent.UNEQUIP_TOOL); break;

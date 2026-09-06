@@ -16,6 +16,7 @@ const logger = getLogger('InputSystem');
 export class InputSystem implements UpdatingGameSystem {
   private toolActions: InputEvent[] = [];
   private queueUse = () => { this.toolActions.push(InputEvent.USE_TOOL); };
+  private queueShovel = () => { this.toolActions.push(InputEvent.SELECT_SHOVEL); };
   private queueGrapple = () => { this.toolActions.push(InputEvent.SELECT_GRAPPLE); };
   private queueSelect = () => { this.toolActions.push(InputEvent.SELECT_TOOL); };
   private queueUnequip = () => { this.toolActions.push(InputEvent.UNEQUIP_TOOL); };
@@ -56,6 +57,7 @@ export class InputSystem implements UpdatingGameSystem {
     logger.info('Initializing...');
     
     this.inputMgr.on(InputEvent.USE_TOOL, this.queueUse);
+    this.inputMgr.on(InputEvent.SELECT_SHOVEL, this.queueShovel);
     this.inputMgr.on(InputEvent.SELECT_GRAPPLE, this.queueGrapple);
     this.inputMgr.on(InputEvent.SELECT_TOOL, this.queueSelect);
     this.inputMgr.on(InputEvent.UNEQUIP_TOOL, this.queueUnequip);
@@ -117,6 +119,7 @@ export class InputSystem implements UpdatingGameSystem {
     logger.info('Disposing...');
     
     this.inputMgr.off(InputEvent.USE_TOOL, this.queueUse);
+    this.inputMgr.off(InputEvent.SELECT_SHOVEL, this.queueShovel);
     this.inputMgr.off(InputEvent.SELECT_GRAPPLE, this.queueGrapple);
     this.inputMgr.off(InputEvent.SELECT_TOOL, this.queueSelect);
     this.inputMgr.off(InputEvent.UNEQUIP_TOOL, this.queueUnequip);
@@ -404,6 +407,7 @@ export class InputSystem implements UpdatingGameSystem {
     }
     for (const action of this.toolActions.splice(0)) {
       if (action === InputEvent.SELECT_TOOL) this.tools?.select('wall-builder');
+      else if (action === InputEvent.SELECT_SHOVEL) this.tools?.select('shovel');
       else if (action === InputEvent.SELECT_GRAPPLE) this.tools?.select('grapple-hook');
       else if (action === InputEvent.UNEQUIP_TOOL) this.tools?.select(null);
       else if (action === InputEvent.USE_TOOL) this.tools?.use();

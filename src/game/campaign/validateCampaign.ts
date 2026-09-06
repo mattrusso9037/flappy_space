@@ -2,7 +2,7 @@ import { CampaignDefinition, StoryTransition } from './campaignTypes';
 import { isEnvironmentId } from '../environments/environments';
 import { isMusicTrackId } from '../audio/musicCatalog';
 import { isTerrainId } from '../visuals/terrainPresets';
-import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { ASTRONAUT, GAME_HEIGHT, GAME_WIDTH } from '../config';
 
 import { hasDialogue } from '../story/dialogue/dialogues';
 import { hasCutscene } from '../story/cutscenes/cutscenes';
@@ -170,17 +170,58 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
         }
       }
 
+      const terrainBlocks = level.gameplay.terrainBlocks;
+      if (terrainBlocks !== undefined) {
+        if (!level.gameplay.ground?.enabled || level.gameplay.movement?.mode !== 'ground' || !level.gameplay.world) {
+          errors.push(`${prefix} terrainBlocks requires ground, ground movement and a world.`);
+        }
+        if (!Array.isArray(terrainBlocks)) {
+          errors.push(`${prefix} terrainBlocks must be an array.`);
+        } else {
+          const ids = new Set<string>();
+          for (const [index, block] of terrainBlocks.entries()) {
+            const b = block?.bounds;
+            if (!block || typeof block.id !== 'string' || !block.id.trim() || ids.has(block.id) ||
+                typeof block.diggable !== 'boolean' || !b ||
+                ![b.x, b.y, b.width, b.height].every(Number.isFinite) ||
+                b.width <= 0 || b.height <= 0 || b.x < 0 || b.y < 0 ||
+                b.x + b.width > (level.gameplay.world?.width ?? GAME_WIDTH) ||
+                b.y + b.height > GAME_HEIGHT - (level.gameplay.ground?.height ?? 0)) {
+              errors.push(`${prefix} terrain block requires unique id, explicit diggable flag and valid world bounds above ground.`);
+              continue;
+            }
+            ids.add(block.id);
+            const overlaps = (r: { x: number; y: number; width: number; height: number }) =>
+              b.x < r.x + r.width && b.x + b.width > r.x && b.y < r.y + r.height && b.y + b.height > r.y;
+            if (terrainBlocks.slice(0, index).some(other => other?.bounds && overlaps(other.bounds))) {
+              errors.push(`${prefix} terrain blocks must not overlap.`);
+            }
+            if (overlaps({ x: ASTRONAUT.startX - ASTRONAUT.body.width / 2,
+              y: ASTRONAUT.startY - ASTRONAUT.body.height / 2, ...ASTRONAUT.body })) {
+              errors.push(`${prefix} terrain blocks must not overlap the astronaut spawn.`);
+            }
+            if (level.gameplay.orbs?.placements?.some(orb => overlaps({ x: orb.x - 14, y: orb.y - 14, width: 28, height: 28 }))) {
+              errors.push(`${prefix} terrain blocks must not overlap authored pickups.`);
+            }
+          }
+        }
+      }
+
       const tools = level.gameplay.tools;
       if (tools !== undefined) {
         if (!level.gameplay.ground?.enabled || level.gameplay.movement?.mode !== 'ground') {
           errors.push(`${prefix} gameplay.tools requires enabled ground and ground movement.`);
         }
-        if (tools.equipped !== null && tools.equipped !== 'wall-builder' && tools.equipped !== 'grapple-hook') {
-          errors.push(`${prefix} tools.equipped must be null, wall-builder or grapple-hook.`);
+        if (tools.equipped !== null && tools.equipped !== 'wall-builder' && tools.equipped !== 'grapple-hook' && tools.equipped !== 'shovel') {
+          errors.push(`${prefix} tools.equipped must be null, wall-builder, grapple-hook or shovel.`);
         }
         if ((tools.equipped === 'wall-builder' && !tools.wallBuilder) ||
-            (tools.equipped === 'grapple-hook' && !tools.grappleHook)) {
+            (tools.equipped === 'grapple-hook' && !tools.grappleHook) ||
+            (tools.equipped === 'shovel' && !tools.shovel)) {
           errors.push(`${prefix} equipped tool requires its configuration.`);
+        }
+        if (tools.shovel && (!Number.isFinite(tools.shovel.reach) || tools.shovel.reach <= 0)) {
+          errors.push(`${prefix} shovel.reach must be positive and finite.`);
         }
         const grapple = tools.grappleHook;
         if (grapple) {

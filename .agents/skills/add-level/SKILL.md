@@ -239,3 +239,46 @@ Walk to about x=400, face right, press 2 then E to pull up to the pickup. The ex
 wall route remains available. Preview /visual-preview.html?level=sector-02.
 Verify input, invalid targeting, pull, release, pause, death, switch and transitions,
 plus unchanged ground/thrust behavior. Run verify, test:coverage and build.
+
+## Shovel and authored terrain blocks
+
+Shovel is the third tool: `gameplay.tools.shovel: { reach: 40 }`, with optional
+`equipped: 'shovel'`. Press 3 to equip and E to dig. Reach is world pixels measured
+horizontally from the astronaut's body edge in the last held direction. A strike
+removes one nearest block intersecting body-center height. Solid blocks and panels
+occlude blocks behind them; empty, distant, dead and nonfinite uses fail safely.
+Key repeat is suppressed. X does not restore excavated terrain.
+
+Author geometry independently of tools and visual terrain presets:
+```typescript
+terrainBlocks: [
+  { id: 'roof', bounds: { x: 1000, y: 360, width: 320, height: 60 }, diggable: false },
+  { id: 'plug', bounds: { x: 1100, y: 420, width: 60, height: 100 }, diggable: true },
+]
+```
+This optional capability requires enabled ground, ground movement and a world.
+Blocks have unique IDs, explicit boolean diggable flags, positive finite sizes and
+world-space bounds above natural ground. Blocks cannot overlap each other, the
+astronaut spawn or authored pickups. Shared edges are allowed. Omission creates no
+blocks. Loop worlds retain blocks at authored continuous coordinates, without copies.
+
+EntitySystem owns per-session blocks, removal and resource cleanup; PhysicsSystem
+uses their canonical rectangles alongside panels in the existing swept-solid solver.
+PlayerToolSystem owns strike targeting. TerrainBlock renders geometry using existing
+tokens (amber cracks for diggable blocks, muted outlines for solid blocks).
+Presentation never supplies collision bounds or dig rules. Wall placement rejects
+overlap with blocks. Natural ground and its visual preset remain immutable.
+
+Removal affects collision and graphics immediately in the input simulation step.
+Repeated use on an empty opening is harmless. Dug state persists through tool
+switches and pause, and resets on level load/reset; it is not saved to campaign
+progress. Dispose destroys remaining graphics. No timer, extra ticker, voxel data,
+partial cuts or general destruction framework is involved.
+
+Sector 02 has a short tunnel from x=1000 to 1320 with a solid roof and a diggable
+plug at x=1100. Walk right into the plug, equip Shovel, dig, and continue through.
+The wall/grapple challenge remains independent. Use the preview controls
+“Shovel: blocked path” then “Shovel: dig and cross” at
+`/visual-preview.html?level=sector-02`. Verify rejection of solid terrain,
+collision before/after removal, repeat use, reset/transitions and unchanged
+ground/thrust behavior. Run verify, test:coverage and build.

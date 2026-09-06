@@ -1,3 +1,5 @@
+import { TerrainBlock } from '../entities/TerrainBlock';
+import { TerrainBlockDefinition } from '../campaign/campaignTypes';
 import { GrappleAnchor } from '../tools/toolTypes';
 import { WallPanel } from '../entities/WallPanel';
 import { Rect } from '../campaign/campaignTypes';
@@ -34,6 +36,7 @@ export class EntitySystem {
   private orbs: Orb[] = [];
   private grappleGraphics: PIXI.Graphics[] = [];
   private grappleLine?: PIXI.Graphics;
+  private terrainBlocks: TerrainBlock[] = [];
   private walls: WallPanel[] = [];
   private stars: Star[] = [];
   private initialized: boolean = false;
@@ -84,6 +87,7 @@ export class EntitySystem {
    * Clear all entities from the manager and stage
    */
   public clearAll(): void {
+    this.configureTerrainBlocks([]);
     this.configureGrappleAnchors([]);
     this.clearWalls();
     if (!this.app) return;
@@ -189,6 +193,29 @@ export class EntitySystem {
     this.grappleLine.position.set(pilot.worldX, pilot.sprite.y);
     this.grappleLine.rotation = Math.atan2(anchor.y - pilot.sprite.y, anchor.x - pilot.worldX);
     this.grappleLine.scale.x = Math.hypot(anchor.x - pilot.worldX, anchor.y - pilot.sprite.y);
+  }
+
+  public configureTerrainBlocks(definitions: readonly TerrainBlockDefinition[]): void {
+    for (const block of this.terrainBlocks) block.destroy();
+    this.terrainBlocks = definitions.map(definition => {
+      const block = new TerrainBlock(definition);
+      this.worldLayer.addChild(block.graphics);
+      return block;
+    });
+  }
+
+  public getTerrainBlocks(): readonly TerrainBlock[] { return this.terrainBlocks; }
+
+  public digTerrainBlock(block: TerrainBlock): boolean {
+    const index = this.terrainBlocks.indexOf(block);
+    if (index < 0 || !block.diggable) return false;
+    this.terrainBlocks.splice(index, 1);
+    block.destroy();
+    return true;
+  }
+
+  public getSolidBounds(): readonly Readonly<Rect>[] {
+    return [...this.walls, ...this.terrainBlocks].map(solid => solid.bounds);
   }
 
   public createWall(bounds: Rect, lifetimeSeconds: number): WallPanel {

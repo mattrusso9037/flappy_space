@@ -1,8 +1,9 @@
-export type PlayerToolId = 'wall-builder' | 'grapple-hook';
+export type PlayerToolId = 'wall-builder' | 'grapple-hook' | 'shovel';
 
 /** Omit gameplay.tools to disable tools. Configuration belongs only here. */
 export interface PlayerToolsDefinition {
   equipped: PlayerToolId | null;
+  shovel?: { reach: number };
   grappleHook?: GrappleDefinition;
   wallBuilder?: {
     width: number;
@@ -19,4 +20,4 @@ export interface GrappleDefinition {
   pullSpeed: number; // world pixels per second
 }
 
-export type ToolUseResult = 'attached' | 'released' | 'invalid-target' | 'placed' | 'removed' | 'no-tool' | 'invalid-ground' | 'blocked' | 'empty';
+export type ToolUseResult = 'dug' | 'attached' | 'released' | 'invalid-target' | 'placed' | 'removed' | 'no-tool' | 'invalid-ground' | 'blocked' | 'empty';

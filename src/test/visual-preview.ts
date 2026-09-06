@@ -1,4 +1,5 @@
 /** Development-only fixture using the real composition root. Not a production build entry. */
+import { RELAY_STATIONS, replayRelayStation } from './relayWalkthrough';
 import { Application, Ticker } from 'pixi.js';
 import { createFlappySpaceRuntime } from '../game/createFlappySpaceRuntime';
 import assetManager from '../game/assetManager';
@@ -69,6 +70,9 @@ async function setup(): Promise<void> {
 
   const loadLevel = () => {
     const def = getSelectedLevel();
+    // A level load starts a fresh walkthrough, so station progression cannot leak
+    // between level selections or repeated preview sessions.
+    relayStation = 0;
     runtime.reset(def);
     runtime.start();
     status.value = `Playing: ${def.name}`;
@@ -112,14 +116,56 @@ async function setup(): Promise<void> {
     status.value = `Traversal / world X ${pilot.worldX.toFixed(0)} / camera X ${(-runtime.systems.rendering.worldCamera.x).toFixed(0)}`;
   };
 
+  let relayStation = 0;
   const actions: Record<string, () => void> = {
     'load-level': loadLevel,
+    'relay-route': () => {
+      if (getSelectedLevel().id !== 'sector-03') {
+        status.value = 'Select The Relay Vault first'; return;
+      }
+      if (relayStation === 0) { runtime.reset(getSelectedLevel()); runtime.start(); }
+      try {
+        const station = replayRelayStation(runtime, relayStation);
+        status.value = `${station} / ${runtime.state.getState().orbsCollected}/8 recovered`;
+        relayStation = (relayStation + 1) % RELAY_STATIONS.length;
+      } catch (error) {
+        status.value = error instanceof Error ? error.message : 'Replay failed';
+        relayStation = 0;
+      }
+    },
     'traverse-right': () => traverse('right'),
     'traverse-left': () => traverse('left'),
     'traverse-thrust': () => {
       runtime.systems.entities.getAstronaut()?.flap();
       step(0.05);
       status.value = 'Traversal thrust / paused';
+    },
+    'shovel-puzzle': () => {
+      const def = getSelectedLevel();
+      const plug = def.gameplay.terrainBlocks?.find(block => block.diggable);
+      if (!plug) { status.value = 'Select a level with diggable terrain'; return; }
+      runtime.reset(def); runtime.start();
+      const pilot = runtime.systems.entities.getAstronaut()!;
+      pilot.worldX = pilot.sprite.x = plug.bounds.x - 60;
+      pilot.sprite.y = runtime.systems.entities.getGroundY()! - 25;
+      pilot.velocity = pilot.horizontalVelocity = 0;
+      pilot.isGrounded = true;
+      runtime.systems.tools.select('shovel');
+      for (let frame = 0; frame < 30; frame++) {
+        pilot.moveRight(); runtime.onTick({ deltaMS: 1000 / 60 } as Ticker);
+      }
+      runtime.pause();
+      status.value = `Blocked / X ${pilot.worldX.toFixed(0)} / blocks ${runtime.systems.entities.getTerrainBlocks().length}`;
+    },
+    'shovel-cross': () => {
+      runtime.resume();
+      const result = runtime.systems.tools.use();
+      const pilot = runtime.systems.entities.getAstronaut()!;
+      for (let frame = 0; frame < 60; frame++) {
+        pilot.moveRight(); runtime.onTick({ deltaMS: 1000 / 60 } as Ticker);
+      }
+      runtime.pause();
+      status.value = `Shovel ${result} / X ${pilot.worldX.toFixed(0)} / blocks ${runtime.systems.entities.getTerrainBlocks().length}`;
     },
     'grapple-puzzle': () => {
       const def = getSelectedLevel();

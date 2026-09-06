@@ -180,6 +180,7 @@ export class GameRuntime {
     this.systems.entities.setMovementConfig(levelDefinition.gameplay.movement);
     this.systems.entities.createAstronaut();
     this.systems.tools.configure(levelDefinition.gameplay.tools);
+    this.systems.entities.configureTerrainBlocks(levelDefinition.gameplay.terrainBlocks ?? []);
     for (const orb of levelDefinition.gameplay.orbs.placements ?? []) {
       this.systems.entities.createOrb(orb.x, orb.y, 14, 0, true);
     }

@@ -43,6 +43,13 @@ export interface GroundGameplayDefinition {
   height: number;
 }
 
+/** One authored terrain solid; geometry never derives from visual styling. */
+export interface TerrainBlockDefinition {
+  id: string;
+  bounds: Rect;
+  diggable: boolean;
+}
+
 /** Axis-aligned rectangle in world space (all values in game pixels). */
 export interface Rect {
   x: number;
@@ -126,6 +133,8 @@ export interface LevelGameplayDefinition {
 
   /** Optional player tools. Omission disables tools and clears equipment. */
   tools?: PlayerToolsDefinition;
+  /** Authored static solids, independently removable only when explicitly diggable. */
+  terrainBlocks?: readonly TerrainBlockDefinition[];
 
   /** Optional planetary ground terrain definition */
   ground?: GroundGameplayDefinition;

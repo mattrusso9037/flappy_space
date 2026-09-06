@@ -139,9 +139,9 @@ export class PhysicsSystem {
       this.tools?.applyGrapple(deltaTime);
       astronaut.update(deltaTime * 1000); // Convert seconds to milliseconds for astronaut
       
-      if (astronaut.getMovementMode() === 'ground' && this.entities.getWalls().length > 0) {
+      if (astronaut.getMovementMode() === 'ground' && this.entities.getSolidBounds().length > 0) {
         const resolved = resolveSolidMotion(previous, { x: astronaut.worldX, y: astronaut.sprite.y },
-          ASTRONAUT.body, this.entities.getWalls().map(w => w.bounds));
+          ASTRONAUT.body, this.entities.getSolidBounds());
         astronaut.worldX = astronaut.sprite.x = resolved.x;
         astronaut.sprite.y = resolved.y;
         if (resolved.hitX) astronaut.horizontalVelocity = 0;

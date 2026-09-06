@@ -206,3 +206,16 @@ flappy_space/
   New tools require a concrete capability, types, validation, behavioral and
   transition tests, docs and an authoring skill update. No generic ability framework.
 - See `CAMPAIGN_FLOW_ARCHITECTURE.md` for placement, lifetime and fixed orb contracts.
+
+### Shovel and Authored Terrain Capability
+- `gameplay.tools.shovel` owns Shovel reach; `gameplay.terrainBlocks` owns authored
+  solid rectangles and explicit diggable flags. Neither derives geometry from visuals.
+- EntitySystem owns terrain block lifecycle; PlayerToolSystem owns nearest-facing
+  strike targeting; PhysicsSystem resolves blocks and panels through the existing
+  swept collision path. Only explicitly diggable blocks can be removed.
+- Natural ground, solid blocks and panels are not shovel-removable. Wall placement
+  must reject terrain overlap. Removal changes geometry and visuals together.
+- Reset/load recreates authored blocks; transition/dispose clears them. Dig state is
+  per session, not campaign persistence. Input follows existing simulation gating.
+- Future levels configure this capability without runtime branches. See campaign
+  architecture and add-level skill for bounds, targeting, validation and QA.

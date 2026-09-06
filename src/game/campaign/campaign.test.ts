@@ -98,6 +98,7 @@ describe('Campaign Definition & Data Migration', () => {
 it('validates traversal mode, loop length, and required ground capability', () => {
   const campaign = structuredClone(DEFAULT_CAMPAIGN);
   const gameplay = campaign.levels['sector-02'].gameplay;
+  gameplay.terrainBlocks = []; // Isolate world validation from authored puzzle bounds.
   for (const width of [800, 3200, 10000]) {
     gameplay.world = { width, traversal: 'loop' };
     gameplay.scenarios = [];

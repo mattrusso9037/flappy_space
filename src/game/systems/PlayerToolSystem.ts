@@ -25,7 +25,8 @@ export class PlayerToolSystem {
   }
 
   select(tool: PlayerToolId | null): boolean {
-    if (tool !== null && (tool === 'wall-builder' ? !this.config?.wallBuilder : !this.config?.grappleHook)) return false;
+    if (tool !== null && (tool === 'wall-builder' ? !this.config?.wallBuilder :
+        tool === 'grapple-hook' ? !this.config?.grappleHook : !this.config?.shovel)) return false;
     this.cancel();
     this.equipped = tool;
     this.result = null;
@@ -79,7 +80,29 @@ export class PlayerToolSystem {
     pilot.isGrounded = false;
   }
 
+  private dig(): ToolUseResult {
+    const pilot = this.entities.getAstronaut();
+    const config = this.config?.shovel;
+    if (!pilot || pilot.dead || !config || pilot.getMovementMode() !== 'ground' ||
+        !Number.isFinite(pilot.worldX) || !Number.isFinite(pilot.sprite.y)) {
+      return this.result = 'invalid-target';
+    }
+    const edge = pilot.worldX + this.facing * ASTRONAUT.body.width / 2;
+    // Horizontal strike from the body edge. The nearest solid blocks targets behind it.
+    const candidates = this.entities.getSolidBounds().map(bounds => ({
+      bounds,
+      distance: this.facing === 1 ? bounds.x - edge : edge - bounds.x - bounds.width,
+    })).filter(({ bounds, distance }) => distance >= -0.01 && distance <= config.reach &&
+      pilot.sprite.y > bounds.y && pilot.sprite.y < bounds.y + bounds.height)
+      .sort((a, b) => a.distance - b.distance);
+    const target = candidates[0]?.bounds;
+    const block = this.entities.getTerrainBlocks().find(candidate => candidate.bounds === target);
+    if (!block || !this.entities.digTerrainBlock(block)) return this.result = 'invalid-target';
+    return this.result = 'dug';
+  }
+
   use(): ToolUseResult {
+    if (this.equipped === 'shovel') return this.dig();
     if (this.equipped === 'grapple-hook') return this.fire();
     const config = this.config?.wallBuilder;
     const pilot = this.entities.getAstronaut();
@@ -99,7 +122,7 @@ export class PlayerToolSystem {
     const overlaps = (other: { x: number; y: number; width: number; height: number }) =>
       rect.x < other.x + other.width && rect.x + rect.width > other.x &&
       rect.y < other.y + other.height && rect.y + rect.height > other.y;
-    if (this.entities.getWalls().some(w => overlaps(w.bounds)) ||
+    if (this.entities.getSolidBounds().some(overlaps) ||
         [...this.entities.getObstacles(), ...this.entities.getOrbs()].some(o => {
           if (!(o instanceof Planet) && !(o instanceof Orb)) return true;
           return overlaps({ x: o.x - o.radius, y: o.y - o.radius, width: o.radius * 2, height: o.radius * 2 });

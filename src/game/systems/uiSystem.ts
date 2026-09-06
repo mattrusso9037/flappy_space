@@ -108,7 +108,7 @@ export class UISystem {
       const result = this.tools?.getLastResult();
       const capacity = this.tools?.getEquipped() === 'wall-builder'
         ? `${this.entities?.getWalls().length ?? 0}/${this.tools?.getConfig()?.wallBuilder?.maxActive ?? 0}` : '';
-      this.toolStatus.text = `${equipped}  ${capacity}  ${result ?? ''}\n1 Wall / 2 Grapple / 0 Unequip / E Use or release / X Cancel`;
+      this.toolStatus.text = `${equipped}  ${capacity}  ${result ?? ''}\n1 Wall / 2 Grapple / 3 Shovel / 0 Unequip / E Use or release / X Cancel`;
     }
     this.effects?.update(seconds);
     const pilot = this.entities?.getAstronaut();
