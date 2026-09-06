@@ -1021,3 +1021,31 @@ and **Wall puzzle: reach orb**. These dev-only fixtures drive production systems
 Future levels author tools through this contract; do not reopen runtime wiring or
 add level-ID branches. Grapple, shovel, weapons, crafting and generic ability/plugin
 frameworks are intentionally outside this capability.
+
+## Grapple Hook authoring
+
+Configure `gameplay.tools.grappleHook: { range: 500, pullSpeed: 360,
+anchors: [{ id: 'raised-pickup', x: 700, y: 250 }] }`.
+Tool configurations are optional independently; equipped tools require their config.
+Requires ground movement and enabled ground, like Wall Builder. Anchor IDs must be
+unique and positions must fit the playable corridor. Coordinates are world pixels;
+range is pixels and pullSpeed is pixels per second. Loop worlds do not repeat anchors.
+
+2 equips Grapple Hook; E attaches to the nearest anchor above and ahead in the last
+held direction (authored order breaks ties). E again or X releases. 1 switches to
+Wall Builder; 0 unequips. Only explicit point anchors support attachment, never
+terrain, panels, pickups or arbitrary surfaces. Invalid targeting leaves movement
+unchanged. This is a powered pull, not a rope or pendulum simulation.
+
+PlayerToolSystem owns attachment/selection, PhysicsSystem applies pull before
+normal astronaut integration and swept panel collision, and EntitySystem owns
+anchor and cable graphics. Pull ends within 30px of the anchor. Release preserves
+current velocity; gravity, boundaries, collision and thrust rules remain active.
+Pause freezes attachment; death, completion, reset, switch and level load cancel it.
+No extra clock or level-specific runtime branches.
+
+Sector 02 uses the existing raised pickup at (700,290), with an anchor at (700,250).
+Walk to about x=400, face right, press 2 then E to pull up to the pickup. The existing
+wall route remains available. Preview /visual-preview.html?level=sector-02.
+Verify input, invalid targeting, pull, release, pause, death, switch and transitions,
+plus unchanged ground/thrust behavior. Run verify, test:coverage and build.

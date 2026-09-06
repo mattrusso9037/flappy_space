@@ -1,3 +1,4 @@
+import { GrappleAnchor } from '../tools/toolTypes';
 import { WallPanel } from '../entities/WallPanel';
 import { Rect } from '../campaign/campaignTypes';
 import * as PIXI from 'pixi.js';
@@ -31,6 +32,8 @@ export class EntitySystem {
   private worldDef?: WorldDefinition;
   private obstacles: Obstacle[] = [];
   private orbs: Orb[] = [];
+  private grappleGraphics: PIXI.Graphics[] = [];
+  private grappleLine?: PIXI.Graphics;
   private walls: WallPanel[] = [];
   private stars: Star[] = [];
   private initialized: boolean = false;
@@ -81,6 +84,7 @@ export class EntitySystem {
    * Clear all entities from the manager and stage
    */
   public clearAll(): void {
+    this.configureGrappleAnchors([]);
     this.clearWalls();
     if (!this.app) return;
     
@@ -159,6 +163,32 @@ export class EntitySystem {
     }
 
     return this.ground;
+  }
+
+  public configureGrappleAnchors(anchors: readonly GrappleAnchor[]): void {
+    for (const graphic of this.grappleGraphics) graphic.destroy();
+    this.grappleGraphics = anchors.map(anchor => {
+      const graphic = new PIXI.Graphics().circle(0, 0, 10).stroke({ color: 0x8eeeff, width: 3 });
+      graphic.position.set(anchor.x, anchor.y);
+      this.worldLayer.addChild(graphic);
+      return graphic;
+    });
+    this.grappleLine?.destroy();
+    this.grappleLine = undefined;
+  }
+
+  public showGrapple(anchor: Readonly<GrappleAnchor> | null): void {
+    if (!anchor) { if (this.grappleLine) this.grappleLine.visible = false; return; }
+    if (!this.grappleLine) {
+      this.grappleLine = new PIXI.Graphics().rect(0, -1, 1, 2).fill(0x8eeeff);
+      this.worldLayer.addChild(this.grappleLine);
+    }
+    const pilot = this.astronaut;
+    if (!pilot) return;
+    this.grappleLine.visible = true;
+    this.grappleLine.position.set(pilot.worldX, pilot.sprite.y);
+    this.grappleLine.rotation = Math.atan2(anchor.y - pilot.sprite.y, anchor.x - pilot.worldX);
+    this.grappleLine.scale.x = Math.hypot(anchor.x - pilot.worldX, anchor.y - pilot.sprite.y);
   }
 
   public createWall(bounds: Rect, lifetimeSeconds: number): WallPanel {

@@ -59,6 +59,7 @@ export const SECTOR_02: LevelDefinition = {
     },
     tools: {
       equipped: 'wall-builder',
+      grappleHook: { range: 500, pullSpeed: 360, anchors: [{ id: 'raised-pickup', x: 700, y: 250 }] },
       wallBuilder: { width: 80, height: 80, maxActive: 2, lifetimeSeconds: 20 },
     },
     world: {

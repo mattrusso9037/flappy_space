@@ -472,6 +472,7 @@ export class GameRuntime {
     if (currentState.isGameOver) return;
 
     logger.info(`Game over triggered (reason: ${reason})`);
+    this.systems.tools.cancel();
     this.state.gameOver();
 
     const astronaut = this.systems.entities.getAstronaut();
@@ -490,6 +491,7 @@ export class GameRuntime {
     logger.info(`Level ${currentLevelId} complete triggered`);
     this.systems.input.disable();
     this.state.levelComplete();
+    this.systems.tools.cancel();
     this.events.emit(GameEvent.LEVEL_COMPLETE, { level: currentLevel, levelId: currentLevelId });
 
     // Transition to next level after brief celebration via simulation time countdown

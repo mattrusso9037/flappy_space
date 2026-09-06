@@ -16,13 +16,23 @@ describe('player tool authoring contract', () => {
   });
   it.each(['width', 'height', 'lifetimeSeconds', 'maxActive'] as const)('rejects invalid %s', key => {
     for (const value of [0, -1, NaN, Infinity]) {
-      expect(validate(g => { g.tools!.wallBuilder[key] = value; }).valid).toBe(false);
+      expect(validate(g => { g.tools!.wallBuilder![key] = value; }).valid).toBe(false);
     }
   });
   it('rejects fractional limits and oversized panels', () => {
-    expect(validate(g => { g.tools!.wallBuilder.maxActive = 1.5; }).valid).toBe(false);
-    expect(validate(g => { g.tools!.wallBuilder.width = 3000; }).valid).toBe(false);
-    expect(validate(g => { g.tools!.wallBuilder.height = 600; }).valid).toBe(false);
+    expect(validate(g => { g.tools!.wallBuilder!.maxActive = 1.5; }).valid).toBe(false);
+    expect(validate(g => { g.tools!.wallBuilder!.width = 3000; }).valid).toBe(false);
+    expect(validate(g => { g.tools!.wallBuilder!.height = 600; }).valid).toBe(false);
+  });
+  it('validates grapple-only tools and rejects malformed anchors and tuning', () => {
+    expect(validate(g => { delete g.tools!.wallBuilder; g.tools!.equipped = 'grapple-hook'; }).valid).toBe(true);
+    for (const value of [0, -1, NaN, Infinity]) {
+      expect(validate(g => { g.tools!.grappleHook!.range = value; }).valid).toBe(false);
+      expect(validate(g => { g.tools!.grappleHook!.pullSpeed = value; }).valid).toBe(false);
+    }
+    expect(validate(g => { g.tools!.grappleHook!.anchors = []; }).valid).toBe(false);
+    expect(validate(g => { g.tools!.grappleHook!.anchors = [{ id: 'a', x: NaN, y: 50 }]; }).valid).toBe(false);
+    expect(validate(g => { g.tools!.grappleHook!.anchors = [{ id: 'a', x: 50, y: 50 }, { id: 'a', x: 60, y: 50 }]; }).valid).toBe(false);
   });
   it('requires ground movement and natural ground', () => {
     expect(validate(g => { delete g.ground; }).valid).toBe(false);

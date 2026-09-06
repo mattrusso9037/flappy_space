@@ -29,7 +29,7 @@ export function createFlappySpaceRuntime(app: PIXI.Application): GameRuntime {
 
   const entities = new EntitySystem(app, undefined, events);
   const tools = new PlayerToolSystem(entities);
-  const physics = new PhysicsSystem(entities, state, events);
+  const physics = new PhysicsSystem(entities, state, events, tools);
   const spawning = new SpawningSystem(entities, state);
   const rendering = new RenderSystem(app, entities, state);
   const input = new InputSystem(events, state, inputMgr, entities, tools);

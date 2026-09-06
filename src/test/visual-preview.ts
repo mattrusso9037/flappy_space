@@ -121,6 +121,29 @@ async function setup(): Promise<void> {
       step(0.05);
       status.value = 'Traversal thrust / paused';
     },
+    'grapple-puzzle': () => {
+      const def = getSelectedLevel();
+      const anchor = def.gameplay.tools?.grappleHook?.anchors[0];
+      if (!anchor) { status.value = 'Select a level with grapple anchors'; return; }
+      runtime.reset(def); runtime.start();
+      const pilot = runtime.systems.entities.getAstronaut()!;
+      pilot.worldX = pilot.sprite.x = anchor.x - 300;
+      pilot.sprite.y = runtime.systems.entities.getGroundY()! - 25;
+      pilot.velocity = pilot.horizontalVelocity = 0;
+      pilot.isGrounded = true;
+      runtime.systems.tools.select('grapple-hook');
+      runtime.systems.tools.use();
+      for (let frame = 0; frame < 20; frame++) runtime.onTick({ deltaMS: 1000 / 60 } as Ticker);
+      runtime.pause();
+      status.value = `Grapple / attached ${!!runtime.systems.tools.getAttachment()} / Y ${pilot.sprite.y.toFixed(0)}`;
+    },
+    'grapple-reward': () => {
+      runtime.resume();
+      for (let frame = 0; frame < 45; frame++) runtime.onTick({ deltaMS: 1000 / 60 } as Ticker);
+      runtime.systems.tools.remove();
+      runtime.pause();
+      status.value = `Grapple / collected ${runtime.state.getState().orbsCollected} / released ${!runtime.systems.tools.getAttachment()}`;
+    },
     'wall-puzzle': () => {
       const def = getSelectedLevel();
       const target = def.gameplay.orbs.placements?.[0];

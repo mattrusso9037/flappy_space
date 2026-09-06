@@ -2,10 +2,11 @@ import { Planet } from '../entities/Planet';
 import { Orb } from '../entities/Orb';
 import { ASTRONAUT, GAME_WIDTH } from '../config';
 import { EntitySystem } from './entitySystem';
-import { PlayerToolId, PlayerToolsDefinition, ToolUseResult } from '../tools/toolTypes';
+import { GrappleAnchor, PlayerToolId, PlayerToolsDefinition, ToolUseResult } from '../tools/toolTypes';
 
 /** Session-scoped gameplay owner. No rendering, campaign decisions, timers or event subscriptions. */
 export class PlayerToolSystem {
+  private attachment: GrappleAnchor | null = null;
   private config?: PlayerToolsDefinition;
   private equipped: PlayerToolId | null = null;
   private facing: -1 | 1 = 1;
@@ -14,6 +15,8 @@ export class PlayerToolSystem {
   constructor(private readonly entities: EntitySystem) {}
 
   configure(config?: PlayerToolsDefinition): void {
+    this.cancel();
+    this.entities.configureGrappleAnchors(config?.grappleHook?.anchors ?? []);
     this.entities.clearWalls();
     this.config = config;
     this.equipped = config?.equipped ?? null;
@@ -22,7 +25,8 @@ export class PlayerToolSystem {
   }
 
   select(tool: PlayerToolId | null): boolean {
-    if (tool !== null && (!this.config || tool !== 'wall-builder')) return false;
+    if (tool !== null && (tool === 'wall-builder' ? !this.config?.wallBuilder : !this.config?.grappleHook)) return false;
+    this.cancel();
     this.equipped = tool;
     this.result = null;
     return true;
@@ -33,7 +37,50 @@ export class PlayerToolSystem {
   getConfig(): PlayerToolsDefinition | undefined { return this.config; }
   getLastResult(): ToolUseResult | null { return this.result; }
 
+  getAttachment(): Readonly<GrappleAnchor> | null { return this.attachment; }
+
+  cancel(): void {
+    if (this.attachment) this.result = 'released';
+    this.attachment = null;
+    this.entities.showGrapple(null);
+  }
+
+  private fire(): ToolUseResult {
+    if (this.attachment) { this.cancel(); return this.result = 'released'; }
+    const pilot = this.entities.getAstronaut();
+    const config = this.config?.grappleHook;
+    if (!pilot || pilot.dead || !config || !Number.isFinite(pilot.worldX) ||
+        !Number.isFinite(pilot.sprite.y)) return this.result = 'invalid-target';
+    // Deterministic nearest anchor above and ahead. Authored order breaks ties.
+    const anchor = config.anchors.filter(a => (a.x - pilot.worldX) * this.facing >= 0 &&
+      a.y < pilot.sprite.y && Math.hypot(a.x - pilot.worldX, a.y - pilot.sprite.y) <= config.range)
+      .sort((a, b) => Math.hypot(a.x - pilot.worldX, a.y - pilot.sprite.y) -
+        Math.hypot(b.x - pilot.worldX, b.y - pilot.sprite.y))[0];
+    if (!anchor) return this.result = 'invalid-target';
+    this.attachment = anchor;
+    this.entities.showGrapple(anchor);
+    return this.result = 'attached';
+  }
+
+  /** Physics calls this before normal integration and swept solid collision. */
+  applyGrapple(seconds: number): void {
+    const pilot = this.entities.getAstronaut();
+    const anchor = this.attachment;
+    if (!anchor) return;
+    if (!pilot || pilot.dead) { this.cancel(); return; }
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    const dx = anchor.x - pilot.worldX, dy = anchor.y - pilot.sprite.y;
+    const distance = Math.hypot(dx, dy);
+    if (!Number.isFinite(distance) || distance <= 30) { this.cancel(); return; }
+    const speed = Math.min(this.config!.grappleHook!.pullSpeed, (distance - 25) / seconds);
+    // Astronaut velocities use pixels per nominal 60 Hz step.
+    pilot.horizontalVelocity = dx / distance * speed * 0.016667;
+    pilot.velocity = dy / distance * speed * 0.016667;
+    pilot.isGrounded = false;
+  }
+
   use(): ToolUseResult {
+    if (this.equipped === 'grapple-hook') return this.fire();
     const config = this.config?.wallBuilder;
     const pilot = this.entities.getAstronaut();
     const groundY = this.entities.getGroundY();
@@ -67,6 +114,11 @@ export class PlayerToolSystem {
   }
 
   remove(): ToolUseResult {
+    if (this.equipped === 'grapple-hook') {
+      const attached = !!this.attachment;
+      this.cancel();
+      return this.result = attached ? 'released' : 'empty';
+    }
     if (this.equipped !== 'wall-builder') return this.result = 'no-tool';
     const walls = this.entities.getWalls();
     const latest = walls[walls.length - 1];

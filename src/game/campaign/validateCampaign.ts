@@ -175,12 +175,35 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
         if (!level.gameplay.ground?.enabled || level.gameplay.movement?.mode !== 'ground') {
           errors.push(`${prefix} gameplay.tools requires enabled ground and ground movement.`);
         }
-        if (tools.equipped !== null && tools.equipped !== 'wall-builder') {
-          errors.push(`${prefix} tools.equipped must be null or wall-builder.`);
+        if (tools.equipped !== null && tools.equipped !== 'wall-builder' && tools.equipped !== 'grapple-hook') {
+          errors.push(`${prefix} tools.equipped must be null, wall-builder or grapple-hook.`);
+        }
+        if ((tools.equipped === 'wall-builder' && !tools.wallBuilder) ||
+            (tools.equipped === 'grapple-hook' && !tools.grappleHook)) {
+          errors.push(`${prefix} equipped tool requires its configuration.`);
+        }
+        const grapple = tools.grappleHook;
+        if (grapple) {
+          for (const key of ['range', 'pullSpeed'] as const) {
+            if (!Number.isFinite(grapple[key]) || grapple[key] <= 0) errors.push(`${prefix} grappleHook.${key} must be positive and finite.`);
+          }
+          if (!Array.isArray(grapple.anchors) || grapple.anchors.length === 0) {
+            errors.push(`${prefix} grappleHook requires anchors.`);
+          } else {
+            const ids = new Set<string>();
+            for (const anchor of grapple.anchors) {
+              if (!anchor || !anchor.id || ids.has(anchor.id) ||
+                  !Number.isFinite(anchor.x) || !Number.isFinite(anchor.y) ||
+                  anchor.x < 25 || anchor.x > (level.gameplay.world?.width ?? GAME_WIDTH) - 25 ||
+                  anchor.y < 25 || anchor.y > GAME_HEIGHT - (level.gameplay.ground?.height ?? 0) - 50) {
+                errors.push(`${prefix} grapple anchor must have a unique id and fit the playable corridor.`);
+              }
+              if (anchor) ids.add(anchor.id);
+            }
+          }
         }
         const wall = tools.wallBuilder;
-        if (!wall) errors.push(`${prefix} tools.wallBuilder is required.`);
-        else {
+        if (wall) {
           for (const key of ['width', 'height', 'maxActive', 'lifetimeSeconds'] as const) {
             if (!Number.isFinite(wall[key]) || wall[key] <= 0) errors.push(`${prefix} wallBuilder.${key} must be positive and finite.`);
           }

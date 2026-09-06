@@ -1,3 +1,4 @@
+import { PlayerToolSystem } from './PlayerToolSystem';
 import { resolveSolidMotion } from './solidCollision';
 import { ASTRONAUT, GAME_WIDTH } from '../config';
 import { Obstacle } from '../entities/Obstacle';
@@ -20,7 +21,8 @@ export class PhysicsSystem {
   public constructor(
     private readonly entities: EntitySystem,
     private readonly state: GameStateService,
-    private readonly events: EventBus
+    private readonly events: EventBus,
+    private readonly tools?: PlayerToolSystem
   ) {}
   
   /**
@@ -134,6 +136,7 @@ export class PhysicsSystem {
     // Update astronaut physics
     if (astronaut) {
       const previous = { x: astronaut.worldX, y: astronaut.sprite.y };
+      this.tools?.applyGrapple(deltaTime);
       astronaut.update(deltaTime * 1000); // Convert seconds to milliseconds for astronaut
       
       if (astronaut.getMovementMode() === 'ground' && this.entities.getWalls().length > 0) {
@@ -156,6 +159,8 @@ export class PhysicsSystem {
       }
     }
     
+    this.entities.showGrapple(this.tools?.getAttachment() ?? null);
+
     // Update obstacles and check for collisions
     const worldSpace = this.entities.isWorldSpace();
     const obstacles = this.entities.getObstacles();

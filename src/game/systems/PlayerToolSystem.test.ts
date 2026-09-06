@@ -56,6 +56,67 @@ describe('PlayerToolSystem production runtime', () => {
     expect(runtime.systems.entities.getWalls()).toHaveLength(0);
   });
 
+  it('equips and attaches through input, pulls to the authored pickup, and releases', () => {
+    runtime.reset({ ...SECTOR_02, gameplay: { ...SECTOR_02.gameplay,
+      orbs: { ...SECTOR_02.gameplay.orbs, spawnChance: 0 } } });
+    runtime.start(); pilot = runtime.systems.entities.getAstronaut()!; position(400);
+    press('Digit2'); press('KeyE'); tick();
+    expect(runtime.systems.tools.getEquipped()).toBe('grapple-hook');
+    expect(runtime.systems.tools.getAttachment()?.id).toBe('raised-pickup');
+    const start = { x: pilot.worldX, y: pilot.sprite.y };
+    for (let i = 0; i < 65; i++) tick();
+    expect(pilot.worldX).toBeGreaterThan(start.x);
+    expect(pilot.sprite.y).toBeLessThan(start.y);
+    expect(runtime.state.getState().orbsCollected).toBe(1);
+    press('KeyX'); tick();
+    expect(runtime.systems.tools.getAttachment()).toBeNull();
+  });
+
+  it('rejects unsupported, behind, out-of-range and nonfinite targets safely', () => {
+    const tools = runtime.systems.tools;
+    tools.select('grapple-hook');
+    for (const x of [-500, 900, NaN]) {
+      position(x);
+      expect(tools.use()).toBe('invalid-target');
+      expect(tools.getAttachment()).toBeNull();
+    }
+    position(400); tools.face(-1);
+    expect(tools.use()).toBe('invalid-target');
+    tools.face(1); pilot.dead = true;
+    expect(tools.use()).toBe('invalid-target');
+  });
+
+  it('cancels on repeat use, switch, death, reset and transition without leaking queued input', () => {
+    const tools = runtime.systems.tools;
+    const attach = () => { position(400); tools.select('grapple-hook'); expect(tools.use()).toBe('attached'); };
+    attach(); expect(tools.use()).toBe('released');
+    attach(); tools.select('wall-builder'); expect(tools.getAttachment()).toBeNull();
+    attach(); pilot.die(); runtime.systems.physics.update(1 / 60);
+    expect(tools.getAttachment()).toBeNull();
+    runtime.reset(testLevel()); runtime.start(); pilot = runtime.systems.entities.getAstronaut()!;
+    attach(); press('KeyE'); runtime.reset(); expect(tools.getAttachment()).toBeNull();
+    runtime.start(); pilot = runtime.systems.entities.getAstronaut()!; tick();
+    expect(tools.getAttachment()).toBeNull();
+    attach(); runtime.loadLevel(SECTOR_03);
+    expect(tools.getAttachment()).toBeNull();
+    expect(tools.select('grapple-hook')).toBe(false);
+    runtime.loadLevel(testLevel());
+    expect(tools.getAttachment()).toBeNull();
+  });
+
+  it('freezes attachment while paused and retains thrust contracts after release', () => {
+    position(400); const tools = runtime.systems.tools;
+    tools.select('grapple-hook'); tools.use(); tick();
+    const y = pilot.sprite.y;
+    runtime.pause(); press('KeyX'); tick(1);
+    expect(pilot.sprite.y).toBe(y);
+    expect(tools.getAttachment()).not.toBeNull();
+    runtime.resume(); tick(); expect(tools.getAttachment()).not.toBeNull();
+    tools.remove();
+    expect(pilot.thrust()).toBe(true);
+    expect(pilot.thrust()).toBe(false);
+  });
+
   it('uses facing direction and world coordinates, including negative loop coordinates', () => {
     position(-100);
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA' }));
