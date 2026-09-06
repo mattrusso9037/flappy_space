@@ -6,12 +6,42 @@ import { DEPTH, INK, MOTION } from '../visuals/tokens';
 import { EnvironmentDefinition, EnvironmentId } from '../environments/environmentTypes';
 import { DEEP_NEBULA, resolveEnvironment } from '../environments/environments';
 
-/** Owns atmosphere, parallax, warp and presentation transforms. No extra ticker. */
+/**
+ * Owns atmosphere, parallax, warp and presentation transforms. No extra ticker.
+ *
+ * ## Cinematic Camera Architecture
+ *
+ * A `worldCamera` container sits between `app.stage` and the world layers
+ * (atmosphere, stars, world entities, pilot). Camera steps transform only this
+ * container, leaving the HUD, fade overlay, effects, and debug graphics untouched.
+ *
+ * Container hierarchy:
+ *   app.stage
+ *     ├── worldCamera         (camera transforms applied here)
+ *     │     ├── atmosphere    (nebula + bg rect)
+ *     │     ├── starLayer     (EntitySystem stars)
+ *     │     ├── worldLayer    (EntitySystem planets/orbs)
+ *     │     └── pilotLayer    (EntitySystem astronaut)
+ *     ├── effects             (UISystem FlightEffects — viewport-space, outside camera)
+ *     ├── HUD                 (UISystem — viewport-space, outside camera)
+ *     ├── debugGraphics       (RenderSystem — outside camera)
+ *     └── fadeGraphics        (RenderSystem — full-screen fade, outside camera)
+ *
+ * ## Camera Semantics
+ *   x    — horizontal world offset in game pixels. Positive x shifts world right (camera pans left).
+ *   y    — vertical world offset in game pixels. Positive y shifts world down (camera pans up).
+ *   zoom — scale from canvas center. zoom:1 is neutral. zoom>1 zooms in. Defaults: x=0, y=0, zoom=1.
+ */
 export class RenderSystem {
   private app: PIXI.Application | null;
   private atmosphere = new PIXI.Container({ label: 'atmosphere', zIndex: DEPTH.atmosphere, eventMode: 'none' });
   private debugGraphics = new PIXI.Graphics({ zIndex: DEPTH.debug });
   private fadeGraphics = new PIXI.Graphics({ zIndex: DEPTH.hud + 5, eventMode: 'none' });
+  /**
+   * World-space camera container. Camera steps transform this container only.
+   * HUD, effects, fade, and debug are children of app.stage — outside this container.
+   */
+  readonly worldCamera = new PIXI.Container({ label: 'worldCamera', zIndex: 0, sortableChildren: true, eventMode: 'none' });
   private clouds: PIXI.Graphics[] = [];
   private currentEnvironment: EnvironmentDefinition = DEEP_NEBULA;
   private elapsed = 0;
@@ -26,7 +56,17 @@ export class RenderSystem {
     if (this.initialized) return;
     if (app) this.app = app;
     if (!this.app) return;
-    this.app.stage.addChild(this.atmosphere, this.debugGraphics, this.fadeGraphics);
+
+    // worldCamera owns all world-space layers. Add to stage first so zIndex sorting works.
+    this.app.stage.sortableChildren = true;
+    this.app.stage.addChild(this.worldCamera);
+
+    // Atmosphere lives inside the world camera so it follows camera transforms.
+    this.worldCamera.addChild(this.atmosphere);
+
+    // debug + fade overlays stay on app.stage (viewport-space, outside camera transform).
+    this.app.stage.addChild(this.debugGraphics, this.fadeGraphics);
+
     this.rebuildAtmosphere();
     this.initialized = true;
   }
@@ -95,8 +135,32 @@ export class RenderSystem {
     }
   }
 
+  /**
+   * Apply a cinematic camera transform to the world layers.
+   *
+   * @param x      Horizontal offset in game pixels (positive = world shifts right / camera pans left).
+   * @param y      Vertical offset in game pixels (positive = world shifts down / camera pans up).
+   * @param zoom   Scale factor from canvas center. 1 = neutral. >1 = zoom in.
+   */
+  setCamera(x: number, y: number, zoom: number): void {
+    this.worldCamera.pivot.set(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+    this.worldCamera.position.set(GAME_WIDTH / 2 + x, GAME_HEIGHT / 2 + y);
+    this.worldCamera.scale.set(zoom);
+  }
+
+  /**
+   * Restore neutral camera state: no offset, no zoom.
+   * Must be called on cutscene completion, skip, reset, and dispose.
+   */
+  resetCamera(): void {
+    this.worldCamera.pivot.set(0, 0);
+    this.worldCamera.position.set(0, 0);
+    this.worldCamera.scale.set(1);
+  }
+
   reset(): void {
     this.setFadeAlpha(0);
+    this.resetCamera();
     this.warpRemaining = 0;
     this.elapsed = 0;
     for (const star of this.entities.getStars()) star.graphics.scale.set(1);
@@ -153,9 +217,11 @@ export class RenderSystem {
 
   dispose(): void {
     if (!this.initialized) return;
+    this.resetCamera();
     this.atmosphere.destroy({ children: true });
     this.debugGraphics.destroy();
     this.fadeGraphics.destroy();
+    this.worldCamera.destroy({ children: false }); // children are owned by EntitySystem
     this.clouds = [];
     this.initialized = false;
   }

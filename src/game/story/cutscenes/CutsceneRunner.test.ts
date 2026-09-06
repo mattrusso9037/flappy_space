@@ -156,4 +156,106 @@ describe('CutsceneRunner', () => {
     runner.skip();
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
+
+  // -------------------------------------------------------------------------
+  // Camera: sequential interpolation from current state
+  // -------------------------------------------------------------------------
+
+  it('sequential camera steps interpolate from previous camera state, not from origin', () => {
+    const cameraChanges: Array<{ x: number; y: number; zoom: number }> = [];
+    const runner = new CutsceneRunner({
+      onCameraChange: (cam) => cameraChanges.push({ x: cam.x ?? 0, y: cam.y ?? 0, zoom: cam.zoom ?? 1 }),
+    });
+
+    const cutscene: CutsceneDefinition = {
+      id: 'sequential-cam',
+      steps: [
+        // Step 0: pan to x=100 over 1s (from neutral x=0)
+        { type: 'camera', action: { x: 100, y: 0, zoom: 1 }, duration: 1.0 },
+        // Step 1: from x=100, return to x=0 (neutral) over 1s
+        { type: 'camera', action: { x: 0, y: 0, zoom: 1 }, duration: 1.0 },
+      ],
+    };
+
+    runner.start(cutscene);
+
+    // Complete step 0 — camera arrives at x=100
+    runner.update(1.0);
+    expect(runner.getCamera().x).toBeCloseTo(100, 2);
+
+    // Halfway through step 1 — should interpolate from x=100 toward x=0 → x≈50
+    runner.update(0.5);
+    expect(runner.getCamera().x).toBeCloseTo(50, 1);
+
+    // Complete step 1 — should land at x=0
+    runner.update(0.5);
+    expect(runner.getCamera().x).toBeCloseTo(0, 2);
+  });
+
+  it('neutral camera step (x=0, y=0, zoom=1) produces no visible transform', () => {
+    const onCameraChange = vi.fn();
+    const runner = new CutsceneRunner({ onCameraChange });
+
+    const cutscene: CutsceneDefinition = {
+      id: 'neutral-cam',
+      steps: [{ type: 'camera', action: { x: 0, y: 0, zoom: 1 }, duration: 0.5 }],
+    };
+
+    runner.start(cutscene);
+    runner.update(0.25);
+
+    const cam = runner.getCamera();
+    expect(cam.x).toBeCloseTo(0, 5);
+    expect(cam.y).toBeCloseTo(0, 5);
+    expect(cam.zoom).toBeCloseTo(1, 5);
+  });
+
+  it('skip restores neutral camera via onCameraChange callback', () => {
+    const cameraValues: Array<{ x: number; y: number; zoom: number }> = [];
+    const runner = new CutsceneRunner({
+      onCameraChange: (cam) => cameraValues.push({ x: cam.x ?? 0, y: cam.y ?? 0, zoom: cam.zoom ?? 1 }),
+    });
+
+    const cutscene: CutsceneDefinition = {
+      id: 'skip-cam',
+      steps: [
+        { type: 'camera', action: { x: 80, y: -40, zoom: 1.3 }, duration: 2.0 },
+        { type: 'wait', duration: 3.0 },
+      ],
+    };
+
+    runner.start(cutscene);
+    runner.update(1.0); // camera is mid-pan — x should be ~40
+
+    expect(runner.getCamera().x).toBeGreaterThan(0);
+
+    runner.skip();
+
+    // Neutral camera must be emitted and stored
+    expect(runner.getCamera().x).toBe(0);
+    expect(runner.getCamera().y).toBe(0);
+    expect(runner.getCamera().zoom).toBe(1);
+
+    const lastCam = cameraValues[cameraValues.length - 1];
+    expect(lastCam.x).toBe(0);
+    expect(lastCam.y).toBe(0);
+    expect(lastCam.zoom).toBe(1);
+  });
+
+  it('camera interpolation mid-zoom uses eased linear progress', () => {
+    const onCameraChange = vi.fn();
+    const runner = new CutsceneRunner({ onCameraChange });
+
+    const cutscene: CutsceneDefinition = {
+      id: 'zoom-cam',
+      steps: [{ type: 'camera', action: { x: 0, y: 0, zoom: 1.5 }, duration: 1.0 }],
+    };
+
+    runner.start(cutscene);
+    runner.update(0.5); // 50% through
+
+    const cam = runner.getCamera();
+    // Linear interpolation: zoom = 1 + (1.5 - 1) * 0.5 = 1.25
+    expect(cam.zoom).toBeCloseTo(1.25, 2);
+  });
 });

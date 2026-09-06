@@ -215,6 +215,51 @@ When a cutscene encounters a step of `{ type: 'dialogue', dialogueId }`:
 - **React owns**: Subtitles, dialogue overlay, skip button, and non-realtime story HUD chrome.
 - **Locked Astronaut Asset Rule**: The locked astronaut PNG constraint (`public/assets/astro-sprite.png`) strictly applies to in-engine cutscenes.
 
+### E. Cinematic Camera Container Architecture
+
+Camera steps transform only the world-space `worldCamera` container in `RenderSystem`. The following containers sit **inside** `worldCamera` and are affected by camera transforms:
+
+```
+app.stage
+  ├── worldCamera             ← camera transforms applied here
+  │     ├── atmosphere        (nebula clouds + background rect, z: -30)
+  │     ├── starLayer         (EntitySystem stars, z: -20)
+  │     ├── worldLayer        (EntitySystem planets/orbs, z: 0)
+  │     └── pilotLayer        (EntitySystem astronaut, z: 10)
+  ├── effects container       (UISystem FlightEffects, z: 20 — viewport-space, OUTSIDE camera)
+  ├── HUD container           (UISystem score/UI, z: 30 — viewport-space, OUTSIDE camera)
+  ├── debugGraphics           (RenderSystem, z: 40 — OUTSIDE camera)
+  └── fadeGraphics            (RenderSystem, z: 35 — full-screen fade, OUTSIDE camera)
+```
+
+> **Rule**: Never transform `app.stage` directly from a cutscene step. This would also move the HUD, debug graphics, and fade overlay.
+
+### F. Camera Semantics
+
+```
+x     — Horizontal offset in game pixels.
+        Positive x shifts the world right (camera pans left).
+        Negative x shifts the world left (camera pans right).
+y     — Vertical offset in game pixels.
+        Positive y shifts the world down (camera pans up).
+        Negative y shifts the world up (camera pans down).
+zoom  — Scale factor applied from the canvas center (GAME_WIDTH/2, GAME_HEIGHT/2).
+        zoom: 1.0 → neutral. zoom > 1 → zoom in. zoom < 1 → zoom out.
+```
+
+**Defaults**: Missing `x`, `y`, or `zoom` in a `camera` step default to `0`, `0`, `1` respectively.
+
+**Sequential interpolation**: Each camera step interpolates **from the camera state at the start of that step** — not always from neutral. A sequence of `camera A → camera B` transitions smoothly from A to B.
+
+**Neutral authoring convention**: To return the camera to neutral after a pan/zoom, add a final camera step with `{ x: 0, y: 0, zoom: 1 }`.
+
+### G. Camera Cleanup Rules
+
+- A **completed** cutscene must fire `onCameraChange({ x: 0, y: 0, zoom: 1 })` at or before completion.
+- A **skipped** cutscene must also fire `onCameraChange({ x: 0, y: 0, zoom: 1 })` on skip.
+- `GameDisplay.tsx` calls `runtime.systems.rendering.resetCamera()` in the cutscene `useEffect` cleanup function (runs on unmount and phase change), ensuring no camera state leaks across phase transitions.
+- `GameRuntime.reset()` calls `rendering.reset()` which calls `resetCamera()` — no stale camera after level load.
+
 ---
 
 ## 6. Pre-Rendered Video Cutscenes
@@ -287,11 +332,32 @@ A race between natural conclusion (e.g. `<video>` `ended` event) and user skip (
 
 ## 10. Developer & Authoring Preview Tooling
 
-Fast story authoring QA is provided via `/visual-preview.html`:
-- Interactive dropdowns to select and test any registered Dialogue, In-Engine Cutscene, or Video Cutscene directly.
-- Direct URL query parameters:
-  - `?dialogue=<dialogueId>`
-  - `?cutscene=<cutsceneId>`
-  - `?video=<videoId>`
-  - `?level=<levelId>`
-- Uses real production registries and components to ensure fidelity between preview and gameplay.
+### `story-preview.html` — Story QA Tool
+
+Fast story content QA is provided at `/story-preview.html` (dev server only).
+It uses real production registries and real renderers — no mock implementations.
+
+**URL**: `http://localhost:5173/flappy_space/story-preview.html`
+
+**Query parameters for auto-play:**
+
+| Parameter | Example | Effect |
+|---|---|---|
+| `?dialogue=<id>` | `?dialogue=unknown-signal` | Directly opens the named dialogue |
+| `?cutscene=<id>` | `?cutscene=first-signal` | Directly runs the named in-engine cutscene |
+| `?video=<id>` | `?video=opening-transmission` | Directly plays the named video cutscene |
+
+**Invalid IDs** display a dev-facing error panel with the offending ID — no crash.
+
+**Features:**
+- TYPE dropdown (Dialogue / In-Engine Cutscene / Video)
+- CONTENT dropdown (populated from production registries)
+- PLAY / RESTART / SKIP (ESC) buttons
+- Embedded dialogue inside cutscenes works exactly as in-game
+- Camera and fade transforms are real `RenderSystem` calls
+- `Escape` key skips
+
+### `visual-preview.html` — Gameplay QA Tool
+
+Interactive level and gameplay state preview at `/visual-preview.html`.
+Supports `?level=<levelId>` query parameter for direct level load.

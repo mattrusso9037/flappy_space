@@ -92,6 +92,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
         onComplete: () => {
           runtime.setCutsceneRunner(null);
           runtime.systems.rendering.setFadeAlpha(0);
+          runtime.systems.rendering.resetCamera();
           setCutsceneDialogueId(null);
           gameFlowRef.current?.completeStoryPhase();
         },
@@ -105,6 +106,13 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
         onFadeChange: (alpha) => {
           runtime.systems.rendering.setFadeAlpha(alpha);
         },
+        onCameraChange: (camera) => {
+          runtime.systems.rendering.setCamera(
+            camera.x ?? 0,
+            camera.y ?? 0,
+            camera.zoom ?? 1
+          );
+        },
       });
       cutsceneRunnerRef.current = runner;
       runtime.setCutsceneRunner(runner);
@@ -113,6 +121,7 @@ const GameDisplay: React.FC<GameDisplayProps> = ({ onGameStateChange }) => {
       return () => {
         runtime.setCutsceneRunner(null);
         runtime.systems.rendering.setFadeAlpha(0);
+        runtime.systems.rendering.resetCamera();
         cutsceneRunnerRef.current = null;
         setCutsceneDialogueId(null);
       };

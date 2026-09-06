@@ -78,8 +78,10 @@ export class GameRuntime {
     // Initialize systems in proper order
     this.systems.input.initialize();
     this.systems.audio.initialize();
-    this.systems.entities.initialize(this.app);
+    // RenderSystem must initialize before entities so worldCamera container exists.
     this.systems.rendering.initialize(this.app);
+    // Pass worldCamera so entity layers are inside the camera-transformed container.
+    this.systems.entities.initialize(this.app, this.systems.rendering.worldCamera);
     this.systems.physics.initialize();
     this.systems.spawning.initialize();
     this.systems.ui.initialize(this.app);
@@ -109,7 +111,7 @@ export class GameRuntime {
     this.levelTransitionCountdown = null;
     this.cutsceneRunner = null;
     this.systems.ui.reset();
-    this.systems.rendering.reset();
+    this.systems.rendering.reset(); // also calls resetCamera()
     this.systems.entities.clearAll();
     this.systems.spawning.resetSpawning();
     this.state.resetGame();
@@ -326,6 +328,7 @@ export class GameRuntime {
     logger.info('Disposing GameRuntime...');
     this.levelTransitionCountdown = null;
     this.cutsceneRunner = null;
+    this.systems.rendering.resetCamera(); // ensure no camera leak on dispose
 
     if (this.app.ticker) {
       this.app.ticker.remove(this.onTickBound);

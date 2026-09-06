@@ -38,9 +38,14 @@ export class EntitySystem {
   }
   
   /**
-   * Initialize the EntityManager with the PIXI application
+   * Initialize the EntityManager with the PIXI application.
+   * @param app         The PIXI Application instance.
+   * @param worldCamera Optional world-space camera container (from RenderSystem).
+   *                    When provided, entity layers are added to this container so that
+   *                    cinematic camera transforms affect the world without touching HUD/fade/debug.
+   *                    Falls back to app.stage when not provided (backward compatible).
    */
-  public initialize(app?: PIXI.Application): void {
+  public initialize(app?: PIXI.Application, worldCamera?: PIXI.Container): void {
     if (this.initialized) return;
     
     if (app) {
@@ -48,8 +53,11 @@ export class EntitySystem {
     }
     
     if (this.app) {
-      this.app.stage.sortableChildren = true;
-      this.app.stage.addChild(this.starLayer, this.worldLayer, this.pilotLayer);
+      // Use worldCamera when provided so camera steps only transform world layers.
+      // Fall back to app.stage for backward compatibility (tests, visual-preview).
+      const parent: PIXI.Container = worldCamera ?? this.app.stage;
+      parent.sortableChildren = true;
+      parent.addChild(this.starLayer, this.worldLayer, this.pilotLayer);
     }
     this.initialized = true;
     this.logger.info('EntityManager initialized');

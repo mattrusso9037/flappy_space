@@ -27,6 +27,8 @@ export class CutsceneRunner {
   private activeDialogueId: DialogueId | null = null;
   private currentFadeAlpha = 0;
   private currentCamera: CameraAction = { x: 0, y: 0, zoom: 1 };
+  /** Camera state at the start of the current camera step, for from-state interpolation. */
+  private stepStartCamera: Required<CameraAction> = { x: 0, y: 0, zoom: 1 };
 
   private readonly callbacks: CutsceneRunnerCallbacks;
 
@@ -45,6 +47,7 @@ export class CutsceneRunner {
     this.activeDialogueId = null;
     this.currentFadeAlpha = 0;
     this.currentCamera = { x: 0, y: 0, zoom: 1 };
+    this.stepStartCamera = { x: 0, y: 0, zoom: 1 };
 
     this.executeStep(0);
   }
@@ -93,10 +96,12 @@ export class CutsceneRunner {
         const targetY = currentStep.action.y ?? 0;
         const targetZoom = currentStep.action.zoom ?? 1;
 
+        // Interpolate from the camera state at the START of this step (not always from origin).
+        // This enables composable sequential camera moves without snapping.
         this.currentCamera = {
-          x: targetX * progress,
-          y: targetY * progress,
-          zoom: 1 + (targetZoom - 1) * progress,
+          x: this.stepStartCamera.x + (targetX - this.stepStartCamera.x) * progress,
+          y: this.stepStartCamera.y + (targetY - this.stepStartCamera.y) * progress,
+          zoom: this.stepStartCamera.zoom + (targetZoom - this.stepStartCamera.zoom) * progress,
         };
         this.callbacks.onCameraChange?.(this.currentCamera);
 
@@ -185,7 +190,14 @@ export class CutsceneRunner {
     const step = this.definition.steps[index];
     logger.debug(`Executing cutscene step ${index}: ${step.type}`);
 
-    if (step.type === 'dialogue') {
+    if (step.type === 'camera') {
+      // Record the camera state at the START of this step so interpolation begins from here.
+      this.stepStartCamera = {
+        x: this.currentCamera.x ?? 0,
+        y: this.currentCamera.y ?? 0,
+        zoom: this.currentCamera.zoom ?? 1,
+      };
+    } else if (step.type === 'dialogue') {
       this.activeDialogueId = step.dialogueId;
       this.callbacks.onDialogueStart?.(step.dialogueId);
     } else if (step.type === 'music') {

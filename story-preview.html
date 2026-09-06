@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Flappy Spaceman — Story Preview</title>
+  </head>
+  <body>
+    <nav id="controls" aria-label="Story preview controls">
+      <label for="type-select">TYPE</label>
+      <select id="type-select" aria-label="Select story type">
+        <option value="dialogue">Dialogue</option>
+        <option value="cutscene">In-Engine Cutscene</option>
+        <option value="video">Video</option>
+      </select>
+
+      <label for="content-select">CONTENT</label>
+      <select id="content-select" aria-label="Select content"></select>
+
+      <button id="btn-play" class="btn" type="button">▶ PLAY</button>
+      <button id="btn-restart" class="btn" type="button" disabled>↺ RESTART</button>
+      <button id="btn-skip" class="btn danger" type="button" disabled>⏭ SKIP (ESC)</button>
+
+      <output id="status">Loading…</output>
+    </nav>
+
+    <main id="preview-area">
+      <!-- Pixi canvas is appended here at runtime -->
+      <!-- React overlay mount (dialogue / video) -->
+      <div id="react-mount" role="region" aria-label="Story overlay"></div>
+    </main>
+
+    <!-- Dev-facing error panel (hidden by default) -->
+    <div id="error-panel" class="hidden" role="alert">
+      <div class="error-card">
+        <h2 id="error-title">Error</h2>
+        <p><code id="error-message"></code></p>
+        <p>Check the browser console for more detail.</p>
+      </div>
+    </div>
+
+    <script type="module" src="/src/test/story-preview.ts"></script>
+  </body>
+</html>
