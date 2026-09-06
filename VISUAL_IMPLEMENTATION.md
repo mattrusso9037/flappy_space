@@ -148,8 +148,8 @@ Special visual effects run through a bounded, high-efficiency particle manager:
 
 ## 7. Background & World Presentation
 
-- **Atmosphere**: A static deep-void canvas ground layered with 5 static radial gradient nebula clouds drifting gently with subtle sine oscillation. Uses pre-compiled `FillGradient` shaders without expensive full-screen blur filters.
-- **Parallax Stars**: 3 depth layers (close, medium, distant). Each star features unique speed, size, and alpha.
+- **Atmosphere & Environment Presets**: Deep space atmosphere is defined by reusable `EnvironmentDefinition` presets (`deep-nebula`, `violet-reach`, `solar-storm`) in `src/game/environments/`. The canvas ground and 5 static radial gradient nebula clouds are managed by `RenderSystem.applyEnvironment(environmentId)`, updating background colors, nebula tints, and drift velocities without full-screen filters or duplicate atmosphere containers.
+- **Parallax Stars**: 3 depth layers (close, medium, distant). Each star features unique speed, size, and alpha, parameterized with environment speed multipliers during active flight.
 - **Warp Deformation**: During level transitions (`RenderSystem.beginWarp()`), star horizontal scales stretch up to `1 + 12 + layer * 10`, creating an authentic hyperspace corridor before easing back to normal.
 - **Planets**: Procedural celestial bodies rendered once into static graphics upon spawn. Surface craters, atmospheric glows, and rings are drawn ahead of time; only position (`x`) and orbital rotation (`rotation`) transform during flight.
 - **Orbs**: Dual-ring cosmic energy pickups with inner core shading and an outer pulsing aura driven by `MOTION.pulse`.

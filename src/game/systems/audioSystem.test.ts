@@ -164,6 +164,27 @@ describe('AudioSystem', () => {
     expect(spyStop).toHaveBeenCalled();
   });
 
+  it('loads music track by ID via loadMusicTrack', () => {
+    const spySetTrack = vi.spyOn(audioManager, 'setMusicTrack');
+    audioSystem.initialize();
+
+    audioSystem.loadMusicTrack('weightless-space');
+    expect(spySetTrack).toHaveBeenCalledWith(expect.stringContaining('Weightless%20Space.mp3'));
+
+    // Unknown track safely falls back to default
+    audioSystem.loadMusicTrack('unknown-track-id');
+    expect(spySetTrack).toHaveBeenCalledWith(expect.stringContaining('Weightless%20Space.mp3'));
+  });
+
+  it('preserves mute state across music track switching', () => {
+    audioSystem.initialize();
+    audioSystem.setMuted(true);
+    expect(audioSystem.isMuted()).toBe(true);
+
+    audioSystem.loadMusicTrack('weightless-space');
+    expect(audioSystem.isMuted()).toBe(true);
+  });
+
   it('stops listening to events and disposes audioManager on dispose', () => {
     const spyThrust = vi.spyOn(audioManager, 'playThrust').mockImplementation(() => {});
     const spyDispose = vi.spyOn(audioManager, 'dispose');

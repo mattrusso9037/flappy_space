@@ -81,6 +81,9 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 - Avoid unmanaged `setTimeout` or `setInterval` for gameplay sequencing.
 - Use simulation time delta countdowns inside `update(deltaSeconds)` so pause, resume, reset, and test clocks work deterministically.
 
+### F. Level Authoring & Preset Architecture
+- **RULE**: New campaign levels must be authored through `LevelDefinition` and reusable environment/music presets. Do not modify runtime/render/spawn architecture just to add a new level. Use the repo-local `add-level` skill.
+
 ---
 
 ## 5. Code Quality & Guardrail Rules

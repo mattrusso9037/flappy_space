@@ -2,6 +2,7 @@ import { GameState, GameStateService } from '../gameStateService';
 import { EntitySystem } from './entitySystem';
 import { ORB_SPAWN_CHANCE, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { DEFAULT_CAMPAIGN } from '../campaign/defaultCampaign';
+import { ObstacleGameplayDefinition } from '../campaign/campaignTypes';
 import { Planet } from '../entities/Planet';
 import { getLogger } from '../../utils/logger';
 
@@ -14,13 +15,17 @@ export interface LevelConfig {
     orb: number;
   };
   spawnInterval: number;
-  orbFrequency?: number; // Time between orb spawns
+  orbSpawnChance?: number;
+  /** @deprecated Use orbSpawnChance instead */
+  orbFrequency?: number;
+  obstacles?: ObstacleGameplayDefinition;
+  /** Optional display metadata only - does NOT dictate gameplay difficulty */
   levelNumber?: number;
 }
 
 /**
  * SpawningSystem handles spawning of obstacles, orbs, and other entities
- * based on simulation time and level configuration.
+ * based on simulation time and explicit level configuration.
  */
 export class SpawningSystem {
   private initialized: boolean = false;
@@ -35,9 +40,15 @@ export class SpawningSystem {
     speeds: {
       planet: 1.0,
       secondaryPlanet: 1.1,
-      orb: 0.9
+      orb: 0.9,
     }, 
-    spawnInterval: 2500 
+    spawnInterval: 2500,
+    orbSpawnChance: ORB_SPAWN_CHANCE,
+    obstacles: {
+      minPlanetRadius: 20,
+      maxPlanetRadius: 45,
+      secondaryPlanetChance: 0,
+    },
   };
   private hasSpawnedFirstObstacle: boolean = false;
   
@@ -71,7 +82,7 @@ export class SpawningSystem {
   }
 
   /**
-   * Initialize configuration for a specific level or level config
+   * Initialize configuration for a specific level index or level config
    */
   public initializeLevel(levelOrConfig: number | LevelConfig): void {
     if (typeof levelOrConfig === 'number') {
@@ -80,7 +91,8 @@ export class SpawningSystem {
       this.setLevelConfig({
         speeds: def.gameplay.speeds,
         spawnInterval: def.gameplay.spawnInterval,
-        orbFrequency: def.gameplay.orbFrequency,
+        orbSpawnChance: def.gameplay.orbSpawnChance,
+        obstacles: def.gameplay.obstacles,
         levelNumber: def.gameplay.levelNumber ?? levelOrConfig,
       });
     } else {
@@ -92,10 +104,14 @@ export class SpawningSystem {
   /**
    * Set level configuration
    */
-  public setLevelConfig(config: LevelConfig): void {
+  public setLevelConfig(config: Partial<LevelConfig>): void {
     this.levelConfig = {
       ...this.levelConfig,
-      ...config
+      ...config,
+      // If nested obstacles are partially supplied, merge them
+      obstacles: config.obstacles
+        ? { ...(this.levelConfig.obstacles ?? { minPlanetRadius: 20, maxPlanetRadius: 45, secondaryPlanetChance: 0 }), ...config.obstacles }
+        : this.levelConfig.obstacles,
     };
     logger.info('SpawningSystem: Level config updated', this.levelConfig);
   }
@@ -145,22 +161,23 @@ export class SpawningSystem {
       this.spawnObstacle(gameState);
       this.lastObstacleTime = currentTime;
       
-      // Stagger orb spawn using simulation time countdown
-      if (Math.random() < ORB_SPAWN_CHANCE) {
-        logger.info('SpawningSystem: Scheduling delayed orb spawn in simulation time');
+      // Stagger orb spawn using simulation time countdown governed by explicit orbSpawnChance
+      const orbChance = this.levelConfig.orbSpawnChance ?? ORB_SPAWN_CHANCE;
+      if (Math.random() < orbChance) {
+        logger.info('SpawningSystem: Scheduling delayed orb spawn in simulation time', { orbChance });
         this.pendingOrbSpawnRemainingMs = this.levelConfig.spawnInterval * 0.4;
       }
     }
   }
   
   /**
-   * Spawn an obstacle based on current level configuration
+   * Spawn an obstacle based explicitly on authored obstacle configuration.
+   * Obstacle size and secondary spawn chance are entirely data-driven,
+   * with zero implicit dependence on levelNumber.
    */
-  private spawnObstacle(gameState?: GameState): void {
-    const levelNumber = this.getCurrentLevelIndex(gameState) + 1;
-    
-    const minRadius = 20;
-    const maxRadius = 40 + (levelNumber * 5);
+  private spawnObstacle(_gameState?: GameState): void {
+    const minRadius = this.levelConfig.obstacles?.minPlanetRadius ?? 20;
+    const maxRadius = this.levelConfig.obstacles?.maxPlanetRadius ?? 45;
     const radius = minRadius + Math.random() * (maxRadius - minRadius);
     
     const safeZoneSize = GAME_HEIGHT * 0.4;
@@ -185,8 +202,9 @@ export class SpawningSystem {
     
     this.ensureNoOverlap(planet);
     
-    // Spawn secondary planet on levels > 1
-    if (Math.random() < 0.3 && levelNumber > 1) {
+    // Spawn secondary planet based explicitly on secondaryPlanetChance
+    const secondaryChance = this.levelConfig.obstacles?.secondaryPlanetChance ?? 0;
+    if (secondaryChance > 0 && Math.random() < secondaryChance) {
       const secondPlanetY = positionAbove 
         ? safeZoneY + safeZoneSize + Math.random() * (GAME_HEIGHT - (safeZoneY + safeZoneSize) - radius * 2) + radius
         : Math.random() * (safeZoneY - radius * 2) + radius;
@@ -281,22 +299,6 @@ export class SpawningSystem {
     const distance = Math.sqrt(dx * dx + dy * dy);
     const minSeparation = planet1.radius + planet2.radius + 10;
     return distance < minSeparation;
-  }
-  
-  /**
-   * Get current level index from supplied state, injected state, or default 0
-   */
-  private getCurrentLevelIndex(gameState?: GameState): number {
-    if (this.levelConfig.levelNumber !== undefined) {
-      return Math.max(0, this.levelConfig.levelNumber - 1);
-    }
-    if (gameState && typeof gameState.level === 'number') {
-      return Math.max(0, gameState.level - 1);
-    }
-    if (this.state) {
-      return Math.max(0, this.state.getState().level - 1);
-    }
-    return 0;
   }
   
   /**

@@ -223,27 +223,48 @@ currentLevelId: 'lunar-crossing'
 
 ---
 
-# 7. LevelDefinition
+# 7. LevelDefinition & Authoring Architecture
 
-Replace campaign-level dependence on the global indexed `LEVELS` array with data-driven definitions.
+Replace campaign-level dependence on the global indexed `LEVELS` array with explicit, data-driven level definitions.
+Levels are authored purely through data without embedding Pixi objects or rendering code.
 
 ```ts
+export interface ObstacleGameplayDefinition {
+  minPlanetRadius: number;
+  maxPlanetRadius: number;
+  secondaryPlanetChance: number;
+}
+
+export interface LevelGameplayDefinition {
+  speeds: {
+    planet: number;
+    secondaryPlanet: number;
+    orb: number;
+  };
+
+  spawnInterval: number;
+  orbSpawnChance: number; // 0 to 1
+  orbsRequired: number;
+  timeLimit: number;
+
+  obstacles: ObstacleGameplayDefinition;
+
+  /** Optional display metadata only - does NOT dictate gameplay difficulty */
+  levelNumber?: number;
+}
+
+export interface LevelPresentationDefinition {
+  environmentId: EnvironmentId;
+  musicId?: MusicTrackId;
+}
+
 export interface LevelDefinition {
   id: LevelId;
   name: string;
 
-  gameplay: {
-    speeds: {
-      planet: number;
-      secondaryPlanet: number;
-      orb: number;
-    };
+  gameplay: LevelGameplayDefinition;
 
-    spawnInterval: number;
-    orbFrequency: number;
-    orbsRequired: number;
-    timeLimit: number;
-  };
+  presentation: LevelPresentationDefinition;
 
   intro?: StoryTransition;
   outro?: StoryTransition;
@@ -252,7 +273,21 @@ export interface LevelDefinition {
 }
 ```
 
-Story transitions should initially be declarative references only:
+### Key Authoring Principles:
+1. **Separation of Presentation & Gameplay**:
+   - `presentation` references reusable environment presets (`environmentId`, e.g. `'deep-nebula'`, `'violet-reach'`, `'solar-storm'`) and music tracks (`musicId`, e.g. `'weightless-space'`).
+   - No Pixi objects, shaders, or rendering loops exist in campaign definitions.
+2. **Explicit Obstacle Difficulty**:
+   - Obstacle size bounds (`minPlanetRadius`, `maxPlanetRadius`) and secondary obstacle spawn probability (`secondaryPlanetChance`) are declared explicitly.
+   - `levelNumber` is strictly display metadata; difficulty never relies on numeric order.
+3. **Truthful Orb Spawning Semantics**:
+   - Spawning probability is governed by `orbSpawnChance` (0.0 to 1.0) rather than misleading time frequencies.
+4. **Campaign Validation (`validateCampaignDefinition`)**:
+   - A centralized validator (`src/game/campaign/validateCampaign.ts`) ensures all links, environment IDs, music IDs, and numeric bounds are sound before runtime execution.
+5. **Direct Level Preview Tooling**:
+   - Fast authoring QA is available at `/visual-preview.html` (supporting dropdown level selection and query parameter `?level=<levelId>`) without needing to play through the campaign.
+
+Story transitions remain declarative references only:
 
 ```ts
 export type StoryTransition =

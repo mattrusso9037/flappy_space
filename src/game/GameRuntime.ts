@@ -137,9 +137,19 @@ export class GameRuntime {
     this.systems.spawning.setLevelConfig({
       speeds: levelDefinition.gameplay.speeds,
       spawnInterval: levelDefinition.gameplay.spawnInterval,
-      orbFrequency: levelDefinition.gameplay.orbFrequency || 3000,
+      orbSpawnChance: levelDefinition.gameplay.orbSpawnChance,
+      obstacles: levelDefinition.gameplay.obstacles,
       levelNumber: levelDefinition.gameplay.levelNumber,
     });
+
+    if (levelDefinition.presentation) {
+      if (levelDefinition.presentation.environmentId) {
+        this.systems.rendering.applyEnvironment(levelDefinition.presentation.environmentId);
+      }
+      if (levelDefinition.presentation.musicId) {
+        this.systems.audio.loadMusicTrack(levelDefinition.presentation.musicId);
+      }
+    }
 
     this.systems.entities.clearAll();
     this.systems.spawning.resetSpawning();

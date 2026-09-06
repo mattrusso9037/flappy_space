@@ -1,6 +1,7 @@
 import { Subscription } from 'rxjs';
 import { EventBus, GameEvent, TimeUpdatedData } from '../eventBus';
 import audioManager, { AudioManager } from '../audio';
+import { resolveMusicTrack } from '../audio/musicCatalog';
 import { getLogger } from '../../utils/logger';
 
 const logger = getLogger('AudioSystem');
@@ -184,6 +185,11 @@ export class AudioSystem {
 
   public stopMusic(): void {
     this.audioMgr.stopMusic();
+  }
+
+  public loadMusicTrack(musicId?: string): void {
+    const track = resolveMusicTrack(musicId);
+    this.audioMgr.setMusicTrack(track.url);
   }
 
   public getAudioManager(): AudioManager {

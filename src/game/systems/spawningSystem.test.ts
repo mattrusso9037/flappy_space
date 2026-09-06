@@ -36,10 +36,21 @@ describe('SpawningSystem', () => {
     spawning.setLevelConfig({
       speeds: { planet: 2.5, secondaryPlanet: 2.0, orb: 1.8 },
       spawnInterval: 1800,
+      orbSpawnChance: 0.8,
+      obstacles: {
+        minPlanetRadius: 25,
+        maxPlanetRadius: 55,
+        secondaryPlanetChance: 0.2,
+      },
     });
 
-    expect(spawning.getLevelConfig().spawnInterval).toBe(1800);
-    expect(spawning.getLevelConfig().speeds.planet).toBe(2.5);
+    const config = spawning.getLevelConfig();
+    expect(config.spawnInterval).toBe(1800);
+    expect(config.speeds.planet).toBe(2.5);
+    expect(config.orbSpawnChance).toBe(0.8);
+    expect(config.obstacles?.minPlanetRadius).toBe(25);
+    expect(config.obstacles?.maxPlanetRadius).toBe(55);
+    expect(config.obstacles?.secondaryPlanetChance).toBe(0.2);
   });
 
   it('initializes level config from LEVELS array via initializeLevel', () => {
@@ -66,11 +77,11 @@ describe('SpawningSystem', () => {
     expect(createPlanetSpy).toHaveBeenCalled();
   });
 
-  it('spawns delayed orb deterministically in simulation time without real timers', () => {
+  it('spawns delayed orb deterministically governed by level orbSpawnChance', () => {
     const createOrbSpy = vi.spyOn(entities, 'createOrb');
-    // Force Math.random to trigger orb spawn chance (< ORB_SPAWN_CHANCE)
     vi.spyOn(Math, 'random').mockReturnValue(0.1);
 
+    spawning.setLevelConfig({ orbSpawnChance: 0.5 });
     state.startGame();
     state.updateTime(2000);
     // Spawn first obstacle
@@ -92,5 +103,65 @@ describe('SpawningSystem', () => {
     expect(createOrbSpy).toHaveBeenCalled();
 
     vi.restoreAllMocks();
+  });
+
+  it('never spawns an orb when orbSpawnChance is 0', () => {
+    const createOrbSpy = vi.spyOn(entities, 'createOrb');
+    vi.spyOn(Math, 'random').mockReturnValue(0.01); // Very low random
+
+    spawning.setLevelConfig({ orbSpawnChance: 0.0 });
+    state.startGame();
+    state.updateTime(2000);
+    spawning.update(0.016, state.getState());
+
+    const interval = spawning.getLevelConfig().spawnInterval;
+    state.updateTime(interval + 100);
+    spawning.update(0.016, state.getState());
+
+    // Even after advancing past the delay threshold, orb should NOT spawn
+    const delaySeconds = (interval * 0.4) / 1000;
+    spawning.update(delaySeconds + 0.05, state.getState());
+
+    expect(createOrbSpy).not.toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+  });
+
+  it('spawns obstacles using explicit obstacles radius configuration without depending on levelNumber', () => {
+    const createPlanetSpy = vi.spyOn(entities, 'createPlanet');
+
+    // Configure explicit obstacle bounds and an arbitrary levelNumber
+    spawning.setLevelConfig({
+      obstacles: {
+        minPlanetRadius: 30,
+        maxPlanetRadius: 30, // Fixed radius to test exact size
+        secondaryPlanetChance: 0,
+      },
+      levelNumber: 99, // Should NOT affect obstacle radius
+    });
+
+    state.startGame();
+    state.updateTime(2000);
+    spawning.update(0.016, state.getState());
+
+    expect(createPlanetSpy).toHaveBeenCalled();
+    const passedRadius = createPlanetSpy.mock.calls[0][2];
+    expect(passedRadius).toBe(30);
+
+    // Test with levelNumber: 1 and same config -> behaves identically
+    createPlanetSpy.mockClear();
+    spawning.resetSpawning();
+    spawning.setLevelConfig({
+      obstacles: {
+        minPlanetRadius: 30,
+        maxPlanetRadius: 30,
+        secondaryPlanetChance: 0,
+      },
+      levelNumber: 1,
+    });
+
+    state.updateTime(2000);
+    spawning.update(0.016, state.getState());
+    expect(createPlanetSpy.mock.calls[0][2]).toBe(30);
   });
 });

@@ -1,3 +1,6 @@
+import { EnvironmentId } from '../environments/environmentTypes';
+import { MusicTrackId } from '../audio/musicCatalog';
+
 export type LevelId = string;
 export type CampaignId = string;
 
@@ -5,23 +8,42 @@ export type StoryTransition =
   | { type: 'dialogue'; id: string }
   | { type: 'cutscene'; id: string };
 
+export interface ObstacleGameplayDefinition {
+  minPlanetRadius: number;
+  maxPlanetRadius: number;
+  secondaryPlanetChance: number;
+}
+
+export interface LevelGameplayDefinition {
+  speeds: {
+    planet: number;
+    secondaryPlanet: number;
+    orb: number;
+  };
+
+  spawnInterval: number;
+  orbSpawnChance: number;
+  orbsRequired: number;
+  timeLimit: number;
+
+  obstacles: ObstacleGameplayDefinition;
+
+  /** Optional display metadata only - does NOT dictate gameplay difficulty */
+  levelNumber?: number;
+}
+
+export interface LevelPresentationDefinition {
+  environmentId: EnvironmentId;
+  musicId?: MusicTrackId;
+}
+
 export interface LevelDefinition {
   id: LevelId;
   name: string;
 
-  gameplay: {
-    speeds: {
-      planet: number;
-      secondaryPlanet: number;
-      orb: number;
-    };
+  gameplay: LevelGameplayDefinition;
 
-    spawnInterval: number;
-    orbFrequency: number;
-    orbsRequired: number;
-    timeLimit: number;
-    levelNumber?: number;
-  };
+  presentation: LevelPresentationDefinition;
 
   intro?: StoryTransition;
   outro?: StoryTransition;

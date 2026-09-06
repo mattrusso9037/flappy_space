@@ -213,7 +213,7 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     runtime.dispose();
   });
 
-  it('loads explicit LevelDefinition and configures state and spawning', () => {
+  it('loads explicit LevelDefinition and configures state, spawning, and presentation', () => {
     const runtime = createFlappySpaceRuntime(app);
     runtime.initialize();
 
@@ -223,10 +223,19 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
       gameplay: {
         speeds: { planet: 7.2, secondaryPlanet: 6.0, orb: 5.0 },
         spawnInterval: 1200,
-        orbFrequency: 2500,
+        orbSpawnChance: 0.6,
         orbsRequired: 25,
         timeLimit: 90000,
+        obstacles: {
+          minPlanetRadius: 25,
+          maxPlanetRadius: 70,
+          secondaryPlanetChance: 0.4,
+        },
         levelNumber: 99,
+      },
+      presentation: {
+        environmentId: 'violet-reach',
+        musicId: 'weightless-space',
       },
     };
 
@@ -242,7 +251,12 @@ describe('GameRuntime & createFlappySpaceRuntime', () => {
     const spawningConfig = runtime.systems.spawning.getLevelConfig();
     expect(spawningConfig.spawnInterval).toBe(1200);
     expect(spawningConfig.speeds.planet).toBe(7.2);
+    expect(spawningConfig.orbSpawnChance).toBe(0.6);
+    expect(spawningConfig.obstacles?.minPlanetRadius).toBe(25);
+    expect(spawningConfig.obstacles?.maxPlanetRadius).toBe(70);
     expect(spawningConfig.levelNumber).toBe(99);
+
+    expect(runtime.systems.rendering.getEnvironment().id).toBe('violet-reach');
 
     runtime.dispose();
   });

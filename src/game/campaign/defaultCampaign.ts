@@ -13,10 +13,19 @@ export const SECTOR_01: LevelDefinition = {
       orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[0],
     },
     spawnInterval: 2500,
-    orbFrequency: 0.3,
+    orbSpawnChance: 0.4,
     orbsRequired: 5,
     timeLimit: 60000,
+    obstacles: {
+      minPlanetRadius: 20,
+      maxPlanetRadius: 45,
+      secondaryPlanetChance: 0,
+    },
     levelNumber: 1,
+  },
+  presentation: {
+    environmentId: 'deep-nebula',
+    musicId: 'weightless-space',
   },
   nextLevelId: 'sector-02',
 };
@@ -31,10 +40,19 @@ export const SECTOR_02: LevelDefinition = {
       orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[1],
     },
     spawnInterval: 2200,
-    orbFrequency: 3000,
+    orbSpawnChance: 0.4,
     orbsRequired: 8,
     timeLimit: 60000,
+    obstacles: {
+      minPlanetRadius: 20,
+      maxPlanetRadius: 50,
+      secondaryPlanetChance: 0.3,
+    },
     levelNumber: 2,
+  },
+  presentation: {
+    environmentId: 'deep-nebula',
+    musicId: 'weightless-space',
   },
   nextLevelId: 'sector-03',
 };
@@ -49,10 +67,19 @@ export const SECTOR_03: LevelDefinition = {
       orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[2],
     },
     spawnInterval: 2000,
-    orbFrequency: 3000,
+    orbSpawnChance: 0.4,
     orbsRequired: 12,
     timeLimit: 70000,
+    obstacles: {
+      minPlanetRadius: 20,
+      maxPlanetRadius: 55,
+      secondaryPlanetChance: 0.3,
+    },
     levelNumber: 3,
+  },
+  presentation: {
+    environmentId: 'deep-nebula',
+    musicId: 'weightless-space',
   },
   nextLevelId: 'sector-04',
 };
@@ -67,10 +94,19 @@ export const SECTOR_04: LevelDefinition = {
       orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[3],
     },
     spawnInterval: 1800,
-    orbFrequency: 3000,
+    orbSpawnChance: 0.4,
     orbsRequired: 15,
     timeLimit: 70000,
+    obstacles: {
+      minPlanetRadius: 20,
+      maxPlanetRadius: 60,
+      secondaryPlanetChance: 0.3,
+    },
     levelNumber: 4,
+  },
+  presentation: {
+    environmentId: 'deep-nebula',
+    musicId: 'weightless-space',
   },
   nextLevelId: 'sector-05',
 };
@@ -85,10 +121,19 @@ export const SECTOR_05: LevelDefinition = {
       orb: BASE_SPEEDS.orb * LEVEL_MULTIPLIERS[4],
     },
     spawnInterval: 1600,
-    orbFrequency: 3000,
+    orbSpawnChance: 0.4,
     orbsRequired: 20,
     timeLimit: 80000,
+    obstacles: {
+      minPlanetRadius: 20,
+      maxPlanetRadius: 65,
+      secondaryPlanetChance: 0.3,
+    },
     levelNumber: 5,
+  },
+  presentation: {
+    environmentId: 'deep-nebula',
+    musicId: 'weightless-space',
   },
 };
 

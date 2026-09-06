@@ -217,6 +217,39 @@ export class AudioManager {
     return Boolean(this.bgMusic && !this.bgMusic.paused);
   }
 
+  /**
+   * Returns the current background music URL.
+   */
+  public getMusicUrl(): string {
+    return this.musicUrl;
+  }
+
+  /**
+   * Switches the active background music track cleanly.
+   * If the requested URL is identical to the current track, playback continues undisturbed.
+   */
+  public setMusicTrack(trackUrl: string): void {
+    if (this.musicUrl === trackUrl) {
+      return;
+    }
+
+    logger.info('Switching music track', { from: this.musicUrl, to: trackUrl });
+    const wasPlaying = this.isMusicPlayingState;
+
+    if (this.bgMusic) {
+      this.bgMusic.pause();
+      this.bgMusic.currentTime = 0;
+      this.bgMusic = null;
+    }
+
+    this.musicUrl = trackUrl;
+    this.initBackgroundMusic();
+
+    if (wasPlaying && !this.isMuted) {
+      this.startMusic();
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Volume & Mute Controls
   // ---------------------------------------------------------------------------
