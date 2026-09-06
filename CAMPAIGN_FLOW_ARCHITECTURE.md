@@ -246,12 +246,21 @@ export interface LevelGameplayDefinition {
 
   obstacles: ObstacleGameplayDefinition;
 
+  /** Optional planetary ground terrain definition */
+  ground?: GroundGameplayDefinition;
+
   /** Optional display metadata only - does NOT dictate gameplay difficulty */
   levelNumber?: number;
 }
 
+export interface GroundGameplayDefinition {
+  enabled: boolean;
+  height: number;
+}
+
 export interface LevelPresentationDefinition {
   environmentId: EnvironmentId;
+  terrainId?: TerrainId;
   musicId?: MusicTrackId;
 }
 
@@ -272,7 +281,10 @@ export interface LevelDefinition {
 
 ### Key Authoring Principles:
 1. **Separation of Presentation & Gameplay**:
-   - `presentation` references reusable environment presets (`environmentId`, e.g. `'deep-nebula'`, `'violet-reach'`, `'solar-storm'`) and music tracks (`musicId`, e.g. `'weightless-space'`).
+   - `gameplay.ground` defines physical collision geometry (`height: number`), determining the walkable/landable surface Y (`GAME_HEIGHT - height`). It never dictates visual appearance.
+   - `presentation.terrainId` references reusable visual terrain presets (e.g. `'alien-crust'`), determining surface strata, colors, crest lines, and decorative features. It never affects collision boundaries.
+   - `presentation.environmentId` references reusable environment presets (`'deep-nebula'`, `'alien-surface'`, `'violet-reach'`, `'solar-storm'`) and `musicId` references audio tracks (`'weightless-space'`).
+   - Runtime systems implement ground capability generically once. No level-specific branching is allowed.
    - No Pixi objects, shaders, or rendering loops exist in campaign definitions.
 2. **Explicit Obstacle Difficulty**:
    - Obstacle size bounds (`minPlanetRadius`, `maxPlanetRadius`) and secondary obstacle spawn probability (`secondaryPlanetChance`) are declared explicitly.
@@ -280,7 +292,7 @@ export interface LevelDefinition {
 3. **Truthful Orb Spawning Semantics**:
    - Spawning probability is governed by `orbSpawnChance` (0.0 to 1.0) rather than misleading time frequencies.
 4. **Campaign Validation (`validateCampaignDefinition`)**:
-   - A centralized validator (`src/game/campaign/validateCampaign.ts`) ensures all links, environment IDs, music IDs, and numeric bounds are sound before runtime execution.
+   - A centralized validator (`src/game/campaign/validateCampaign.ts`) ensures all links, environment IDs, terrain IDs, music IDs, and numeric bounds (including finite positive ground heights leaving a viable corridor) are sound before runtime execution.
 5. **Direct Level Preview Tooling**:
    - Fast authoring QA is available at `/visual-preview.html` (supporting dropdown level selection and query parameter `?level=<levelId>`) without needing to play through the campaign.
 

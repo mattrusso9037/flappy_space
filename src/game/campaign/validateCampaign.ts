@@ -1,6 +1,8 @@
 import { CampaignDefinition, StoryTransition } from './campaignTypes';
 import { isEnvironmentId } from '../environments/environments';
 import { isMusicTrackId } from '../audio/musicCatalog';
+import { isTerrainId } from '../visuals/terrainPresets';
+import { GAME_HEIGHT } from '../config';
 import { hasDialogue } from '../story/dialogue/dialogues';
 import { hasCutscene } from '../story/cutscenes/cutscenes';
 import { hasVideoCutscene } from '../story/video/videoCutscenes';
@@ -61,6 +63,12 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
         !isMusicTrackId(level.presentation.musicId)
       ) {
         errors.push(`${prefix} References invalid musicId "${level.presentation.musicId}".`);
+      }
+      if (
+        level.presentation.terrainId !== undefined &&
+        !isTerrainId(level.presentation.terrainId)
+      ) {
+        errors.push(`${prefix} References invalid terrainId "${level.presentation.terrainId}".`);
       }
     }
 
@@ -132,8 +140,18 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
         if (typeof ground.enabled !== 'boolean') {
           errors.push(`${prefix} ground.enabled must be a boolean.`);
         }
-        if (ground.height !== undefined && (typeof ground.height !== 'number' || ground.height <= 0 || Number.isNaN(ground.height))) {
-          errors.push(`${prefix} ground.height must be a positive number.`);
+        if (
+          typeof ground.height !== 'number' ||
+          !Number.isFinite(ground.height) ||
+          ground.height <= 0
+        ) {
+          errors.push(`${prefix} ground.height must be a positive finite number.`);
+        } else if (ground.height >= GAME_HEIGHT) {
+          errors.push(`${prefix} ground.height must be less than GAME_HEIGHT (${GAME_HEIGHT}).`);
+        } else if (GAME_HEIGHT - ground.height < 100) {
+          errors.push(
+            `${prefix} ground.height (${ground.height}) leaves an unviable gameplay corridor of ${GAME_HEIGHT - ground.height}px (minimum 100px required).`
+          );
         }
       }
     }

@@ -164,4 +164,113 @@ describe('SpawningSystem', () => {
     spawning.update(0.016, state.getState());
     expect(createPlanetSpy.mock.calls[0][2]).toBe(30);
   });
+
+  describe('ground-aware spawning safety', () => {
+    it('ensures primary and secondary planets never spawn beneath ground', () => {
+      const groundHeight = 120;
+      const groundY = 600 - groundHeight; // 480
+      entities.setGround({ enabled: true, height: groundHeight }, 'alien-crust');
+
+      const createPlanetSpy = vi.spyOn(entities, 'createPlanet');
+
+      spawning.setLevelConfig({
+        obstacles: {
+          minPlanetRadius: 25,
+          maxPlanetRadius: 50,
+          secondaryPlanetChance: 1.0, // Always spawn secondary
+        },
+      });
+
+      state.startGame();
+      // Run multiple spawns to test both positionAbove and !positionAbove
+      for (let i = 0; i < 20; i++) {
+        state.updateTime(2000 + i * 2500);
+        spawning.update(0.016, state.getState());
+      }
+
+      expect(createPlanetSpy).toHaveBeenCalled();
+      for (const call of createPlanetSpy.mock.calls) {
+        const y = call[1];
+        const radius = call[2];
+        // Planet boundary (y + radius) must never pierce ground surface Y
+        expect(y + radius).toBeLessThanOrEqual(groundY);
+        expect(y - radius).toBeGreaterThanOrEqual(0);
+        expect(Number.isFinite(y)).toBe(true);
+      }
+    });
+
+    it('ensures orbs never spawn beneath ground', () => {
+      const groundHeight = 100;
+      const groundY = 600 - groundHeight; // 500
+      entities.setGround({ enabled: true, height: groundHeight }, 'alien-crust');
+
+      const createOrbSpy = vi.spyOn(entities, 'createOrb');
+      spawning.setLevelConfig({ orbSpawnChance: 1.0 });
+
+      state.startGame();
+      for (let i = 0; i < 20; i++) {
+        state.updateTime(2000 + i * 2500);
+        spawning.update(0.016, state.getState());
+        // Advance time for delayed orb
+        spawning.update(1.2, state.getState());
+      }
+
+      expect(createOrbSpy).toHaveBeenCalled();
+      for (const call of createOrbSpy.mock.calls) {
+        const y = call[1];
+        const radius = call[2];
+        expect(y + radius).toBeLessThanOrEqual(groundY);
+        expect(y - radius).toBeGreaterThanOrEqual(0);
+        expect(Number.isFinite(y)).toBe(true);
+      }
+    });
+
+    it('handles very constrained playable corridor without producing NaN or invalid coordinates', () => {
+      // 500px ground height leaves a 100px corridor (the minimum allowed)
+      const groundHeight = 500;
+      entities.setGround({ enabled: true, height: groundHeight }, 'alien-crust');
+
+      const createPlanetSpy = vi.spyOn(entities, 'createPlanet');
+      spawning.setLevelConfig({
+        obstacles: {
+          minPlanetRadius: 20,
+          maxPlanetRadius: 30,
+          secondaryPlanetChance: 1.0,
+        },
+      });
+
+      state.startGame();
+      state.updateTime(2000);
+      spawning.update(0.016, state.getState());
+
+      expect(createPlanetSpy).toHaveBeenCalled();
+      for (const call of createPlanetSpy.mock.calls) {
+        const y = call[1];
+        expect(Number.isFinite(y)).toBe(true);
+        expect(Number.isNaN(y)).toBe(false);
+      }
+    });
+
+    it('retains normal full-height range when ground is absent', () => {
+      entities.setGround(null);
+      const createPlanetSpy = vi.spyOn(entities, 'createPlanet');
+
+      spawning.setLevelConfig({
+        obstacles: {
+          minPlanetRadius: 20,
+          maxPlanetRadius: 40,
+          secondaryPlanetChance: 0,
+        },
+      });
+
+      state.startGame();
+      state.updateTime(2000);
+      spawning.update(0.016, state.getState());
+
+      expect(createPlanetSpy).toHaveBeenCalled();
+      const y = createPlanetSpy.mock.calls[0][1];
+      expect(Number.isFinite(y)).toBe(true);
+      expect(y).toBeLessThanOrEqual(600);
+    });
+  });
 });

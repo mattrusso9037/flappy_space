@@ -50,6 +50,7 @@ export class RenderSystem {
   private elapsed = 0;
   private initialized = false;
   private warpRemaining = 0;
+  private scrollSpeed = 2.0;
 
   constructor(app: PIXI.Application | null, private readonly entities: EntitySystem, private readonly state: GameStateService) {
     this.app = app;
@@ -87,6 +88,16 @@ export class RenderSystem {
 
   getEnvironment(): EnvironmentDefinition {
     return this.currentEnvironment;
+  }
+
+  setScrollSpeed(speed: number): void {
+    if (Number.isFinite(speed) && speed >= 0) {
+      this.scrollSpeed = speed;
+    }
+  }
+
+  getScrollSpeed(): number {
+    return this.scrollSpeed;
   }
 
   private rebuildAtmosphere(): void {
@@ -206,6 +217,10 @@ export class RenderSystem {
     astronaut?.updatePresentation(seconds);
     if (astronaut && !this.state.getState().isStarted && !astronaut.dead) {
       astronaut.sprite.rotation = Math.sin(this.elapsed * 1.4) * 0.055;
+    }
+    const ground = this.entities.getGround();
+    if (ground && this.state.getState().isStarted && !this.state.getState().isGameOver) {
+      ground.updatePresentation(seconds, this.scrollSpeed);
     }
     const g = this.debugGraphics;
     if (!this.state.getState().debugMode) { if (g.context.instructions.length) g.clear(); return; }

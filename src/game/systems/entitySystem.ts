@@ -11,6 +11,11 @@ import { EventBus, GameEvent } from '../eventBus';
 import defaultAssetManager from '../assetManager';
 import { DEPTH } from '../visuals/tokens';
 import { ASTRONAUT_SPRITE_DEFINITION, resolveSpritePresentation } from '../visuals/spriteAnimations';
+import {
+  TerrainId,
+  TerrainPresentationDefinition,
+  resolveTerrainPresentation,
+} from '../visuals/terrainPresets';
 import { getLogger } from '../../utils/logger';
 
 /**
@@ -114,7 +119,10 @@ export class EntitySystem {
   /**
    * Set or clear ground configuration for the active level.
    */
-  public setGround(groundDef?: GroundGameplayDefinition | null): Ground | null {
+  public setGround(
+    groundDef?: GroundGameplayDefinition | null,
+    terrainIdOrDef?: TerrainId | TerrainPresentationDefinition | null
+  ): Ground | null {
     if (this.ground) {
       if (this.worldLayer.children.includes(this.ground.container)) {
         this.worldLayer.removeChild(this.ground.container);
@@ -124,7 +132,11 @@ export class EntitySystem {
     }
 
     if (groundDef?.enabled) {
-      this.ground = new Ground(groundDef);
+      const terrain =
+        typeof terrainIdOrDef === 'string'
+          ? resolveTerrainPresentation(terrainIdOrDef)
+          : (terrainIdOrDef ?? resolveTerrainPresentation());
+      this.ground = new Ground(groundDef.height, terrain);
       this.worldLayer.addChild(this.ground.container);
       this.logger.info(`Ground added to world layer at y=${this.ground.y}`);
     }
@@ -161,9 +173,7 @@ export class EntitySystem {
     const presentation = resolveSpritePresentation(this.assetMgr, ASTRONAUT_SPRITE_DEFINITION);
     
     this.astronaut = new Astronaut(presentation, ASTRONAUT.startX, ASTRONAUT.startY);
-    if (this.ground) {
-      this.astronaut.setGroundY(this.ground.y);
-    }
+    this.astronaut.setGroundY(this.ground ? this.ground.y : null);
     this.pilotLayer.addChild(this.astronaut.sprite);
     this.logger.info('Astronaut created and added to stage');
     

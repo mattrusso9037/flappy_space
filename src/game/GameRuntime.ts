@@ -157,9 +157,11 @@ export class GameRuntime {
       }
     }
 
+    this.systems.physics.setScrollSpeed(levelDefinition.gameplay.speeds.planet);
+    this.systems.rendering.setScrollSpeed(levelDefinition.gameplay.speeds.planet);
     this.systems.entities.clearAll();
     this.systems.spawning.resetSpawning();
-    this.systems.entities.setGround(levelDefinition.gameplay.ground);
+    this.systems.entities.setGround(levelDefinition.gameplay.ground, levelDefinition.presentation.terrainId);
     this.systems.entities.createAstronaut();
     this.systems.rendering.createBackground();
   }

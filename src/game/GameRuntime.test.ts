@@ -5,6 +5,7 @@ import { createFlappySpaceRuntime } from './createFlappySpaceRuntime';
 import { GameRuntime } from './GameRuntime';
 import { GameEvent } from './eventBus';
 import { JUMP_VELOCITY } from './config';
+import { DEFAULT_CAMPAIGN } from './campaign/defaultCampaign';
 
 
 describe('GameRuntime & createFlappySpaceRuntime', () => {
@@ -369,5 +370,66 @@ it('runs cinematics on the runtime clock without advancing gameplay, and restore
   runtime.reset();
   expect(hud.visible).toBe(true);
   expect(runtime.getCutsceneRunner()).toBeNull();
+  runtime.dispose();
+});
+
+it('cleanly transitions between groundless and ground-enabled levels without capability leakage', () => {
+  const app = new PIXI.Application();
+  app.stage = new PIXI.Container();
+  app.ticker = new PIXI.Ticker();
+  const runtime = createFlappySpaceRuntime(app);
+  runtime.initialize();
+
+  // 1. Load groundless level (sector-01)
+  const sector01 = DEFAULT_CAMPAIGN.levels['sector-01'];
+  runtime.loadLevel(sector01);
+  runtime.start();
+
+  expect(runtime.systems.entities.getGround()).toBeNull();
+  expect(runtime.systems.entities.getGroundY()).toBeNull();
+  const astro1 = runtime.systems.entities.getAstronaut()!;
+  expect(astro1.getGroundY()).toBeNull();
+
+  // Falling to bottom in space is lethal
+  astro1.sprite.y = 600 - 25;
+  astro1.velocity = 10;
+  astro1.update(16.667);
+  expect(astro1.dead).toBe(true);
+
+  // 2. Load ground-enabled level (sector-02)
+  const sector02 = DEFAULT_CAMPAIGN.levels['sector-02'];
+  runtime.loadLevel(sector02);
+  runtime.start();
+
+  const ground = runtime.systems.entities.getGround();
+  expect(ground).not.toBeNull();
+  expect(ground?.height).toBe(80);
+  expect(ground?.y).toBe(520);
+  const astro2 = runtime.systems.entities.getAstronaut()!;
+  expect(astro2.getGroundY()).toBe(520);
+
+  // Falling to ground surface lands safely
+  astro2.sprite.y = 520 - 25;
+  astro2.velocity = 10;
+  astro2.update(16.667);
+  expect(astro2.dead).toBe(false);
+  expect(astro2.isGrounded).toBe(true);
+
+  // 3. Load groundless level again (sector-03)
+  const sector03 = DEFAULT_CAMPAIGN.levels['sector-03'];
+  runtime.loadLevel(sector03);
+  runtime.start();
+
+  expect(runtime.systems.entities.getGround()).toBeNull();
+  expect(runtime.systems.entities.getGroundY()).toBeNull();
+  const astro3 = runtime.systems.entities.getAstronaut()!;
+  expect(astro3.getGroundY()).toBeNull();
+
+  // Bottom boundary must be lethal again
+  astro3.sprite.y = 600 - 25;
+  astro3.velocity = 10;
+  astro3.update(16.667);
+  expect(astro3.dead).toBe(true);
+
   runtime.dispose();
 });

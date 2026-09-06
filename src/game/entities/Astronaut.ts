@@ -90,7 +90,7 @@ export class Astronaut {
       this.horizontalVelocity = Math.min(0, this.horizontalVelocity + 0.1 * delta);
     }
 
-    // Update rotation based on velocity (stand upright when walking on ground)
+    // Update rotation based on velocity (stand upright when grounded on terrain)
     const targetRotation = this.isGrounded ? 0 : (this.velocity / MAX_VELOCITY) * (Math.PI / 6); // 30 degrees max
     this.rotation = damp(this.rotation, targetRotation, deltaMS / 1000);
     this.sprite.rotation = this.rotation;
@@ -112,8 +112,11 @@ export class Astronaut {
         this.velocity = 0;
         if (!this.isGrounded) {
           this.isGrounded = true;
-          if (!this.dead && this.presentation.animations['walk']) {
-            this.playAnimation('walk');
+          if (!this.dead) {
+            const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
+            if (this.currentAnimationState !== defaultAnim && this.currentAnimationState !== 'thrust') {
+              this.playAnimation(defaultAnim);
+            }
           }
         }
       } else {
@@ -190,12 +193,8 @@ export class Astronaut {
         if (this.dead) return;
         // Stale completion guard: only transition if still playing this animation
         if (this.currentAnimationState === name) {
-          if (this.isGrounded && this.presentation.animations['walk']) {
-            this.playAnimation('walk');
-          } else {
-            const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
-            this.playAnimation(defaultAnim);
-          }
+          const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
+          this.playAnimation(defaultAnim);
         }
       };
       animSprite.gotoAndPlay(0);

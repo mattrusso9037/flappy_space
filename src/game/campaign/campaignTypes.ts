@@ -4,6 +4,8 @@ import { DialogueId } from '../story/dialogue/dialogueTypes';
 import { CutsceneId } from '../story/cutscenes/cutsceneTypes';
 import { VideoCutsceneId } from '../story/video/videoCutsceneTypes';
 
+import { TerrainId } from '../visuals/terrainPresets';
+
 export type LevelId = string;
 export type CampaignId = string;
 
@@ -26,10 +28,8 @@ export interface ObstacleGameplayDefinition {
 
 export interface GroundGameplayDefinition {
   enabled: boolean;
-  /** Height in game pixels from bottom of canvas. Defaults to 80px (ground at y = GAME_HEIGHT - 80 = 520). */
-  height?: number;
-  /** Visual ground style, e.g. 'alien-crust' | 'rocky' | 'default' */
-  style?: 'alien-crust' | 'rocky' | 'default';
+  /** Height in game pixels from bottom of canvas. */
+  height: number;
 }
 
 export interface LevelGameplayDefinition {
@@ -55,6 +55,7 @@ export interface LevelGameplayDefinition {
 
 export interface LevelPresentationDefinition {
   environmentId: EnvironmentId;
+  terrainId?: TerrainId;
   musicId?: MusicTrackId;
 }
 

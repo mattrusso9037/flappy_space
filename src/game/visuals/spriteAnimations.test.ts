@@ -21,14 +21,14 @@ describe('SpriteAnimations registry', () => {
     expect(def?.defaultAnimation).toBe('idle');
   });
 
-  it('contains truthful canonical astronaut animation states (idle, thrust, and walk)', () => {
+  it('contains truthful canonical astronaut animation states (idle and thrust)', () => {
     const def = getSpriteAnimation('astronaut');
     expect(def).toBeDefined();
     const anims = def!.animations;
 
     expect(anims.idle).toBeDefined();
     expect(anims.thrust).toBeDefined();
-    expect(anims.walk).toBeDefined();
+    expect(anims.walk).toBeUndefined();
     // Placeholder/fake states must not exist
     expect((anims as Record<string, unknown>).hit).toBeUndefined();
     expect((anims as Record<string, unknown>).death).toBeUndefined();
@@ -43,10 +43,6 @@ describe('SpriteAnimations registry', () => {
     expect(anims.thrust.frames).toHaveLength(9);
     expect(anims.thrust.frames[0]).toBe('idle_00');
     expect(anims.thrust.frames[anims.thrust.frames.length - 1]).toBe('idle_00');
-
-    expect(anims.walk.loop).toBe(true);
-    expect(anims.walk.fps).toBe(12);
-    expect(anims.walk.frames).toHaveLength(8);
   });
 
   it('enforces fixed collision dimensions decoupled from visual frame sizes', () => {
@@ -109,9 +105,6 @@ describe('resolveSpritePresentation', () => {
     for (const frame of ASTRONAUT_SPRITE_DEFINITION.animations.thrust.frames) {
       textures[frame] = mockTexture;
     }
-    for (const frame of ASTRONAUT_SPRITE_DEFINITION.animations.walk.frames) {
-      textures[frame] = mockTexture;
-    }
 
     const mockAssetManager = {
       getSpritesheet: vi.fn().mockReturnValue({ textures }),
@@ -129,11 +122,7 @@ describe('resolveSpritePresentation', () => {
     expect(presentation.animations.thrust.frames).toHaveLength(9);
     expect(presentation.animations.thrust.fps).toBe(18);
     expect(presentation.animations.thrust.loop).toBe(false);
-
-    expect(presentation.animations.walk).toBeDefined();
-    expect(presentation.animations.walk.frames).toHaveLength(8);
-    expect(presentation.animations.walk.fps).toBe(12);
-    expect(presentation.animations.walk.loop).toBe(true);
+    expect(presentation.animations.walk).toBeUndefined();
   });
 
   it('safely falls back when spritesheet is not loaded or unavailable', () => {

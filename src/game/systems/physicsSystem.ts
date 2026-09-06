@@ -38,6 +38,10 @@ export class PhysicsSystem {
     this.scrollSpeed = speed;
     logger.info(`Scroll speed set to ${speed}`);
   }
+
+  public getScrollSpeed(): number {
+    return this.scrollSpeed;
+  }
   
   /**
    * Enable or disable periodic speed diagnostics
@@ -125,18 +129,6 @@ export class PhysicsSystem {
       }
     }
     
-    // Sync ground boundary with astronaut
-    const groundY = this.entities.getGroundY();
-    if (astronaut && astronaut.getGroundY() !== groundY) {
-      astronaut.setGroundY(groundY);
-    }
-
-    // Update ground surface scrolling
-    const ground = this.entities.getGround();
-    if (ground) {
-      ground.update(deltaTime, this.scrollSpeed);
-    }
-
     // Update astronaut physics
     if (astronaut) {
       astronaut.update(deltaTime * 1000); // Convert seconds to milliseconds for astronaut

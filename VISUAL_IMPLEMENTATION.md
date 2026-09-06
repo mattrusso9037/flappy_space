@@ -25,10 +25,10 @@ The visual presentation follows a strict separation of concerns between DOM-leve
 │ │ Effects Layer (z: 20) - Simulation-Delta Bounded        │ │
 │ │ - Jetpack thruster sparks, collection/impact bursts     │ │
 │ ├─────────────────────────────────────────────────────────┤ │
-│ │ Pilot Layer (z: 10) - Locked Astronaut Sprite           │ │
+│ │ Pilot Layer (z: 10) - Controlled Astronaut Sprite        │ │
 │ │ - Velocity pitch rotation & thruster emission anchor    │ │
 │ ├─────────────────────────────────────────────────────────┤ │
-│ │ World Layer (z: 0) - Celestial Obstacles & Pickups      │ │
+│ │ World Layer (z: 0) - Celestial Obstacles, Pickups, Terrain│ │
 │ │ - Procedural planets (stable geometry) & pulsating orbs │ │
 │ ├─────────────────────────────────────────────────────────┤ │
 │ │ Deep Space Environment (z: -20 to -30)                  │ │
@@ -39,7 +39,7 @@ The visual presentation follows a strict separation of concerns between DOM-leve
 ```
 
 - **React Application Shell**: Owns the DOM overlay hierarchy, start/game-over screens, error/loading states, responsive window resizing, audio toggles, dialogue overlays (`DialogueOverlay`), and video cutscene presentation (`VideoCutsceneOverlay`). Story UI strictly adheres to existing mission-control visual tokens (`--space-void`, `--space-hull`, `--space-cyan`, etc.), and video presentation maintains a clean, letterboxed aesthetic without unrelated player chrome. React **never** receives per-frame entity simulation ticks.
-- **PixiJS Canvas**: Owns all realtime visual rendering, scene graphs, sprites, particles, in-engine cutscene visuals/camera transforms, and render loops. The locked astronaut sprite artwork constraint (`public/assets/astro-sprite.png`) strictly applies to in-engine cinematics as well.
+- **PixiJS Canvas**: Owns all realtime visual rendering, scene graphs, sprites, particles, in-engine cutscene visuals/camera transforms, and render loops. The controlled astronaut visual identity pipeline strictly applies to in-engine cinematics as well.
 - **HUD Ownership**: The in-game HUD (`Scoreboard`) is owned by `UISystem` inside the Pixi scene graph. It renders in viewport coordinates (inverting `app.stage.scale`) so HUD borders, typography, and gauge ticks remain razor-sharp at native display resolution.
 - **World & Effects Ownership**: `RenderSystem` manages deep-space atmosphere and parallax stars; `FlightEffects` manages bounded particle pools and transient burst rings. Both advance purely via simulation deltas (`deltaSeconds`).
 
@@ -53,12 +53,18 @@ Depth sorting is controlled via container `zIndex` values defined in `src/game/v
 | :--- | :--- | :--- |
 | **Atmosphere** | `DEPTH.atmosphere` (-30) | Void backdrop rectangle (`#070913`) and 5 soft radial gradient nebula clouds (`RenderSystem`). |
 | **Stars** | `DEPTH.stars` (-20) | 3 layers of parallax stars with warp velocity stretching (`RenderSystem`). |
-| **World** | `DEPTH.world` (0) | Dynamic gameplay entities: procedural planets and collectible energy orbs (`EntitySystem`). |
+| **World** | `DEPTH.world` (0) | Dynamic gameplay entities: procedural planets, collectible energy orbs, and optional planetary terrain (`EntitySystem`). |
 | **Pilot** | `DEPTH.pilot` (10) | Astronaut sprite, idle hovering bob, and flight tilt angle (`EntitySystem`). |
 | **Cinematic scene** | World-space z: 15 | Disposable cutscene actors and backdrop, owned by RenderSystem under worldCamera. |
 | **Effects** | `DEPTH.effects` (20) | Simulation-driven particles: thruster sparks, orb bursts, crash impacts (`FlightEffects`). |
 | **HUD** | `DEPTH.hud` (30) | Viewport-anchored avionics telemetry panels, multiplier gauges, warp banners (`UISystem`). |
 | **Debug** | `DEPTH.debug` (40) | Collision envelopes, hitboxes, and sensor bounds (`RenderSystem`). |
+
+### Planetary Terrain Presentation
+- **Layer & Lifecycle**: Terrain belongs to the world layer (`DEPTH.world`) and is owned by `EntitySystem`.
+- **Token Discipline**: Terrain colors and styles strictly consume canonical design tokens (`INK.void`, `INK.hull`, `INK.violet`, `INK.cyan`) declared in `src/game/visuals/terrainPresets.ts`. Raw ad-hoc hex values are prohibited.
+- **Simulation Delta Motion**: Decorative surface features (crystals, rock spires, crust ridges) scroll purely via simulation time delta (`deltaSeconds`) matched to world velocity.
+- **Decoupled Collision**: Visual terrain presets never own or mutate collision boundaries. Physical ground geometry (`gameplay.ground.height`) and visual surface appearance (`presentation.terrainId`) are strictly separate concerns.
 
 ---
 

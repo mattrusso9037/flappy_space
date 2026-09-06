@@ -58,6 +58,10 @@ describe('Campaign Definition & Data Migration', () => {
         expect(levelDef.gameplay.ground).toBeDefined();
         expect(levelDef.gameplay.ground?.enabled).toBe(true);
         expect(levelDef.gameplay.ground?.height).toBe(80);
+        expect(levelDef.presentation.terrainId).toBe('alien-crust');
+      } else {
+        expect(levelDef.gameplay.ground).toBeUndefined();
+        expect(levelDef.presentation.terrainId).toBeUndefined();
       }
     });
 

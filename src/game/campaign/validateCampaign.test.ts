@@ -211,4 +211,134 @@ describe('validateCampaignDefinition', () => {
     expect(result.valid).toBe(false);
     expect(result.errors.some(e => e.includes('references unregistered cutscene "missing-ending-cutscene"'))).toBe(true);
   });
+
+  describe('ground and terrain validation', () => {
+    it('accepts valid ground configuration and registered terrainId', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: true,
+        height: 80,
+      };
+      campaign.levels['lvl-1'].presentation.terrainId = 'alien-crust';
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it('accepts ground omitted (space level)', () => {
+      const campaign = createValidCampaign();
+      delete campaign.levels['lvl-1'].gameplay.ground;
+      delete campaign.levels['lvl-1'].presentation.terrainId;
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it('accepts ground with enabled: false', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: false,
+        height: 80,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it('rejects non-boolean ground.enabled', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: 'yes' as unknown as boolean,
+        height: 80,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('ground.enabled must be a boolean'))).toBe(true);
+    });
+
+    it('rejects ground.height = 0', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: true,
+        height: 0,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('ground.height must be a positive finite number'))).toBe(true);
+    });
+
+    it('rejects negative ground.height', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: true,
+        height: -50,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('ground.height must be a positive finite number'))).toBe(true);
+    });
+
+    it('rejects NaN ground.height', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: true,
+        height: NaN,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('ground.height must be a positive finite number'))).toBe(true);
+    });
+
+    it('rejects Infinity ground.height', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: true,
+        height: Infinity,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('ground.height must be a positive finite number'))).toBe(true);
+    });
+
+    it('rejects ground.height >= GAME_HEIGHT', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: true,
+        height: 600,
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('ground.height must be less than GAME_HEIGHT'))).toBe(true);
+    });
+
+    it('rejects ground.height that leaves an unviable gameplay corridor (< 100px)', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].gameplay.ground = {
+        enabled: true,
+        height: 520, // 600 - 520 = 80px corridor < 100px
+      };
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('leaves an unviable gameplay corridor'))).toBe(true);
+    });
+
+    it('rejects unknown terrainId', () => {
+      const campaign = createValidCampaign();
+      campaign.levels['lvl-1'].presentation.terrainId = 'volcanic-wasteland' as unknown as 'alien-crust';
+
+      const result = validateCampaignDefinition(campaign);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('References invalid terrainId "volcanic-wasteland"'))).toBe(true);
+    });
+  });
 });

@@ -25,6 +25,16 @@ export interface LevelConfig {
 }
 
 /**
+ * Safely compute a random value in [min, max].
+ * Guarantees no NaN and never multiplies Math.random() by a negative range.
+ */
+export function safeRandomInRange(min: number, max: number): number {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return 0;
+  if (min >= max) return min;
+  return min + Math.random() * (max - min);
+}
+
+/**
  * SpawningSystem handles spawning of obstacles, orbs, and other entities
  * based on simulation time and explicit level configuration.
  */
@@ -170,7 +180,7 @@ export class SpawningSystem {
       }
     }
   }
-  
+
   /**
    * Spawn an obstacle based explicitly on authored obstacle configuration.
    * Obstacle size and secondary spawn chance are entirely data-driven,
@@ -179,7 +189,7 @@ export class SpawningSystem {
   private spawnObstacle(_gameState?: GameState): void {
     const minRadius = this.levelConfig.obstacles?.minPlanetRadius ?? 20;
     const maxRadius = this.levelConfig.obstacles?.maxPlanetRadius ?? 45;
-    const radius = minRadius + Math.random() * (maxRadius - minRadius);
+    const radius = safeRandomInRange(minRadius, maxRadius);
     
     const safeZoneSize = GAME_HEIGHT * 0.4;
     const safeZoneY = GAME_HEIGHT * 0.2 + Math.random() * (GAME_HEIGHT * 0.6);
@@ -187,17 +197,18 @@ export class SpawningSystem {
     const positionAbove = Math.random() > 0.5;
     
     const groundY = this.entities.getGroundY() ?? GAME_HEIGHT;
-    const maxAllowedY = groundY - radius;
+    const minAllowedY = radius;
+    const maxAllowedY = Math.max(minAllowedY, groundY - radius);
 
     let planetY: number;
     if (positionAbove) {
-      planetY = Math.random() * (safeZoneY - radius * 2) + radius;
+      const maxUpper = Math.min(safeZoneY - radius, maxAllowedY);
+      planetY = safeRandomInRange(minAllowedY, maxUpper);
     } else {
-      planetY = safeZoneY + safeZoneSize + Math.random() * (groundY - (safeZoneY + safeZoneSize) - radius * 2) + radius;
+      const minLower = safeZoneY + safeZoneSize + radius;
+      planetY = safeRandomInRange(Math.min(minLower, maxAllowedY), maxAllowedY);
     }
-    if (planetY > maxAllowedY) {
-      planetY = maxAllowedY;
-    }
+    planetY = Math.max(minAllowedY, Math.min(planetY, maxAllowedY));
     
     // Create the primary planet with level speed
     const planet = this.entities.createPlanet(
@@ -212,15 +223,19 @@ export class SpawningSystem {
     // Spawn secondary planet based explicitly on secondaryPlanetChance
     const secondaryChance = this.levelConfig.obstacles?.secondaryPlanetChance ?? 0;
     if (secondaryChance > 0 && Math.random() < secondaryChance) {
-      const secondRadius = radius * (0.7 + Math.random() * 0.6);
-      const maxSecondY = groundY - secondRadius;
-      let secondPlanetY = positionAbove 
-        ? safeZoneY + safeZoneSize + Math.random() * (groundY - (safeZoneY + safeZoneSize) - secondRadius * 2) + secondRadius
-        : Math.random() * (safeZoneY - secondRadius * 2) + secondRadius;
+      const secondRadius = radius * safeRandomInRange(0.7, 1.3);
+      const minSecondY = secondRadius;
+      const maxSecondY = Math.max(minSecondY, groundY - secondRadius);
       
-      if (secondPlanetY > maxSecondY) {
-        secondPlanetY = maxSecondY;
+      let secondPlanetY: number;
+      if (positionAbove) {
+        const minLower = safeZoneY + safeZoneSize + secondRadius;
+        secondPlanetY = safeRandomInRange(Math.min(minLower, maxSecondY), maxSecondY);
+      } else {
+        const maxUpper = Math.min(safeZoneY - secondRadius, maxSecondY);
+        secondPlanetY = safeRandomInRange(minSecondY, maxUpper);
       }
+      secondPlanetY = Math.max(minSecondY, Math.min(secondPlanetY, maxSecondY));
       
       const secondPlanet = this.entities.createPlanet(
         GAME_WIDTH + radius + 100 + Math.random() * 150,
@@ -234,15 +249,15 @@ export class SpawningSystem {
   }
   
   /**
-   * Spawn an orb
+   * Spawn an orb safely within the playable corridor above ground
    */
   private spawnOrb(): void {
-    const radius = 12 + Math.random() * 6;
+    const radius = safeRandomInRange(12, 18);
     const groundY = this.entities.getGroundY() ?? GAME_HEIGHT;
     
     const minY = GAME_HEIGHT * 0.2;
-    const maxY = Math.min(GAME_HEIGHT * 0.8, groundY - 30);
-    const orbY = minY + Math.random() * Math.max(10, maxY - minY);
+    const maxY = Math.min(GAME_HEIGHT * 0.8, groundY - radius - 10);
+    const orbY = safeRandomInRange(minY, Math.max(minY, maxY));
     
     this.entities.createOrb(
       GAME_WIDTH + radius,

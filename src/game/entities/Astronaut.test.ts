@@ -8,7 +8,6 @@ import { ResolvedSpritePresentation } from '../visuals/spriteAnimationTypes';
 function createMockPresentation(): ResolvedSpritePresentation {
   const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
   const thrustFrames = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
-  const walkFrames = [new PIXI.Texture(), new PIXI.Texture()];
   return {
     definition: ASTRONAUT_SPRITE_DEFINITION,
     animations: {
@@ -23,12 +22,6 @@ function createMockPresentation(): ResolvedSpritePresentation {
         frames: thrustFrames,
         fps: 3,
         loop: false,
-      },
-      walk: {
-        name: 'walk',
-        frames: walkFrames,
-        fps: 3,
-        loop: true,
       },
     },
     fallbackTexture: new PIXI.Texture(),
@@ -402,7 +395,7 @@ describe('Astronaut Entity', () => {
       expect(astro.velocity).toBe(0);
       expect(astro.dead).toBe(false);
       expect(astro.isGrounded).toBe(true);
-      expect(astro.getCurrentAnimation()).toBe('walk');
+      expect(astro.getCurrentAnimation()).toBe('idle');
     });
 
     it('damps rotation toward 0 (upright) while grounded', () => {
@@ -432,7 +425,7 @@ describe('Astronaut Entity', () => {
       expect(astro.getCurrentAnimation()).toBe('thrust');
     });
 
-    it('returns to walk when thrust animation completes if landed on ground', () => {
+    it('returns to idle when thrust animation completes if landed on ground', () => {
       const presentation = createMockPresentation();
       const astro = new Astronaut(presentation, 100, 495);
       const anim = astro.sprite as PIXI.AnimatedSprite;
@@ -449,7 +442,7 @@ describe('Astronaut Entity', () => {
 
       // Thrust completes
       anim.onComplete?.();
-      expect(astro.getCurrentAnimation()).toBe('walk');
+      expect(astro.getCurrentAnimation()).toBe('idle');
     });
   });
 });

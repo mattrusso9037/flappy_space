@@ -52,12 +52,12 @@ export const SECTOR_02: LevelDefinition = {
     ground: {
       enabled: true,
       height: 80,
-      style: 'alien-crust',
     },
     levelNumber: 2,
   },
   presentation: {
     environmentId: 'alien-surface',
+    terrainId: 'alien-crust',
     musicId: 'weightless-space',
   },
   nextLevelId: 'sector-03',
