@@ -3,7 +3,7 @@ import { GRAVITY, JUMP_VELOCITY, MAX_VELOCITY, GAME_HEIGHT, GAME_WIDTH, ASTRONAU
 import { getLogger } from '../../utils/logger';
 import { damp, MOTION } from '../visuals/tokens';
 import { ResolvedSpritePresentation } from '../visuals/spriteAnimationTypes';
-import { ASTRONAUT_SPRITE_DEFINITION, createAnimatedSprite } from '../visuals/spriteAnimations';
+import { ASTRONAUT_SPRITE_DEFINITION, advanceSpriteAnimation, createAnimatedSprite } from '../visuals/spriteAnimations';
 
 const logger = getLogger('Astronaut');
 
@@ -242,6 +242,8 @@ export class Astronaut {
 
   /** Presentation only; no collision dimensions, physics, or source texture changes. */
   updatePresentation(seconds: number): void {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    if (!this.dead) advanceSpriteAnimation(this.sprite, seconds);
     this.thrustRemaining = Math.max(0, this.thrustRemaining - seconds);
     if (this.dead && this.deathElapsed < MOTION.impact) {
       const step = Math.min(seconds, MOTION.impact - this.deathElapsed);

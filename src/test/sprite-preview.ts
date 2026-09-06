@@ -16,7 +16,7 @@
 
 import { Application, AnimatedSprite, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import assetManager from '../game/assetManager';
-import { getAllSpriteAnimations, getSpriteAnimation, resolveSpritePresentation } from '../game/visuals/spriteAnimations';
+import { advanceSpriteAnimation, getAllSpriteAnimations, getSpriteAnimation, resolveSpritePresentation } from '../game/visuals/spriteAnimations';
 import { SpriteAssetDefinition } from '../game/visuals/spriteAnimationTypes';
 import { INK } from '../game/visuals/tokens';
 import { initLogger, LogLevel, getLogger } from '../utils/logger';
@@ -110,6 +110,9 @@ async function ensurePixiApp(): Promise<Application> {
 
   previewArea.appendChild(app.canvas);
   pixiApp = app;
+  app.ticker.add(ticker => {
+    if (currentSprite) advanceSpriteAnimation(currentSprite, ticker.deltaMS / 1000);
+  });
 
   centerContainer = new Container();
   gridGraphics = new Graphics();
@@ -206,7 +209,7 @@ function renderActiveSprite(): void {
   const resolvedAnim = presentation.animations[currentAnimationKey];
 
   if (resolvedAnim && resolvedAnim.frames.length > 0) {
-    const animSprite = new AnimatedSprite(resolvedAnim.frames);
+    const animSprite = new AnimatedSprite({ textures: resolvedAnim.frames, autoUpdate: false });
     animSprite.anchor.set(0.5);
     animSprite.loop = resolvedAnim.loop;
     const targetFps = parseFloat(fpsInput.value) || resolvedAnim.fps || 8;

@@ -60,7 +60,14 @@ describe('CinematicSceneRenderer', () => {
     );
     expect(animSprite).toBeDefined();
     expect(animSprite?.loop).toBe(true);
-    expect(animSprite?.animationSpeed).toBeCloseTo(3 / 60, 4);
+    expect(animSprite?.animationSpeed).toBeCloseTo(12 / 60, 4);
+    expect(animSprite?.autoUpdate).toBe(false);
+    renderer.render(step.scene, 0.25);
+    expect(animSprite?.currentFrame).toBe(3);
+    renderer.render(step.scene, 0.25);
+    expect(animSprite?.currentFrame).toBe(3);
+    renderer.render(step.scene, 0);
+    expect(animSprite?.currentFrame).toBe(0);
     renderer.dispose();
   });
 });

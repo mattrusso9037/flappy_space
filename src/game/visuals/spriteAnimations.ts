@@ -47,8 +47,8 @@ export function getAllSpriteAnimations(): SpriteAssetDefinition[] {
  * Canonical astronaut animation definition contract.
  *
  * Authored states:
- * - idle: looping hover state (8 frames, 3 FPS, loop: true)
- * - thrust: jetpack ignition pulse (9 frames, 3 FPS, loop: false, returns to idle)
+ * - idle: looping hover state (14 frames, 12 FPS, loop: true)
+ * - thrust: jetpack ignition pulse (9 frames, 18 FPS, loop: false, returns to idle)
  *
  * Sizing:
  * - collisionDimensions: fixed 35x35 (hitbox decoupled from visual frame dimensions)
@@ -68,23 +68,13 @@ export const ASTRONAUT_SPRITE_DEFINITION: SpriteAssetDefinition = {
   },
   animations: {
     idle: {
-      frames: ['idle_00', 'idle_01', 'idle_02', 'idle_03', 'idle_04', 'idle_05', 'idle_06', 'idle_07'],
-      fps: 3,
+      frames: ['idle_00','idle_01','idle_02','idle_03','idle_04','idle_05','idle_06','idle_07'],
+      fps: 12,
       loop: true,
     },
     thrust: {
-      frames: [
-        'thrust_03',
-        'thrust_04',
-        'thrust_05',
-        'thrust_06',
-        'thrust_07',
-        'thrust_00',
-        'thrust_01',
-        'thrust_02',
-        'thrust_03',
-      ],
-      fps: 3,
+      frames: ['idle_00','thrust_00','thrust_01','thrust_02','thrust_03','thrust_04','thrust_05','thrust_06','idle_00'],
+      fps: 18,
       loop: false,
     },
   },
@@ -167,7 +157,7 @@ export function createAnimatedSprite(
   const scaleMultiplier = options?.scaleMultiplier ?? 1.0;
 
   if (anim && anim.frames.length > 0) {
-    const animSprite = new PIXI.AnimatedSprite(anim.frames);
+    const animSprite = new PIXI.AnimatedSprite({ textures: anim.frames, autoUpdate: false });
     const anchor = options?.anchor ?? 0.5;
     if (typeof anchor === 'number') {
       animSprite.anchor.set(anchor);
@@ -211,4 +201,11 @@ export function createAnimatedSprite(
     sprite.height = 50 * scaleMultiplier;
   }
   return sprite;
+}
+
+/** Advance from the owning simulation clock, never Ticker.shared. */
+export function advanceSpriteAnimation(sprite: PIXI.Sprite, seconds: number): void {
+  if (!(sprite instanceof PIXI.AnimatedSprite) || !sprite.playing || !Number.isFinite(seconds) || seconds <= 0) return;
+  // AnimatedSprite.update reads only deltaTime, normalized to 60 Hz by Pixi.
+  sprite.update({ deltaTime: seconds * 60 } as PIXI.Ticker);
 }

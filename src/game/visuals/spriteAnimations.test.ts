@@ -1,3 +1,4 @@
+import atlas from '../../../public/assets/astronaut/astronaut.json';
 import { describe, it, expect, vi } from 'vitest';
 import { Texture, AnimatedSprite, Sprite } from 'pixi.js';
 import {
@@ -33,14 +34,14 @@ describe('SpriteAnimations registry', () => {
     expect((anims as Record<string, unknown>).warp).toBeUndefined();
 
     expect(anims.idle.loop).toBe(true);
-    expect(anims.idle.fps).toBe(3);
+    expect(anims.idle.fps).toBe(12);
     expect(anims.idle.frames).toHaveLength(8);
 
     expect(anims.thrust.loop).toBe(false);
-    expect(anims.thrust.fps).toBe(3);
+    expect(anims.thrust.fps).toBe(18);
     expect(anims.thrust.frames).toHaveLength(9);
-    expect(anims.thrust.frames[0]).toBe('thrust_03');
-    expect(anims.thrust.frames[anims.thrust.frames.length - 1]).toBe('thrust_03');
+    expect(anims.thrust.frames[0]).toBe('idle_00');
+    expect(anims.thrust.frames[anims.thrust.frames.length - 1]).toBe('idle_00');
   });
 
   it('enforces fixed collision dimensions decoupled from visual frame sizes', () => {
@@ -113,12 +114,12 @@ describe('resolveSpritePresentation', () => {
     expect(presentation.definition).toBe(ASTRONAUT_SPRITE_DEFINITION);
     expect(presentation.animations.idle).toBeDefined();
     expect(presentation.animations.idle.frames).toHaveLength(8);
-    expect(presentation.animations.idle.fps).toBe(3);
+    expect(presentation.animations.idle.fps).toBe(12);
     expect(presentation.animations.idle.loop).toBe(true);
 
     expect(presentation.animations.thrust).toBeDefined();
     expect(presentation.animations.thrust.frames).toHaveLength(9);
-    expect(presentation.animations.thrust.fps).toBe(3);
+    expect(presentation.animations.thrust.fps).toBe(18);
     expect(presentation.animations.thrust.loop).toBe(false);
   });
 
@@ -188,5 +189,18 @@ describe('createAnimatedSprite', () => {
     expect(sprite).not.toBeInstanceOf(AnimatedSprite);
     expect(sprite.anchor.x).toBe(0.5);
     expect(sprite.anchor.y).toBe(0.5);
+  });
+});
+
+describe('production astronaut atlas', () => {
+  it('matches the registered sequences and keeps every trimmed frame inside its source envelope', () => {
+    expect(atlas.animations.idle).toEqual(ASTRONAUT_SPRITE_DEFINITION.animations.idle.frames);
+    expect(atlas.animations.thrust).toEqual(ASTRONAUT_SPRITE_DEFINITION.animations.thrust.frames);
+    for (const data of Object.values(atlas.frames)) {
+      expect(data.sourceSize).toEqual({ w: data.frame.w, h: 341 });
+      expect(data.spriteSourceSize.y).toBeGreaterThanOrEqual(0);
+      expect(data.spriteSourceSize.y + data.spriteSourceSize.h).toBeLessThanOrEqual(341);
+      expect(data.frame.y + data.frame.h).toBeLessThanOrEqual(atlas.meta.size.h);
+    }
   });
 });

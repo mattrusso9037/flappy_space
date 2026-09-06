@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite } from 'pixi.js';
+import { AnimatedSprite, Container, Graphics, Sprite } from 'pixi.js';
 import assetManager from '../../assetManager';
 import { INK } from '../../visuals/tokens';
 import { ASTRONAUT_SPRITE_DEFINITION, createAnimatedSprite, resolveSpritePresentation } from '../../visuals/spriteAnimations';
@@ -36,6 +36,12 @@ export class CinematicSceneRenderer {
       visual.scale.set(pose.scale);
       visual.rotation = pose.rotation;
       visual.alpha = pose.alpha;
+      for (const child of visual.children) {
+        if (child instanceof AnimatedSprite) {
+          const fps = ASTRONAUT_SPRITE_DEFINITION.animations.idle.fps;
+          child.gotoAndStop(Math.floor(Math.max(0, time) * fps) % child.totalFrames);
+        }
+      }
     });
   }
 

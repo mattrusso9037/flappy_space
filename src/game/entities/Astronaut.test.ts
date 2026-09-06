@@ -196,6 +196,30 @@ describe('Astronaut Entity', () => {
   });
 
   describe('Canonical ResolvedSpritePresentation integration', () => {
+    it('advances only on simulation time and freezes on zero delta or death', () => {
+      const astro = new Astronaut(createMockPresentation(), 100, 200);
+      const sprite = astro.sprite as PIXI.AnimatedSprite;
+      expect(sprite.autoUpdate).toBe(false);
+      astro.updatePresentation(0.4);
+      expect(sprite.currentFrame).toBe(1);
+      astro.updatePresentation(0);
+      expect(sprite.currentFrame).toBe(1);
+      astro.die();
+      astro.updatePresentation(0.4);
+      expect(sprite.currentFrame).toBe(1);
+      astro.sprite.destroy();
+    });
+
+    it('completes thrust from elapsed time without moving the body', () => {
+      const astro = new Astronaut(createMockPresentation(), 100, 200);
+      astro.thrust();
+      astro.updatePresentation(1.1);
+      expect(astro.getCurrentAnimation()).toBe('idle');
+      expect(astro.sprite.position.x).toBe(100);
+      expect(astro.sprite.position.y).toBe(200);
+      astro.sprite.destroy();
+    });
+
     it('initializes to canonical default animation (idle) with canonical FPS and loop flag', () => {
       const presentation = createMockPresentation();
       const astro = new Astronaut(presentation, 100, 200);
