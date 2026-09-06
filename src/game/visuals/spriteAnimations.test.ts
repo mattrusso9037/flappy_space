@@ -30,7 +30,9 @@ describe('SpriteAnimations registry', () => {
     expect(anims.idle.loop).toBe(true);
     expect(anims.idle.frames).toHaveLength(8);
     expect(anims.thrust.loop).toBe(false);
-    expect(anims.thrust.frames).toHaveLength(8);
+    expect(anims.thrust.frames).toHaveLength(9);
+    expect(anims.thrust.frames[0]).toBe('thrust_03');
+    expect(anims.thrust.frames[anims.thrust.frames.length - 1]).toBe('thrust_03');
     expect(anims.hit.loop).toBe(false);
     expect(anims.death.loop).toBe(false);
     expect(anims.warp.loop).toBe(true);

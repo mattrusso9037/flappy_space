@@ -66,8 +66,18 @@ export const ASTRONAUT_SPRITE_DEFINITION: SpriteAssetDefinition = {
       loop: true,
     },
     thrust: {
-      frames: ['thrust_00', 'thrust_01', 'thrust_02', 'thrust_03', 'thrust_04', 'thrust_05', 'thrust_06', 'thrust_07'],
-      fps: 6,
+      frames: [
+        'thrust_03',
+        'thrust_04',
+        'thrust_05',
+        'thrust_06',
+        'thrust_07',
+        'thrust_00',
+        'thrust_01',
+        'thrust_02',
+        'thrust_03',
+      ],
+      fps: 3,
       loop: false,
     },
     hit: {

@@ -10,7 +10,7 @@ const HORIZONTAL_SPEED = 5;
 const VERTICAL_SPEED = 5;
 
 const DEFAULT_IDLE_FPS = 3;
-const DEFAULT_THRUST_FPS = 6;
+const DEFAULT_THRUST_FPS = 3;
 
 export interface AstronautAnimationMap {
   idle?: PIXI.Texture[];
@@ -186,12 +186,6 @@ export class Astronaut {
     const anim = this.sprite;
 
     if (this.thrustFrames.length > 0) {
-      // Thrust should run through the whole sprite sheet only once;
-      // do not interrupt or restart if already playing thrust.
-      if (this.currentAnimationState === 'thrust' && anim.playing) {
-        return;
-      }
-
       anim.textures = this.thrustFrames;
       anim.animationSpeed = this.thrustFps / 60;
       anim.loop = false;
@@ -210,9 +204,6 @@ export class Astronaut {
       };
       anim.gotoAndPlay(0);
     } else {
-      if (this.currentAnimationState === 'thrust' && anim.playing) {
-        return;
-      }
       anim.gotoAndPlay(0);
     }
   }

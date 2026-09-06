@@ -294,7 +294,7 @@ describe('Astronaut Entity', () => {
       expect(anim.playing).toBe(true);
     });
 
-    it('runs thrust animation through only once and does not restart when flap is pressed again during thrust', () => {
+    it('resets thrust animation to start each time the user thrusts', () => {
       const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
       const thrustFrames = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
       const astro = new Astronaut({ idle: idleFrames, thrust: thrustFrames }, 100, 200);
@@ -310,11 +310,10 @@ describe('Astronaut Entity', () => {
       anim.currentFrame = 1;
       const gotoAndPlaySpy = vi.spyOn(anim, 'gotoAndPlay');
 
-      // Flap again while thrust is still running
+      // Flap again: should reset to frame 0
       astro.flap();
-      // Should not restart frame to 0
-      expect(gotoAndPlaySpy).not.toHaveBeenCalled();
-      expect(anim.currentFrame).toBe(1);
+      expect(gotoAndPlaySpy).toHaveBeenCalledWith(0);
+      expect(anim.loop).toBe(false);
       expect(astro.getCurrentAnimation()).toBe('thrust');
 
       // Complete the thrust run
