@@ -219,3 +219,12 @@ When building new visual features or reviewing existing code, always treat these
 5. **No Uncontrolled Fullscreen Filters**: Fullscreen bloom, blur, or displacement filters destroy mobile and Electron frame rates. Use procedural gradient geometry and baked graphics contexts instead.
 6. **No Simulation `setTimeout` / `setInterval`**: All gameplay sequencing and visual countdowns must use delta seconds (`deltaMS / 1000`) for deterministic pause/resume and test execution.
 7. **No Competing Visual Languages**: All screens, dialogs, and components must adhere to the *Mission-Control Avionics × Holographic Spacecraft HUD* aesthetic.
+
+### Temporary player panels
+
+`WallPanel` draws stable Pixi v8 geometry once, using `INK.hull`, `INK.cyan`,
+`INK.muted` and `INK.ice`. `EntitySystem.worldLayer` owns the display object under
+`RenderSystem.worldCamera`; HUD tool status remains viewport-space. The panel's
+world-space rectangle is gameplay-owned. Never infer collision from its stroke,
+visual bounds or camera transform. Destroy graphics when gameplay removes the
+panel. No additional ticker, animation timer, astronaut asset or sprite changes.

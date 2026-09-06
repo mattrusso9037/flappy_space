@@ -181,3 +181,33 @@ After adding or editing a level, execute:
    npm run build
    ```
 A level authoring task is **NOT DONE** until all three commands pass with zero errors and zero warnings.
+
+## Player tools and Wall Builder
+
+Wall Builder is an existing reusable capability. Author it through
+`gameplay.tools: { equipped: 'wall-builder', wallBuilder: { width: 80, height: 80,
+maxActive: 2, lifetimeSeconds: 20 } }` (or `equipped: null`). Omit tools for levels
+without equipment. Requires enabled ground and ground movement. Future levels
+must not edit runtime, entity, input or physics wiring to consume this capability.
+
+Panels stand on natural ground, 8px ahead of the body in the last held direction.
+Airborne/stacked/overlapping/out-of-bounds use fails safely. A valid use at capacity
+replaces the oldest panel. The latest can be removed; panels expire in simulation
+time. Tops are landable and recharge thrust; all faces are solid. Body dimensions
+and movement remain unchanged. Loop-world panels stay at continuous world positions.
+
+Use `gameplay.orbs.placements: [{ x, y }]` for a fixed raised pickup opportunity,
+not a level-ID branch. This requires a world. Pickups have 14px radius and must fit
+above ground; they persist across traversal, spawn once per load and use normal
+orb scoring. Sector 02 demonstrates an optional two-jump opportunity at (700,290).
+
+Keys: 1 equip, 0 unequip, E build, X remove latest. Preview at
+`/visual-preview.html?level=sector-02` using Wall puzzle: land on panel, then
+Wall puzzle: reach orb. Also verify invalid placement, both wall sides, top landing,
+expiry/removal underfoot, replacement, pause/input gating, reset and
+flight to tools to flight to tools cleanup. Run verify, coverage and build.
+
+For a genuinely new tool capability, update the tool contract, validator, gameplay
+system and tests before authoring a level. Preserve separate gameplay/presentation
+ownership and the existing runtime clock. Do not introduce a generic ability or
+plugin framework, campaign progression logic, or extra tickers/timers.

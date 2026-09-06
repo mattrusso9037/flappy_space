@@ -1,3 +1,5 @@
+import { WallPanel } from '../entities/WallPanel';
+import { Rect } from '../campaign/campaignTypes';
 import * as PIXI from 'pixi.js';
 import { Astronaut } from '../entities/Astronaut';
 import { Obstacle } from '../entities/Obstacle';
@@ -29,6 +31,7 @@ export class EntitySystem {
   private worldDef?: WorldDefinition;
   private obstacles: Obstacle[] = [];
   private orbs: Orb[] = [];
+  private walls: WallPanel[] = [];
   private stars: Star[] = [];
   private initialized: boolean = false;
   private readonly starLayer = new PIXI.Container({ label: 'stars', zIndex: DEPTH.stars, eventMode: 'none' });
@@ -78,6 +81,7 @@ export class EntitySystem {
    * Clear all entities from the manager and stage
    */
   public clearAll(): void {
+    this.clearWalls();
     if (!this.app) return;
     
     this.logger.info('EntityManager: Clearing all entities');
@@ -155,6 +159,26 @@ export class EntitySystem {
     }
 
     return this.ground;
+  }
+
+  public createWall(bounds: Rect, lifetimeSeconds: number): WallPanel {
+    const wall = new WallPanel(bounds, lifetimeSeconds);
+    this.walls.push(wall);
+    this.worldLayer.addChild(wall.graphics);
+    return wall;
+  }
+
+  public getWalls(): readonly WallPanel[] { return this.walls; }
+
+  public removeWall(wall: WallPanel): void {
+    const index = this.walls.indexOf(wall);
+    if (index < 0) return;
+    this.walls.splice(index, 1);
+    wall.destroy();
+  }
+
+  public clearWalls(): void {
+    for (const wall of [...this.walls]) this.removeWall(wall);
   }
 
   public getGround(): Ground | null {
@@ -268,12 +292,12 @@ export class EntitySystem {
   /**
    * Create an orb entity
    */
-  public createOrb(x: number, y: number, radius: number, speed: number): Orb {
+  public createOrb(x: number, y: number, radius: number, speed: number, worldPersistent = false): Orb {
     if (!this.app) throw new Error('App not initialized in EntityManager');
     
     this.logger.info(`EntityManager: Creating orb at (${x}, ${y}) with radius ${radius}`);
     
-    const orb = new Orb(x, y, radius, speed);
+    const orb = new Orb(x, y, radius, speed, worldPersistent);
     
     // Add to stage (both graphics and glow)
     this.worldLayer.addChild(orb.glowGraphics);

@@ -1,3 +1,4 @@
+import { PlayerToolSystem } from './systems/PlayerToolSystem';
 import * as PIXI from 'pixi.js';
 import { Subscription } from 'rxjs';
 import { EventBus, GameEvent } from './eventBus';
@@ -21,6 +22,7 @@ const logger = getLogger('GameRuntime');
 
 export interface GameRuntimeSystems {
   entities: EntitySystem;
+  tools: PlayerToolSystem;
   physics: PhysicsSystem;
   spawning: SpawningSystem;
   rendering: RenderSystem;
@@ -136,6 +138,7 @@ export class GameRuntime {
    * Load and initialize an explicit LevelDefinition.
    */
   public loadLevel(levelDefinition: LevelDefinition): void {
+    this.systems.input.disable();
     this.currentLevelDefinition = levelDefinition;
     logger.info(`GameRuntime: Loading level ${levelDefinition.id} (${levelDefinition.name})`);
 
@@ -176,6 +179,10 @@ export class GameRuntime {
     this.systems.entities.setGround(levelDefinition.gameplay.ground, levelDefinition.presentation.terrainId);
     this.systems.entities.setMovementConfig(levelDefinition.gameplay.movement);
     this.systems.entities.createAstronaut();
+    this.systems.tools.configure(levelDefinition.gameplay.tools);
+    for (const orb of levelDefinition.gameplay.orbs.placements ?? []) {
+      this.systems.entities.createOrb(orb.x, orb.y, 14, 0, true);
+    }
     this.systems.rendering.createBackground();
 
     // Tear down existing world systems before creating new ones.
@@ -196,6 +203,7 @@ export class GameRuntime {
       this.systems.rendering.resetCamera();
       logger.info(`Flight mode for ${levelDefinition.id}: worldCamera reset to neutral`);
     }
+    if (this.state.getState().isStarted && !this.state.getState().isGameOver && !this.isPaused) this.systems.input.enable();
   }
 
   /**
@@ -219,7 +227,7 @@ export class GameRuntime {
     this.cutsceneRunner = runner;
     this.systems.ui.setPresentationVisible(!runner);
     // Story presentation uses the runtime clock while the cutscene branch gates gameplay.
-    if (runner) this.isPaused = false;
+    if (runner) { this.isPaused = false; this.systems.input.disable(); }
     if (!runner) this.systems.rendering.setCinematicScene(null);
   }
 
@@ -252,6 +260,7 @@ export class GameRuntime {
   public pause(): void {
     if (this.isPaused || (!this.state.getState().isStarted && !this.cutsceneRunner?.isActive())) return;
     this.isPaused = true;
+    this.systems.input.disable();
     logger.info('GameRuntime paused');
   }
 
@@ -261,6 +270,7 @@ export class GameRuntime {
   public resume(): void {
     if (!this.isPaused || this.state.getState().isGameOver) return;
     this.isPaused = false;
+    if (this.state.getState().isStarted && !this.cutsceneRunner?.isActive()) this.systems.input.enable();
     logger.info('GameRuntime resumed');
   }
 
@@ -329,6 +339,8 @@ export class GameRuntime {
       timeRemaining: updatedState.timeRemaining,
       timeRanOut: updatedState.timeRemaining <= 0,
     });
+
+    this.systems.tools.update(deltaSeconds);
 
     // 2.5 Process continuous player input
     try {
@@ -399,6 +411,7 @@ export class GameRuntime {
     this.subscriptions = [];
 
     // Dispose systems in reverse order
+    this.systems.tools.dispose();
     this.systems.ui.dispose();
     this.systems.spawning.dispose();
     this.systems.physics.dispose();
@@ -475,6 +488,7 @@ export class GameRuntime {
     const currentLevel = this.state.getState().level;
     const currentLevelId = this.currentLevelDefinition.id;
     logger.info(`Level ${currentLevelId} complete triggered`);
+    this.systems.input.disable();
     this.state.levelComplete();
     this.events.emit(GameEvent.LEVEL_COMPLETE, { level: currentLevel, levelId: currentLevelId });
 

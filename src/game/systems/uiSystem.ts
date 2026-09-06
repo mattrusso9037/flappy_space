@@ -1,3 +1,4 @@
+import { PlayerToolSystem } from './PlayerToolSystem';
 import * as PIXI from 'pixi.js';
 import { Subscription } from 'rxjs';
 import { GameStateService } from '../gameStateService';
@@ -11,6 +12,7 @@ import { EntitySystem } from './entitySystem';
 /** Pixi HUD and world effects, advanced by GameRuntime. React owns menus/overlays. */
 export class UISystem {
   private initialized = false;
+  private toolStatus?: PIXI.Text;
   private scoreboard?: Scoreboard;
   private effects?: FlightEffects;
   private hud?: PIXI.Container;
@@ -25,7 +27,7 @@ export class UISystem {
   private subscriptions: Subscription[] = [];
 
   constructor(private app: PIXI.Application | undefined, private readonly events: EventBus,
-    private readonly state: GameStateService, private readonly entities?: EntitySystem) {}
+    private readonly state: GameStateService, private readonly entities?: EntitySystem, private readonly tools?: PlayerToolSystem) {}
 
   setPresentationVisible(visible: boolean): void {
     if (this.hud) this.hud.visible = visible;
@@ -39,6 +41,8 @@ export class UISystem {
     if ('stage' in target) this.app = target;
     stage.sortableChildren = true;
     this.hud = new PIXI.Container({ label: 'hud', zIndex: DEPTH.hud, eventMode: 'none' });
+    this.toolStatus = new PIXI.Text({ text: '', style: { fontFamily: FONT.telemetry, fontSize: 11, fill: INK.ice } });
+    this.hud.addChild(this.toolStatus);
     this.scoreboard = new Scoreboard();
     this.hud.addChild(this.scoreboard.getContainer());
     this.effects = new FlightEffects();
@@ -96,6 +100,13 @@ export class UISystem {
         .fill({ color: INK.hull, alpha: 0.92 }).stroke({ color: INK.cyan, alpha: 0.5, width: 1 })
         .moveTo(-plateWidth / 2, -36).lineTo(-plateWidth / 2, -52).lineTo(-plateWidth / 2 + 24, -52)
         .stroke({ color: INK.cyan, width: 2 });
+    }
+    if (this.toolStatus) {
+      this.toolStatus.visible = !!this.tools?.getConfig();
+      this.toolStatus.position.set(16, height - 128);
+      const equipped = this.tools?.getEquipped() ? 'WALL BUILDER' : 'NO TOOL';
+      const result = this.tools?.getLastResult();
+      this.toolStatus.text = `${equipped}  ${this.entities?.getWalls().length ?? 0}/${this.tools?.getConfig()?.wallBuilder.maxActive ?? 0}  ${result ?? ''}\n1 Equip / 0 Unequip / E Build / X Remove latest`;
     }
     this.effects?.update(seconds);
     const pilot = this.entities?.getAstronaut();

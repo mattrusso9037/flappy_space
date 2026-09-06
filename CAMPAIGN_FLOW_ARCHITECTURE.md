@@ -962,3 +962,62 @@ must follow this specification unless the specification is intentionally updated
 Loop mode keeps world coordinates continuous in both directions, repeats terrain every `width` pixels, and maintains a viewport-filled sky. It never teleports the astronaut or camera at a seam. Scenario triggers retain their authored world positions; they are not duplicated each lap. Scenario camera entry and exit use simulation-time speed limits. Dynamic pickups and obstacles spawn ahead of travel and are discarded beyond two viewport widths from the player. Reset and level transitions clear traversal, effects, and camera state.
 
 Use the visual preview's Traverse left/right controls to simulate one screen of movement, and Traversal thrust to inspect effects without resetting position.
+
+## Player tools and authored pickups
+
+`gameplay.tools` is the only tool configuration path. Omit it to disable tools.
+The initial capability is Wall Builder, available only with enabled ground and
+`movement.mode: 'ground'`:
+
+```typescript
+tools: {
+  equipped: 'wall-builder', // or null for an unequipped start
+  wallBuilder: { width: 80, height: 80, maxActive: 2, lifetimeSeconds: 20 },
+},
+orbs: {
+  spawnChance: 0.6,
+  minY: 360,
+  maxY: 480,
+  placements: [{ x: 700, y: 290 }],
+},
+```
+
+All panel values must be positive and finite, `maxActive` must be an integer,
+and dimensions must fit the ground corridor. Fixed orb placements require a
+world and leave 14px clearance at its boundaries and above ground. They use the
+normal orb collection/scoring path, persist when the player traverses away, and
+are created exactly once per load. They do not repeat each lap of a looping world.
+
+Ownership:
+- `PlayerToolSystem`: equipment, selection, facing, placement validation, active
+  limit, replacement/removal and simulation-time lifetime. Wired in the composition root.
+- `InputManager`: semantic select, unequip, use and remove actions. Keyboard:
+  `1` equip Wall Builder, `0` unequip, `E` use, `X` remove latest. `InputSystem`
+  consumes queued actions on the runtime update after held movement determines facing.
+- `EntitySystem`: panel entity and display resource lifecycle, in the world layer.
+- `PhysicsSystem`: swept solid body collision (same 50x50 logical body as natural
+  ground). Panel tops recharge thrust, sides and undersides block without killing.
+  Orb/planet hitboxes remain unchanged. No panel changes movement tuning.
+- `UISystem`: equipment/count/result and control legend, separate from tool rules.
+- `GameRuntime`: existing simulation clock, load/reset/disposal and input gating.
+  Pause, story playback, completion and game over do not consume tool actions.
+
+Placement is 8px ahead of the logical body in the last held direction. The player
+must be alive and standing on natural ground. Airborne placement, stacking on
+panels, overlaps with panels/pickups/obstacles and out-of-bounds placement fail
+without removing anything. Loop worlds use continuous positions, including negative
+coordinates. At capacity, a valid use replaces the oldest panel. `X` removes the
+latest panel. Expiry and replacement remove collision and visuals together; a
+player standing on removed support falls on the next physics update. Equipment,
+facing, panels, lifetime and pending input reset on level load. Tools are not saved.
+
+Sector 02's raised pickup at (700, 290) is an optional wall-building opportunity:
+build below it, jump vertically past the panel top, move onto it, land to recharge,
+then jump again. Ordinary ground thrust cannot reach it from a grounded start.
+It uses the existing orb objective and introduces no campaign completion rule.
+
+QA: `/visual-preview.html?level=sector-02`, then **Wall puzzle: land on panel**
+and **Wall puzzle: reach orb**. These dev-only fixtures drive production systems.
+Future levels author tools through this contract; do not reopen runtime wiring or
+add level-ID branches. Grapple, shovel, weapons, crafting and generic ability/plugin
+frameworks are intentionally outside this capability.

@@ -14,7 +14,7 @@ export class Orb extends Obstacle {
     timeOffset: number;
     collected: boolean;
 
-    constructor(x: number, y: number, radius: number, speed: number) {
+    constructor(x: number, y: number, radius: number, speed: number, readonly worldPersistent = false) {
         super(x, speed);
         this.y = y;
         this.radius = radius;

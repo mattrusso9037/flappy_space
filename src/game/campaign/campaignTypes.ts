@@ -1,3 +1,4 @@
+import { PlayerToolsDefinition } from '../tools/toolTypes';
 import { EnvironmentId } from '../environments/environmentTypes';
 import { MusicTrackId } from '../audio/musicCatalog';
 import { DialogueId } from '../story/dialogue/dialogueTypes';
@@ -99,6 +100,8 @@ export interface OrbGameplayDefinition {
   spawnChance: number;
   /** Optional independent spawn interval in milliseconds. If omitted, uses gameplay.spawnInterval. */
   spawnInterval?: number;
+  /** Fixed world-space pickups, created once per level load. Requires gameplay.world. */
+  placements?: { x: number; y: number }[];
   /** Optional minimum Y coordinate for orb spawning. */
   minY?: number;
   /** Optional maximum Y coordinate for orb spawning. */
@@ -120,6 +123,9 @@ export interface LevelGameplayDefinition {
 
   /** Single canonical orb configuration */
   orbs: OrbGameplayDefinition;
+
+  /** Optional player tools. Omission disables tools and clears equipment. */
+  tools?: PlayerToolsDefinition;
 
   /** Optional planetary ground terrain definition */
   ground?: GroundGameplayDefinition;

@@ -1,3 +1,4 @@
+import { PlayerToolSystem } from './systems/PlayerToolSystem';
 import * as PIXI from 'pixi.js';
 import { EventBus } from './eventBus';
 import { GameStateService } from './gameStateService';
@@ -27,14 +28,15 @@ export function createFlappySpaceRuntime(app: PIXI.Application): GameRuntime {
   const inputMgr = new InputManager();
 
   const entities = new EntitySystem(app, undefined, events);
+  const tools = new PlayerToolSystem(entities);
   const physics = new PhysicsSystem(entities, state, events);
   const spawning = new SpawningSystem(entities, state);
   const rendering = new RenderSystem(app, entities, state);
-  const input = new InputSystem(events, state, inputMgr, entities);
+  const input = new InputSystem(events, state, inputMgr, entities, tools);
   const audioManager = new AudioManager();
   const audio = new AudioSystem(events, audioManager);
 
-  const ui = new UISystem(app, events, state, entities);
+  const ui = new UISystem(app, events, state, entities, tools);
 
   return new GameRuntime({
     app,
@@ -42,6 +44,7 @@ export function createFlappySpaceRuntime(app: PIXI.Application): GameRuntime {
     state,
     systems: {
       entities,
+      tools,
       physics,
       spawning,
       rendering,

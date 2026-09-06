@@ -1,4 +1,5 @@
-import { GAME_WIDTH } from '../config';
+import { resolveSolidMotion } from './solidCollision';
+import { ASTRONAUT, GAME_WIDTH } from '../config';
 import { Obstacle } from '../entities/Obstacle';
 import { GameStateService } from '../gameStateService';
 import { EntitySystem } from './entitySystem';
@@ -132,8 +133,22 @@ export class PhysicsSystem {
     
     // Update astronaut physics
     if (astronaut) {
+      const previous = { x: astronaut.worldX, y: astronaut.sprite.y };
       astronaut.update(deltaTime * 1000); // Convert seconds to milliseconds for astronaut
       
+      if (astronaut.getMovementMode() === 'ground' && this.entities.getWalls().length > 0) {
+        const resolved = resolveSolidMotion(previous, { x: astronaut.worldX, y: astronaut.sprite.y },
+          ASTRONAUT.body, this.entities.getWalls().map(w => w.bounds));
+        astronaut.worldX = astronaut.sprite.x = resolved.x;
+        astronaut.sprite.y = resolved.y;
+        if (resolved.hitX) astronaut.horizontalVelocity = 0;
+        if (resolved.hitY) astronaut.velocity = 0;
+        if (resolved.landed) {
+          astronaut.isGrounded = true;
+          astronaut.rechargeThrust();
+        }
+      }
+
       // Check if astronaut died from physics (e.g., hitting bottom of screen in space)
       if (astronaut.dead) {
         logger.info('PhysicsSystem: Astronaut died from physics (hit boundary)');
@@ -203,7 +218,7 @@ export class PhysicsSystem {
       }
       
       // Remove orbs that are off screen or collected
-      if ((!worldSpace && orb.isOffScreen()) || orb.collected || (this.entities.getWorldDef()?.traversal === 'loop' && astronaut && Math.abs(orb.x - astronaut.worldX) > GAME_WIDTH * 2)) {
+      if ((!worldSpace && orb.isOffScreen()) || orb.collected || (!orb.worldPersistent && this.entities.getWorldDef()?.traversal === 'loop' && astronaut && Math.abs(orb.x - astronaut.worldX) > GAME_WIDTH * 2)) {
         this.entities.removeOrb(orb);
       }
     }

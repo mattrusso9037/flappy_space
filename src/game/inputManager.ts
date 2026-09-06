@@ -5,6 +5,10 @@ const logger = getLogger('InputManager');
 
 export enum InputKey {
   SPACE = 'Space',
+  USE_TOOL = 'KeyE',
+  SELECT_TOOL = 'Digit1',
+  UNEQUIP_TOOL = 'Digit0',
+  REMOVE_TOOL = 'KeyX',
   ARROW_UP = 'ArrowUp',
   ARROW_DOWN = 'ArrowDown',
   ARROW_LEFT = 'ArrowLeft',
@@ -18,6 +22,10 @@ export enum InputKey {
 // Input events
 export enum InputEvent {
   JUMP = 'jump',
+  USE_TOOL = 'use_tool',
+  SELECT_TOOL = 'select_tool',
+  UNEQUIP_TOOL = 'unequip_tool',
+  REMOVE_TOOL = 'remove_tool',
   MOVE_UP = 'move_up',
   MOVE_DOWN = 'move_down',
   MOVE_LEFT = 'move_left',
@@ -102,6 +110,7 @@ export class InputManager {
     window.removeEventListener('touchend', this.handleTouchEnd);
     window.removeEventListener('touchmove', this.handleTouchMove);
     
+    this.keyMap.clear();
     this.enabled = false;
     logger.info('Disabled');
   }
@@ -148,6 +157,7 @@ export class InputManager {
    */
   private handleKeyDown = (event: KeyboardEvent): void => {
     const key = event.code as InputKey;
+    if (event.repeat && [InputKey.USE_TOOL, InputKey.SELECT_TOOL, InputKey.UNEQUIP_TOOL, InputKey.REMOVE_TOOL].includes(key)) return;
     logger.debug(`KeyDown event - ${key}, enabled: ${this.enabled}`);
     
     // If key wasn't already down, trigger events
@@ -156,6 +166,10 @@ export class InputManager {
       
       // Handle each key type
       switch (key) {
+        case InputKey.USE_TOOL: this.triggerEvent(InputEvent.USE_TOOL); break;
+        case InputKey.SELECT_TOOL: this.triggerEvent(InputEvent.SELECT_TOOL); break;
+        case InputKey.UNEQUIP_TOOL: this.triggerEvent(InputEvent.UNEQUIP_TOOL); break;
+        case InputKey.REMOVE_TOOL: this.triggerEvent(InputEvent.REMOVE_TOOL); break;
         case InputKey.SPACE:
           logger.debug('Triggering JUMP event from spacebar');
           this.triggerEvent(InputEvent.JUMP);

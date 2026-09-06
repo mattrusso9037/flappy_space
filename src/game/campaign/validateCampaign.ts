@@ -170,6 +170,27 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
         }
       }
 
+      const tools = level.gameplay.tools;
+      if (tools !== undefined) {
+        if (!level.gameplay.ground?.enabled || level.gameplay.movement?.mode !== 'ground') {
+          errors.push(`${prefix} gameplay.tools requires enabled ground and ground movement.`);
+        }
+        if (tools.equipped !== null && tools.equipped !== 'wall-builder') {
+          errors.push(`${prefix} tools.equipped must be null or wall-builder.`);
+        }
+        const wall = tools.wallBuilder;
+        if (!wall) errors.push(`${prefix} tools.wallBuilder is required.`);
+        else {
+          for (const key of ['width', 'height', 'maxActive', 'lifetimeSeconds'] as const) {
+            if (!Number.isFinite(wall[key]) || wall[key] <= 0) errors.push(`${prefix} wallBuilder.${key} must be positive and finite.`);
+          }
+          if (!Number.isInteger(wall.maxActive)) errors.push(`${prefix} wallBuilder.maxActive must be an integer.`);
+          if (wall.width > (level.gameplay.world?.width ?? GAME_WIDTH) || wall.height >= GAME_HEIGHT - (level.gameplay.ground?.height ?? 0)) {
+            errors.push(`${prefix} wallBuilder dimensions must fit the ground corridor.`);
+          }
+        }
+      }
+
       // Orbs validation (single canonical source of truth)
       if (!orbs) {
         errors.push(`${prefix} Missing orbs configuration.`);
@@ -197,6 +218,18 @@ export function validateCampaignDefinition(campaign: CampaignDefinition): Valida
           orbs.minY > orbs.maxY
         ) {
           errors.push(`${prefix} orbs.maxY must be greater than or equal to orbs.minY.`);
+        }
+      }
+
+      if (orbs?.placements !== undefined) {
+        if (!level.gameplay.world) errors.push(`${prefix} orbs.placements requires gameplay.world.`);
+        if (!Array.isArray(orbs.placements)) errors.push(`${prefix} orbs.placements must be an array.`);
+        else for (const point of orbs.placements) {
+          if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 14 ||
+              point.x > (level.gameplay.world?.width ?? GAME_WIDTH) - 14 || point.y < 14 ||
+              point.y > GAME_HEIGHT - (level.gameplay.ground?.height ?? 0) - 14) {
+            errors.push(`${prefix} orbs.placements must fit inside the world above ground (14px radius).`);
+          }
         }
       }
 

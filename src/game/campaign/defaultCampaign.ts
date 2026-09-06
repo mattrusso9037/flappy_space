@@ -56,6 +56,10 @@ export const SECTOR_02: LevelDefinition = {
       mode: 'ground',
       maxThrustCharges: 1,
     },
+    tools: {
+      equipped: 'wall-builder',
+      wallBuilder: { width: 80, height: 80, maxActive: 2, lifetimeSeconds: 20 },
+    },
     world: {
       width: 2400,
       traversal: 'loop',
@@ -68,6 +72,8 @@ export const SECTOR_02: LevelDefinition = {
       },
     ],
     orbs: {
+      // Jump onto a built panel, then thrust again to reach this raised pickup.
+      placements: [{ x: 700, y: 290 }],
       spawnChance: 0.6,
       minY: 360,
       maxY: 480,

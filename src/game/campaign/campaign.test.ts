@@ -46,7 +46,7 @@ describe('Campaign Definition & Data Migration', () => {
       if (id === 'sector-02') {
         expect(levelDef.gameplay.obstacles.enabled).toBe(false);
         expect(levelDef.gameplay.movement).toEqual({ mode: 'ground', maxThrustCharges: 1 });
-        expect(levelDef.gameplay.orbs).toEqual({ spawnChance: 0.6, minY: 360, maxY: 480 });
+        expect(levelDef.gameplay.orbs).toEqual({ spawnChance: 0.6, minY: 360, maxY: 480, placements: [{ x: 700, y: 290 }] });
       } else {
         // Explicit obstacle configuration
         expect(levelDef.gameplay.obstacles.minPlanetRadius).toBe(20);

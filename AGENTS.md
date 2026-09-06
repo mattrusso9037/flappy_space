@@ -190,3 +190,16 @@ flappy_space/
 ├── tsconfig.json              # TypeScript root configuration
 └── vite.config.ts             # Vite bundler & Vitest test runner configuration
 ```
+
+### Player Tool Capability
+- `gameplay.tools` is the canonical authoring contract. Omission disables tools.
+- `PlayerToolSystem` owns selection, placement validation, limits, replacement,
+  removal and simulation-time lifetime. Wire tools only in the composition root.
+- `EntitySystem` owns panel resources; `PhysicsSystem` owns swept solid collision.
+  Tool gameplay must not depend on presentation or campaign progression.
+- Tool input is semantic and consumed during simulation. Do not use gameplay keys
+  for debug actions or let queued actions leak across pause/reset/story/level changes.
+- Future levels configure Wall Builder without modifying runtime/system code.
+  New tools require a concrete capability, types, validation, behavioral and
+  transition tests, docs and an authoring skill update. No generic ability framework.
+- See `CAMPAIGN_FLOW_ARCHITECTURE.md` for placement, lifetime and fixed orb contracts.

@@ -121,6 +121,31 @@ async function setup(): Promise<void> {
       step(0.05);
       status.value = 'Traversal thrust / paused';
     },
+    'wall-puzzle': () => {
+      const def = getSelectedLevel();
+      const target = def.gameplay.orbs.placements?.[0];
+      const wall = def.gameplay.tools?.wallBuilder;
+      if (!target || !wall) { status.value = 'Select a level with tools and an authored pickup'; return; }
+      runtime.reset(def); runtime.start();
+      const pilot = runtime.systems.entities.getAstronaut()!;
+      pilot.worldX = pilot.sprite.x = target.x - wall.width - 33;
+      pilot.sprite.y = runtime.systems.entities.getGroundY()! - 25;
+      pilot.isGrounded = true;
+      runtime.systems.tools.use();
+      pilot.thrust();
+      for (let frame = 0; frame < 20; frame++) runtime.onTick({ deltaMS: 1000 / 60 } as Ticker);
+      pilot.moveRight();
+      for (let frame = 0; frame < 110; frame++) runtime.onTick({ deltaMS: 1000 / 60 } as Ticker);
+      runtime.pause();
+      status.value = `Panel landing / grounded ${pilot.isGrounded} / Y ${pilot.sprite.y.toFixed(0)} / walls ${runtime.systems.entities.getWalls().length}`;
+    },
+    'wall-reward': () => {
+      runtime.resume();
+      runtime.systems.entities.getAstronaut()?.thrust();
+      for (let frame = 0; frame < 55; frame++) runtime.onTick({ deltaMS: 1000 / 60 } as Ticker);
+      runtime.pause();
+      status.value = `Panel jump / collected ${runtime.state.getState().orbsCollected} / score ${runtime.state.getState().score}`;
+    },
     scene,
     thrust: () => {
       scene();

@@ -1,3 +1,4 @@
+import { PlayerToolSystem } from './PlayerToolSystem';
 import { EventBus, GameEvent } from '../eventBus';
 import { GameStateService } from '../gameStateService';
 import { InputManager, InputEvent, TouchData, Direction } from '../inputManager';
@@ -13,6 +14,11 @@ const logger = getLogger('InputSystem');
  * It abstracts the low-level input handling from the game logic.
  */
 export class InputSystem implements UpdatingGameSystem {
+  private toolActions: InputEvent[] = [];
+  private queueUse = () => { this.toolActions.push(InputEvent.USE_TOOL); };
+  private queueSelect = () => { this.toolActions.push(InputEvent.SELECT_TOOL); };
+  private queueUnequip = () => { this.toolActions.push(InputEvent.UNEQUIP_TOOL); };
+  private queueRemove = () => { this.toolActions.push(InputEvent.REMOVE_TOOL); };
   private subscriptions: Subscription[] = [];
   private initialized: boolean = false;
   private enabled: boolean = false;
@@ -27,7 +33,8 @@ export class InputSystem implements UpdatingGameSystem {
     events: EventBus,
     state: GameStateService,
     inputMgr: InputManager,
-    entities: EntitySystem
+    entities: EntitySystem,
+    private readonly tools?: PlayerToolSystem
   ) {
     this.events = events;
     this.state = state;
@@ -47,6 +54,10 @@ export class InputSystem implements UpdatingGameSystem {
     
     logger.info('Initializing...');
     
+    this.inputMgr.on(InputEvent.USE_TOOL, this.queueUse);
+    this.inputMgr.on(InputEvent.SELECT_TOOL, this.queueSelect);
+    this.inputMgr.on(InputEvent.UNEQUIP_TOOL, this.queueUnequip);
+    this.inputMgr.on(InputEvent.REMOVE_TOOL, this.queueRemove);
     // Add jump event listener
     logger.debug('Registering JUMP event handler');
     this.inputMgr.on(InputEvent.JUMP, this.handleJumpAction);
@@ -103,6 +114,10 @@ export class InputSystem implements UpdatingGameSystem {
   public dispose(): void {
     logger.info('Disposing...');
     
+    this.inputMgr.off(InputEvent.USE_TOOL, this.queueUse);
+    this.inputMgr.off(InputEvent.SELECT_TOOL, this.queueSelect);
+    this.inputMgr.off(InputEvent.UNEQUIP_TOOL, this.queueUnequip);
+    this.inputMgr.off(InputEvent.REMOVE_TOOL, this.queueRemove);
     // Remove input manager listeners
     this.inputMgr.off(InputEvent.JUMP, this.handleJumpAction);
     this.inputMgr.off(InputEvent.MOVE_UP, this.handleMoveUpAction);
@@ -139,6 +154,7 @@ export class InputSystem implements UpdatingGameSystem {
    * Disable input processing
    */
   public disable(): void {
+    this.toolActions = [];
     this.inputMgr.disable();
     this.enabled = false;
     logger.info('Input disabled');
@@ -205,6 +221,7 @@ export class InputSystem implements UpdatingGameSystem {
     // Dispatch move left event to the event bus
     logger.debug('Emitting MOVE_LEFT_ACTION event');
     this.events.emit(GameEvent.MOVE_LEFT_ACTION, null);
+    this.tools?.face(-1);
     this.entities.getAstronaut()?.moveLeft();
   }
 
@@ -221,6 +238,7 @@ export class InputSystem implements UpdatingGameSystem {
     // Dispatch move right event to the event bus
     logger.debug('Emitting MOVE_RIGHT_ACTION event');
     this.events.emit(GameEvent.MOVE_RIGHT_ACTION, null);
+    this.tools?.face(1);
     this.entities.getAstronaut()?.moveRight();
   }
 
@@ -376,8 +394,16 @@ export class InputSystem implements UpdatingGameSystem {
 
     if (dir.left && !dir.right) {
       astronaut.moveLeft();
+      this.tools?.face(-1);
     } else if (dir.right && !dir.left) {
       astronaut.moveRight();
+      this.tools?.face(1);
+    }
+    for (const action of this.toolActions.splice(0)) {
+      if (action === InputEvent.SELECT_TOOL) this.tools?.select('wall-builder');
+      else if (action === InputEvent.UNEQUIP_TOOL) this.tools?.select(null);
+      else if (action === InputEvent.USE_TOOL) this.tools?.use();
+      else if (action === InputEvent.REMOVE_TOOL) this.tools?.remove();
     }
   }
   
