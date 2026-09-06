@@ -466,6 +466,20 @@ export class GameRuntime {
         }
       })
     );
+
+    // Synchronize debugMode across EventBus, Physics, and Rendering systems
+    this.subscriptions.push(
+      this.state.select(s => s.debugMode).subscribe(debugMode => {
+        if (debugMode) {
+          this.events.enableDebug();
+        } else {
+          this.events.disableDebug();
+        }
+        this.events.emit(GameEvent.DEBUG_TOGGLED, debugMode);
+        this.systems.physics.setSpeedDiagnostics(debugMode);
+        this.systems.rendering.updateDebugPresentation();
+      })
+    );
   }
 
   private handleGameOver(reason: string): void {

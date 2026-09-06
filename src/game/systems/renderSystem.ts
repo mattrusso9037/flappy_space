@@ -3,7 +3,7 @@ import { CinematicScene } from '../story/cutscenes/sceneTypes';
 import * as PIXI from 'pixi.js';
 import { EntitySystem } from './entitySystem';
 import { GameStateService } from '../gameStateService';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config';
+import { ASTRONAUT, GAME_WIDTH, GAME_HEIGHT } from '../config';
 import { DEPTH, INK, MOTION } from '../visuals/tokens';
 import { EnvironmentDefinition, EnvironmentId } from '../environments/environmentTypes';
 import { DEEP_NEBULA, resolveEnvironment } from '../environments/environments';
@@ -244,19 +244,82 @@ export class RenderSystem {
     if (astronaut && !this.state.getState().isStarted && !astronaut.dead) {
       astronaut.sprite.rotation = Math.sin(this.elapsed * 1.4) * 0.055;
     }
+    this.updateDebugPresentation();
+  }
+
+  /**
+   * Refresh or clear debug collision presentation immediately.
+   * Works across active gameplay, paused states, level resets, and QA preview.
+   */
+  updateDebugPresentation(): void {
+    if (!this.initialized) return;
     const g = this.debugGraphics;
-    if (!this.state.getState().debugMode) { if (g.context.instructions.length) g.clear(); return; }
+    if (!this.state.getState().debugMode) {
+      if (g.context.instructions.length) g.clear();
+      return;
+    }
+    this.drawDebugGraphics();
+  }
+
+  private drawDebugGraphics(): void {
+    const g = this.debugGraphics;
     g.clear();
+
+    const astronaut = this.entities.getAstronaut();
     if (astronaut) {
+      // 1. Hazard / collection hitbox (35x35)
       const bounds = astronaut.getScreenHitbox();
       g.rect(bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY)
         .stroke({ color: INK.cyan, width: 1 });
+
+      // 2. Physical solid sliding body (50x50) in ground mode
+      if (astronaut.getMovementMode() === 'ground') {
+        const halfBW = ASTRONAUT.body.width / 2;
+        const halfBH = ASTRONAUT.body.height / 2;
+        g.rect(astronaut.worldX - halfBW, astronaut.sprite.y - halfBH, ASTRONAUT.body.width, ASTRONAUT.body.height)
+          .stroke({ color: INK.ice, width: 1, alpha: 0.7 });
+      }
     }
-    for (const orb of this.entities.getOrbs()) g.circle(orb.x, orb.y, orb.radius).stroke({ color: INK.violet, width: 1 });
+
+    // 3. Orbs (collection boundary)
+    for (const orb of this.entities.getOrbs()) {
+      if (!orb.collected) {
+        g.circle(orb.x, orb.y, orb.radius).stroke({ color: INK.violet, width: 1 });
+      }
+    }
+
+    // 4. Obstacles (planet 90% collision envelope and pipe rects)
     for (const obstacle of this.entities.getObstacles()) {
       if ('radius' in obstacle && typeof obstacle.radius === 'number') {
         g.circle(obstacle.x, obstacle.y, obstacle.radius * 0.9).stroke({ color: INK.hazard, width: 1 });
+      } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
+        const pipe = obstacle as { topPipe: PIXI.Graphics; bottomPipe: PIXI.Graphics; x: number };
+        g.rect(pipe.x, 0, pipe.topPipe.width, pipe.topPipe.height).stroke({ color: INK.hazard, width: 1 });
+        g.rect(pipe.x, pipe.bottomPipe.y, pipe.bottomPipe.width, pipe.bottomPipe.height).stroke({ color: INK.hazard, width: 1 });
       }
+    }
+
+    // 5. Natural Ground collision surface
+    const ground = this.entities.getGround?.();
+    if (ground) {
+      const worldW = Math.max(GAME_WIDTH, ground.worldWidth);
+      const startX = ground.looping ? -this.debugGraphics.x - 200 : 0;
+      const endX = ground.looping ? -this.debugGraphics.x + GAME_WIDTH + 200 : worldW;
+      g.moveTo(startX, ground.y).lineTo(endX, ground.y).stroke({ color: INK.cyan, width: 1.5, alpha: 0.8 });
+    }
+
+    // 6. Authored Solid Terrain Blocks
+    for (const block of this.entities.getTerrainBlocks()) {
+      const { x, y, width, height } = block.bounds;
+      g.rect(x, y, width, height)
+        .stroke({ color: block.diggable ? INK.amber : INK.muted, width: 1.5 });
+    }
+
+    // 7. Temporary Player Wall Panels
+    for (const wall of this.entities.getWalls()) {
+      const { x, y, width, height } = wall.bounds;
+      g.rect(x, y, width, height)
+        .stroke({ color: INK.cyan, width: 1.5 });
     }
   }
 

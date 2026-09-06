@@ -116,6 +116,31 @@ If `npm run verify` fails, the task is **not done**. Fix any regressions immedia
 - The astronaut visual identity is controlled, not permanently immutable. Intentional sprite-sheet upgrades must use the canonical sprite-animation pipeline and preserve gameplay dimensions, visual identity, and architectural boundaries. Do not casually regenerate, replace, or restyle the astronaut during unrelated tasks.
 - **Sprite QA**: Use `sprite-preview.html` on the dev server to QA any animated sprite using production registries. Supports `?asset=<id>` and `?animation=<state>` query parameters.
 
+### I. Debug Mode & Collision Geometry Discipline
+- **Rule**: Everything debug-related must strictly respect `debugMode` with toggle, especially around physical collision bounds, hitboxes, sensor envelopes, and diagnostic logging.
+- **Single Source of Truth**: `GameStateService.debugMode` is the authoritative state for debug mode.
+- **Zero Debug When OFF (Default)**:
+  - Zero debug graphics, hitboxes, collision envelopes, sensor boundaries, or dev diagnostics may be rendered or visible on canvas.
+  - Zero periodic diagnostic dumps or speed tracking logs may execute (`PhysicsSystem.setSpeedDiagnostics`, `Obstacle.trackSpeed`, etc.).
+  - `EventBus` debug verbose event logging must remain disabled.
+  - When toggled off, all debug graphics must immediately clear from canvas.
+- **Comprehensive Collision Transparency When ON**:
+  - When debug mode is active, all active collision geometries must be rendered cleanly via `RenderSystem.debugGraphics` at `DEPTH.debug`:
+    - **Astronaut**: Both the 35x35 hazard/collection hitbox (`INK.cyan`) and the 50x50 physical body boundary (`INK.ice`) in ground traversal mode.
+    - **Natural Ground**: Ground collision line at `ground.y` across visible/world span.
+    - **Solid Obstacles & Blocks**:
+      - Planets: Exact 90% collision circle (`radius * 0.9`) in hazard red/orange (`INK.hazard`).
+      - Pipes: Exact top and bottom pipe collision rectangles.
+      - Terrain blocks: Exact authored solid collision rectangles (differentiated: `INK.amber` if diggable, `INK.muted` if undiggable).
+      - Wall panels: Exact solid wall panel rectangles (`INK.cyan`).
+    - **Collectibles**: Orbs exact collection circle (`radius`, `INK.violet`).
+    - **Player Tools**: Active shovel reach box and grapple anchors/range when tools are equipped.
+- **Instant Responsiveness Across All States**:
+  - Toggling debug mode must immediately update or clear presentation across all game states, including paused states, title screens, level resets, and visual preview harnesses (`updateDebugPresentation()`).
+- **Input Isolation**:
+  - Debug toggle is strictly bound to dedicated non-gameplay shortcuts (`Backquote` / `` ` `` or `F3`).
+  - Debug keys must never overlap gameplay keys (`D`/`Shift+D`, `Space`, `A`, `E`, `X`, `0`-`9` are gameplay-exclusive).
+
 ---
 
 ## 5. Code Quality & Guardrail Rules

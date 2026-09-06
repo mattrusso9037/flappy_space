@@ -256,7 +256,18 @@ async function setup(): Promise<void> {
       runtime.pause();
       status.value = 'Paused';
     },
+    'toggle-debug': () => {
+      const active = runtime.state.toggleDebugMode();
+      status.value = `Debug mode: ${active ? 'ON' : 'OFF'}`;
+    },
   };
+
+  const toggleDebugBtn = document.querySelector<HTMLButtonElement>('#toggle-debug');
+  runtime.state.select(s => s.debugMode).subscribe(debugMode => {
+    if (toggleDebugBtn) {
+      toggleDebugBtn.textContent = `Debug: ${debugMode ? 'ON' : 'OFF'}`;
+    }
+  });
 
   for (const [id, action] of Object.entries(actions)) {
     const el = document.getElementById(id);

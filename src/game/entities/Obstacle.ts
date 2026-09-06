@@ -17,8 +17,8 @@ export abstract class Obstacle {
   speedHistory: Array<{time: number, speed: number}>; // To track speed changes over time
   lastUpdateTime: number; // Last update timestamp
   
-  // Speed tracking settings
-  private static trackSpeedEnabled: boolean = true;
+  // Speed tracking settings (disabled by default; enabled only via debug mode)
+  private static trackSpeedEnabled: boolean = false;
   private static speedLoggingInterval: number = 2000; // Log speed every 2 seconds
   private static nextLogId: number = 1; // For generating unique IDs
   

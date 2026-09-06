@@ -16,7 +16,7 @@ export class PhysicsSystem {
   private initialized: boolean = false;
   private scrollSpeed: number = 0;
   private lastSpeedDiagnosticTime: number = 0;
-  private speedDiagnosticInterval: number = 5000; // Log all speeds every 5 seconds
+  private speedDiagnosticInterval: number = 0; // 0 = disabled by default, enabled only via debugMode
   
   public constructor(
     private readonly entities: EntitySystem,
@@ -32,6 +32,7 @@ export class PhysicsSystem {
     if (this.initialized) return;
     
     this.initialized = true;
+    this.setSpeedDiagnostics(this.state.getState().debugMode);
     logger.info('PhysicsSystem initialized');
   }
   
