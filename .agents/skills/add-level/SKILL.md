@@ -113,3 +113,17 @@ After adding or editing a level, execute:
    npm run build
    ```
 A level authoring task is **NOT DONE** until all three commands pass with zero errors and zero warnings.
+Guardrails
+Do not:
+- Put campaign navigation inside dialogue content.
+- Call GameFlow.startLevel() from dialogue UI.
+- Embed dialogue directly inside LevelDefinition.
+- Create a second dialogue renderer.
+- Create one-off React components for individual conversations.
+- Put HTML styling inside dialogue strings.
+- Modify Pixi systems just to add dialogue.
+- Mutate save state directly from dialogue UI.
+- Invent portrait assets.
+- Change public/assets/astro-sprite.png.
+If the request needs unsupported behavior or a missing reusable asset, report it instead of hacking around it.
+The task is incomplete while validation, preview, or any verification command fails.
