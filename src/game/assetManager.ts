@@ -21,6 +21,16 @@ const gameAssets: AssetDefinition[] = [
     type: 'spritesheet'
   },
   {
+    name: 'astronaut-walking',
+    url: './assets/astronaut/astronaut-walking.json',
+    type: 'spritesheet'
+  },
+  {
+    name: 'astronaut-still',
+    url: './assets/astronaut/astronaut-still.json',
+    type: 'spritesheet'
+  },
+  {
     name: 'astronaut-idle',
     url: './assets/astronaut/astronaut-idle.png',
     type: 'texture'

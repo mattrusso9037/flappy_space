@@ -47,8 +47,11 @@ export function getAllSpriteAnimations(): SpriteAssetDefinition[] {
  * Canonical astronaut animation definition contract.
  *
  * Authored states:
- * - idle: looping hover state (14 frames, 12 FPS, loop: true)
+ * - idle: looping hover state (8 frames, 12 FPS, loop: true)
  * - thrust: jetpack ignition pulse (9 frames, 18 FPS, loop: false, returns to idle)
+ * - walk: directional walking cycle on solid ground (8 frames, 12 FPS, loop: true)
+ * - walk_left: left-facing walking cycle on solid ground (8 frames, 12 FPS, loop: true)
+ * - still: grounded stationary idle state on solid terrain (8 frames, 12 FPS, loop: true)
  *
  * Sizing:
  * - collisionDimensions: fixed 35x35 (hitbox decoupled from visual frame dimensions)
@@ -77,11 +80,160 @@ export const ASTRONAUT_SPRITE_DEFINITION: SpriteAssetDefinition = {
       fps: 18,
       loop: false,
     },
+    walk: {
+      spritesheetAsset: 'astronaut-walking',
+      frames: [
+        'walk_right_00',
+        'walk_right_01',
+        'walk_right_02',
+        'walk_right_03',
+        'walk_right_04',
+        'walk_right_05',
+        'walk_right_06',
+        'walk_right_07',
+      ],
+      fps: 12,
+      loop: true,
+    },
+    walk_left: {
+      spritesheetAsset: 'astronaut-walking',
+      frames: [
+        'walk_left_00',
+        'walk_left_01',
+        'walk_left_02',
+        'walk_left_03',
+        'walk_left_04',
+        'walk_left_05',
+        'walk_left_06',
+        'walk_left_07',
+      ],
+      fps: 12,
+      loop: true,
+    },
+    still: {
+      spritesheetAsset: 'astronaut-still',
+      frames: [
+        'still_00',
+        'still_01',
+        'still_02',
+        'still_03',
+        'still_04',
+        'still_05',
+        'still_06',
+        'still_07',
+      ],
+      fps: 12,
+      loop: true,
+    },
+  },
+};
+
+export const ASTRONAUT_WALKING_SPRITE_DEFINITION: SpriteAssetDefinition = {
+  id: 'astronaut-walking',
+  name: 'Astronaut Walking',
+  spritesheetAsset: 'astronaut-walking',
+  defaultAnimation: 'walk',
+  collisionDimensions: {
+    width: 35,
+    height: 35,
+  },
+  visualDimensions: {
+    targetHeight: 95.48,
+  },
+  animations: {
+    walk: {
+      frames: [
+        'walk_right_00',
+        'walk_right_01',
+        'walk_right_02',
+        'walk_right_03',
+        'walk_right_04',
+        'walk_right_05',
+        'walk_right_06',
+        'walk_right_07',
+      ],
+      fps: 12,
+      loop: true,
+    },
+    walk_left: {
+      frames: [
+        'walk_left_00',
+        'walk_left_01',
+        'walk_left_02',
+        'walk_left_03',
+        'walk_left_04',
+        'walk_left_05',
+        'walk_left_06',
+        'walk_left_07',
+      ],
+      fps: 12,
+      loop: true,
+    },
+    walk_away: {
+      frames: [
+        'walk_away_00',
+        'walk_away_01',
+        'walk_away_02',
+        'walk_away_03',
+        'walk_away_04',
+        'walk_away_05',
+        'walk_away_06',
+        'walk_away_07',
+      ],
+      fps: 12,
+      loop: true,
+    },
+    walk_front: {
+      frames: [
+        'walk_front_00',
+        'walk_front_01',
+        'walk_front_02',
+        'walk_front_03',
+        'walk_front_04',
+        'walk_front_05',
+        'walk_front_06',
+        'walk_front_07',
+      ],
+      fps: 12,
+      loop: true,
+    },
+  },
+};
+
+export const ASTRONAUT_STILL_SPRITE_DEFINITION: SpriteAssetDefinition = {
+  id: 'astronaut-still',
+  name: 'Astronaut Still',
+  spritesheetAsset: 'astronaut-still',
+  defaultAnimation: 'still',
+  collisionDimensions: {
+    width: 35,
+    height: 35,
+  },
+  visualDimensions: {
+    targetHeight: 95.48,
+  },
+  animations: {
+    still: {
+      frames: [
+        'still_00',
+        'still_01',
+        'still_02',
+        'still_03',
+        'still_04',
+        'still_05',
+        'still_06',
+        'still_07',
+      ],
+      fps: 12,
+      loop: true,
+    },
   },
 };
 
 // Register default canonical definitions
 registerSpriteAnimation(ASTRONAUT_SPRITE_DEFINITION);
+registerSpriteAnimation(ASTRONAUT_WALKING_SPRITE_DEFINITION);
+registerSpriteAnimation(ASTRONAUT_STILL_SPRITE_DEFINITION);
 
 /**
  * Resolve semantic sprite animation metadata against loaded assets in AssetManager.
@@ -98,8 +250,8 @@ export function resolveSpritePresentation(
     assetMgr.getTexture('astronaut-static') ||
     assetMgr.getTexture(definition.spritesheetAsset);
 
-  const sheet = assetMgr.getSpritesheet(definition.spritesheetAsset);
-  if (!sheet) {
+  const defaultSheet = assetMgr.getSpritesheet(definition.spritesheetAsset);
+  if (!defaultSheet) {
     logger.warn(`Spritesheet '${definition.spritesheetAsset}' not loaded or unavailable. Using static fallback.`);
     return {
       definition,
@@ -111,11 +263,18 @@ export function resolveSpritePresentation(
   const resolvedAnimations: Record<string, ResolvedSpriteAnimation> = {};
 
   for (const [animName, animDef] of Object.entries(definition.animations)) {
+    const sheetAsset = animDef.spritesheetAsset ?? definition.spritesheetAsset;
+    const sheet = sheetAsset === definition.spritesheetAsset ? defaultSheet : assetMgr.getSpritesheet(sheetAsset);
+    if (!sheet) {
+      logger.warn(`Spritesheet '${sheetAsset}' not loaded or unavailable for animation '${animName}'.`);
+      continue;
+    }
+
     const frames: PIXI.Texture[] = [];
     for (const frameName of animDef.frames) {
       const texture = sheet.textures?.[frameName];
       if (!texture) {
-        const errorMsg = `Frame '${frameName}' missing in spritesheet '${definition.spritesheetAsset}' for animation '${animName}'.`;
+        const errorMsg = `Frame '${frameName}' missing in spritesheet '${sheetAsset}' for animation '${animName}'.`;
         logger.error(errorMsg);
         throw new Error(errorMsg);
       }

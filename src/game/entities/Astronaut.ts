@@ -76,10 +76,17 @@ export class Astronaut {
       this.movementMode = 'flight';
       this.maxThrustCharges = Infinity;
       this.thrustCharges = Infinity;
+      if (this.currentAnimationState === 'still' || this.currentAnimationState === 'walk' || this.currentAnimationState === 'walk_left') {
+        const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
+        this.playAnimation(defaultAnim);
+      }
     } else {
       this.movementMode = 'ground';
       this.maxThrustCharges = config.maxThrustCharges;
       this.thrustCharges = this.maxThrustCharges;
+      if (this.isGrounded && Math.abs(this.horizontalVelocity) <= 0.1 && this.presentation.animations['still']) {
+        this.playAnimation('still');
+      }
     }
     logger.info(`Movement config set: mode=${this.movementMode}, maxThrustCharges=${this.maxThrustCharges}`);
   }
@@ -151,6 +158,32 @@ export class Astronaut {
       this.horizontalVelocity = Math.min(0, this.horizontalVelocity + friction * delta);
     }
 
+    // Ground movement animation state transitions
+    if (this.movementMode === 'ground') {
+      if (this.isGrounded) {
+        if (this.horizontalVelocity > 0.1) {
+          if (this.presentation.animations['walk'] && this.currentAnimationState !== 'walk') {
+            this.playAnimation('walk');
+          }
+        } else if (this.horizontalVelocity < -0.1) {
+          const anim = this.presentation.animations['walk_left'] ? 'walk_left' : 'walk';
+          if (this.presentation.animations[anim] && this.currentAnimationState !== anim) {
+            this.playAnimation(anim);
+          }
+        } else {
+          const stillAnim = this.presentation.animations['still'] ? 'still' : (this.presentation.definition.defaultAnimation || 'idle');
+          if (this.currentAnimationState !== stillAnim && this.currentAnimationState !== 'thrust') {
+            this.playAnimation(stillAnim);
+          }
+        }
+      } else {
+        if (this.currentAnimationState === 'walk' || this.currentAnimationState === 'walk_left' || this.currentAnimationState === 'walk_right' || this.currentAnimationState === 'still') {
+          const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
+          this.playAnimation(defaultAnim);
+        }
+      }
+    }
+
     // Update rotation based on velocity (stand upright when grounded on terrain)
     const targetRotation = this.isGrounded ? 0 : (this.velocity / MAX_VELOCITY) * (Math.PI / 6); // 30 degrees max
     this.rotation = damp(this.rotation, targetRotation, deltaMS / 1000);
@@ -173,9 +206,18 @@ export class Astronaut {
           this.isGrounded = true;
           this.rechargeThrust();
           if (!this.dead) {
-            const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
-            if (this.currentAnimationState !== defaultAnim && this.currentAnimationState !== 'thrust') {
-              this.playAnimation(defaultAnim);
+            if (this.movementMode === 'ground' && Math.abs(this.horizontalVelocity) > 0.1) {
+              const anim = this.horizontalVelocity < -0.1 && this.presentation.animations['walk_left'] ? 'walk_left' : 'walk';
+              if (this.presentation.animations[anim] && this.currentAnimationState !== anim) {
+                this.playAnimation(anim);
+              }
+            } else {
+              const groundedStillAnim = this.movementMode === 'ground' && this.presentation.animations['still']
+                ? 'still'
+                : (this.presentation.definition.defaultAnimation || 'idle');
+              if (this.currentAnimationState !== groundedStillAnim) {
+                this.playAnimation(groundedStillAnim);
+              }
             }
           }
         }
@@ -267,13 +309,24 @@ export class Astronaut {
       animSprite.onComplete = undefined;
       animSprite.gotoAndPlay(0);
     } else {
-      // Non-looping animation: return to default animation on complete
+      // Non-looping animation: return to appropriate state on complete
       animSprite.onComplete = () => {
         if (this.dead) return;
         // Stale completion guard: only transition if still playing this animation
         if (this.currentAnimationState === name) {
-          const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
-          this.playAnimation(defaultAnim);
+          if (this.movementMode === 'ground' && this.isGrounded) {
+            if (this.horizontalVelocity > 0.1) {
+              this.playAnimation('walk');
+            } else if (this.horizontalVelocity < -0.1) {
+              this.playAnimation(this.presentation.animations['walk_left'] ? 'walk_left' : 'walk');
+            } else {
+              const stillAnim = this.presentation.animations['still'] ? 'still' : (this.presentation.definition.defaultAnimation || 'idle');
+              this.playAnimation(stillAnim);
+            }
+          } else {
+            const defaultAnim = this.presentation.definition.defaultAnimation || 'idle';
+            this.playAnimation(defaultAnim);
+          }
         }
       };
       animSprite.gotoAndPlay(0);
@@ -315,6 +368,12 @@ export class Astronaut {
     }
     logger.debug(`Move left! Setting horizontal velocity to -${HORIZONTAL_SPEED}`);
     this.horizontalVelocity = -HORIZONTAL_SPEED;
+    if (this.movementMode === 'ground' && this.isGrounded) {
+      const anim = this.presentation.animations['walk_left'] ? 'walk_left' : 'walk';
+      if (this.presentation.animations[anim] && this.currentAnimationState !== anim) {
+        this.playAnimation(anim);
+      }
+    }
   }
 
   moveRight(): void {
@@ -324,6 +383,11 @@ export class Astronaut {
     }
     logger.debug(`Move right! Setting horizontal velocity to ${HORIZONTAL_SPEED}`);
     this.horizontalVelocity = HORIZONTAL_SPEED;
+    if (this.movementMode === 'ground' && this.isGrounded) {
+      if (this.presentation.animations['walk'] && this.currentAnimationState !== 'walk') {
+        this.playAnimation('walk');
+      }
+    }
   }
 
   moveUp(): void {

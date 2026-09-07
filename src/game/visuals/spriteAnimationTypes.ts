@@ -17,6 +17,8 @@ export interface SpriteAnimationDefinition {
   fps: number;
   /** Whether the animation loops continuously */
   loop: boolean;
+  /** Optional spritesheet asset name override if different from parent SpriteAssetDefinition */
+  spritesheetAsset?: string;
 }
 
 export type SpriteAnimationGroup = Record<string, SpriteAnimationDefinition>;

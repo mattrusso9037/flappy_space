@@ -44,6 +44,9 @@ describe('CinematicSceneRenderer', () => {
     for (const frame of [
       'idle_00', 'idle_01', 'idle_02', 'idle_03', 'idle_04', 'idle_05', 'idle_06', 'idle_07',
       'thrust_00', 'thrust_01', 'thrust_02', 'thrust_03', 'thrust_04', 'thrust_05', 'thrust_06', 'thrust_07',
+      'walk_right_00', 'walk_right_01', 'walk_right_02', 'walk_right_03', 'walk_right_04', 'walk_right_05', 'walk_right_06', 'walk_right_07',
+      'walk_left_00', 'walk_left_01', 'walk_left_02', 'walk_left_03', 'walk_left_04', 'walk_left_05', 'walk_left_06', 'walk_left_07',
+      'still_00', 'still_01', 'still_02', 'still_03', 'still_04', 'still_05', 'still_06', 'still_07',
     ]) {
       textures[frame] = Texture.WHITE;
     }

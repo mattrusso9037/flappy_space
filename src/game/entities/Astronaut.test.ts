@@ -5,25 +5,49 @@ import { GAME_HEIGHT, GAME_WIDTH, GRAVITY, JUMP_VELOCITY, MAX_VELOCITY, ASTRONAU
 import { ASTRONAUT_SPRITE_DEFINITION } from '../visuals/spriteAnimations';
 import { ResolvedSpritePresentation } from '../visuals/spriteAnimationTypes';
 
-function createMockPresentation(): ResolvedSpritePresentation {
+function createMockPresentation(includeStill = true): ResolvedSpritePresentation {
   const idleFrames = [new PIXI.Texture(), new PIXI.Texture()];
   const thrustFrames = [new PIXI.Texture(), new PIXI.Texture(), new PIXI.Texture()];
+  const walkFrames = [new PIXI.Texture(), new PIXI.Texture()];
+  const walkLeftFrames = [new PIXI.Texture(), new PIXI.Texture()];
+  const stillFrames = [new PIXI.Texture(), new PIXI.Texture()];
+  const animations: Record<string, import('../visuals/spriteAnimationTypes').ResolvedSpriteAnimation> = {
+    idle: {
+      name: 'idle',
+      frames: idleFrames,
+      fps: 3,
+      loop: true,
+    },
+    thrust: {
+      name: 'thrust',
+      frames: thrustFrames,
+      fps: 3,
+      loop: false,
+    },
+    walk: {
+      name: 'walk',
+      frames: walkFrames,
+      fps: 12,
+      loop: true,
+    },
+    walk_left: {
+      name: 'walk_left',
+      frames: walkLeftFrames,
+      fps: 12,
+      loop: true,
+    },
+  };
+  if (includeStill) {
+    animations.still = {
+      name: 'still',
+      frames: stillFrames,
+      fps: 12,
+      loop: true,
+    };
+  }
   return {
     definition: ASTRONAUT_SPRITE_DEFINITION,
-    animations: {
-      idle: {
-        name: 'idle',
-        frames: idleFrames,
-        fps: 3,
-        loop: true,
-      },
-      thrust: {
-        name: 'thrust',
-        frames: thrustFrames,
-        fps: 3,
-        loop: false,
-      },
-    },
+    animations,
     fallbackTexture: new PIXI.Texture(),
   };
 }
@@ -734,6 +758,185 @@ describe('Astronaut Entity', () => {
       const halfW = ASTRONAUT.body.width / 2;
       expect(astro.sprite.x).toBeLessThanOrEqual(GAME_WIDTH - halfW);
       expect(astro.worldX).toBe(astro.sprite.x);
+    });
+  });
+
+  describe('Ground traversal walking animation transitions', () => {
+    it('plays still animation when stationary on solid ground in ground mode', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+
+      astro.update(16.667);
+      expect(astro.getCurrentAnimation()).toBe('still');
+    });
+
+    it('plays walk animation when moving right while grounded in ground mode', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+
+      astro.update(16.667);
+      expect(astro.getCurrentAnimation()).toBe('still');
+      astro.moveRight();
+      expect(astro.getCurrentAnimation()).toBe('walk');
+    });
+
+    it('plays walk_left animation when moving left while grounded in ground mode', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+
+      astro.update(16.667);
+      expect(astro.getCurrentAnimation()).toBe('still');
+      astro.moveLeft();
+      expect(astro.getCurrentAnimation()).toBe('walk_left');
+    });
+
+    it('returns to still when horizontal movement halts via friction', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+
+      astro.moveRight();
+      expect(astro.getCurrentAnimation()).toBe('walk');
+
+      // Update multiple ticks so friction decelerates horizontal velocity to 0
+      for (let i = 0; i < 30; i++) {
+        astro.update(16.667);
+      }
+      expect(astro.horizontalVelocity).toBe(0);
+      expect(astro.getCurrentAnimation()).toBe('still');
+    });
+
+    it('gracefully falls back to idle when stationary on ground if still animation is unavailable', () => {
+      const astro = new Astronaut(createMockPresentation(false), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+
+      astro.moveRight();
+      expect(astro.getCurrentAnimation()).toBe('walk');
+
+      for (let i = 0; i < 30; i++) {
+        astro.update(16.667);
+      }
+      expect(astro.horizontalVelocity).toBe(0);
+      expect(astro.getCurrentAnimation()).toBe('idle');
+    });
+
+    it('triggers thrust when jumping and resumes still when landing stationary', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+      astro.update(16.667);
+      expect(astro.getCurrentAnimation()).toBe('still');
+
+      astro.thrust();
+      expect(astro.isGrounded).toBe(false);
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+
+      // Falling back to ground without horizontal velocity
+      astro.velocity = 5;
+      astro.sprite.y = 520 - ASTRONAUT.body.height / 2;
+      astro.update(16.667);
+
+      expect(astro.isGrounded).toBe(true);
+      expect(astro.getCurrentAnimation()).toBe('still');
+    });
+
+    it('triggers thrust when jumping and resumes walking when landing while still moving', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+
+      astro.moveRight();
+      expect(astro.getCurrentAnimation()).toBe('walk');
+
+      astro.thrust();
+      expect(astro.isGrounded).toBe(false);
+      expect(astro.getCurrentAnimation()).toBe('thrust');
+
+      // Moving right while in air, then landing on ground
+      astro.moveRight();
+      // Falling back to ground
+      astro.velocity = 5;
+      astro.sprite.y = 520 - ASTRONAUT.body.height / 2;
+      astro.update(16.667);
+
+      expect(astro.isGrounded).toBe(true);
+      expect(astro.getCurrentAnimation()).toBe('walk');
+    });
+
+    it('does not trigger walking or still animation in flight mode', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 300);
+      astro.setMovementConfig({ mode: 'flight' });
+
+      expect(astro.getCurrentAnimation()).toBe('idle');
+      astro.moveRight();
+      expect(astro.getCurrentAnimation()).toBe('idle');
+      astro.moveLeft();
+      expect(astro.getCurrentAnimation()).toBe('idle');
+      astro.update(16.667);
+      expect(astro.getCurrentAnimation()).toBe('idle');
+    });
+
+    it('cleans up still animation without leakage when transitioning from ground to flight mode', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+      astro.update(16.667);
+      expect(astro.getCurrentAnimation()).toBe('still');
+
+      // Level transition: ground level -> flight level
+      astro.setMovementConfig({ mode: 'flight' });
+      expect(astro.getMovementMode()).toBe('flight');
+      expect(astro.getCurrentAnimation()).toBe('idle');
+    });
+
+    it('returns to idle when walking off a ledge into the air', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 400);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.isGrounded = true;
+      astro.moveRight();
+      expect(astro.getCurrentAnimation()).toBe('walk');
+
+      // Step off ledge: isGrounded becomes false
+      astro.isGrounded = false;
+      astro.update(16.667);
+      expect(astro.getCurrentAnimation()).toBe('idle');
+    });
+
+    it('preserves fixed collision hitbox dimensions regardless of animation state', () => {
+      const astro = new Astronaut(createMockPresentation(), 200, 495);
+      astro.setMovementConfig({ mode: 'ground', maxThrustCharges: 1 });
+      astro.setGroundY(520);
+      astro.isGrounded = true;
+      astro.update(16.667);
+
+      expect(astro.getCurrentAnimation()).toBe('still');
+      const stillHitbox = astro.getHitbox();
+      expect(stillHitbox.maxX - stillHitbox.minX).toBe(35);
+      expect(stillHitbox.maxY - stillHitbox.minY).toBe(35);
+
+      astro.moveRight();
+      expect(astro.getCurrentAnimation()).toBe('walk');
+      const walkHitbox = astro.getHitbox();
+      expect(walkHitbox.maxX - walkHitbox.minX).toBe(35);
+      expect(walkHitbox.maxY - walkHitbox.minY).toBe(35);
+
+      astro.moveLeft();
+      expect(astro.getCurrentAnimation()).toBe('walk_left');
+      const walkLeftHitbox = astro.getHitbox();
+      expect(walkLeftHitbox.maxX - walkLeftHitbox.minX).toBe(35);
+      expect(walkLeftHitbox.maxY - walkLeftHitbox.minY).toBe(35);
     });
   });
 });
