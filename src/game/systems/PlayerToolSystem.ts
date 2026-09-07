@@ -3,6 +3,7 @@ import { Orb } from '../entities/Orb';
 import { ASTRONAUT, GAME_WIDTH } from '../config';
 import { EntitySystem } from './entitySystem';
 import { GrappleAnchor, PlayerToolId, PlayerToolsDefinition, ToolUseResult } from '../tools/toolTypes';
+import { lineSegmentIntersectsRect, lineSegmentIntersectsCircle, Point } from './solidCollision';
 
 /** Session-scoped gameplay owner. No rendering, campaign decisions, timers or event subscriptions. */
 export class PlayerToolSystem {
@@ -46,17 +47,46 @@ export class PlayerToolSystem {
     this.entities.showGrapple(null);
   }
 
+  hasLineOfSight(from: Point, to: Point): boolean {
+    for (const rect of this.entities.getSolidBounds()) {
+      if (lineSegmentIntersectsRect(from, to, rect)) return false;
+    }
+    for (const obstacle of this.entities.getObstacles()) {
+      if (obstacle instanceof Orb) continue;
+      if (obstacle instanceof Planet || ('radius' in obstacle && typeof (obstacle as Planet).radius === 'number')) {
+        const planet = obstacle as Planet;
+        if (lineSegmentIntersectsCircle(from, to, { x: planet.x, y: planet.y, radius: planet.radius * 0.9 })) {
+          return false;
+        }
+      } else if ('topPipe' in obstacle && 'bottomPipe' in obstacle) {
+        const pipe = obstacle as { topPipe: { width: number; height: number }; bottomPipe: { width: number; height: number; y: number }; x: number };
+        const topRect = { x: pipe.x, y: 0, width: pipe.topPipe.width, height: pipe.topPipe.height };
+        const bottomRect = { x: pipe.x, y: pipe.bottomPipe.y, width: pipe.bottomPipe.width, height: pipe.bottomPipe.height };
+        if (lineSegmentIntersectsRect(from, to, topRect) || lineSegmentIntersectsRect(from, to, bottomRect)) {
+          return false;
+        }
+      }
+    }
+    const groundY = this.entities.getGroundY();
+    if (groundY !== null && (from.y >= groundY || to.y >= groundY)) {
+      return false;
+    }
+    return true;
+  }
+
   private fire(): ToolUseResult {
     if (this.attachment) { this.cancel(); return this.result = 'released'; }
     const pilot = this.entities.getAstronaut();
     const config = this.config?.grappleHook;
     if (!pilot || pilot.dead || !config || !Number.isFinite(pilot.worldX) ||
         !Number.isFinite(pilot.sprite.y)) return this.result = 'invalid-target';
-    // Deterministic nearest anchor above and ahead. Authored order breaks ties.
-    const anchor = config.anchors.filter(a => (a.x - pilot.worldX) * this.facing >= 0 &&
-      a.y < pilot.sprite.y && Math.hypot(a.x - pilot.worldX, a.y - pilot.sprite.y) <= config.range)
-      .sort((a, b) => Math.hypot(a.x - pilot.worldX, a.y - pilot.sprite.y) -
-        Math.hypot(b.x - pilot.worldX, b.y - pilot.sprite.y))[0];
+    const pilotPos = { x: pilot.worldX, y: pilot.sprite.y };
+    // Deterministic nearest anchor above and ahead with clear line of sight. Authored order breaks ties.
+    const anchor = config.anchors.filter(a => (a.x - pilotPos.x) * this.facing >= 0 &&
+      a.y < pilotPos.y && Math.hypot(a.x - pilotPos.x, a.y - pilotPos.y) <= config.range &&
+      this.hasLineOfSight(pilotPos, a))
+      .sort((a, b) => Math.hypot(a.x - pilotPos.x, a.y - pilotPos.y) -
+        Math.hypot(b.x - pilotPos.x, b.y - pilotPos.y))[0];
     if (!anchor) return this.result = 'invalid-target';
     this.attachment = anchor;
     this.entities.showGrapple(anchor);

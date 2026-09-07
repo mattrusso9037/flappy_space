@@ -86,6 +86,140 @@ describe('PlayerToolSystem production runtime', () => {
     expect(tools.use()).toBe('invalid-target');
   });
 
+  it('rejects grapple attachment when target line of sight is blocked by authored terrain blocks', () => {
+    runtime.reset({
+      ...testLevel(),
+      gameplay: {
+        ...testLevel().gameplay,
+        terrainBlocks: [
+          { id: 'los-blocker', bounds: { x: 500, y: 300, width: 80, height: 100 }, diggable: true },
+        ],
+      },
+    });
+    runtime.start();
+    pilot = runtime.systems.entities.getAstronaut()!;
+    position(400); // Anchor is at { id: 'raised-pickup', x: 700, y: 250 }
+    const tools = runtime.systems.tools;
+    tools.select('grapple-hook');
+    // Blocked by los-blocker at x: 500..580, y: 300..400
+    expect(tools.use()).toBe('invalid-target');
+    expect(tools.getAttachment()).toBeNull();
+
+    // Dig / remove the terrain block
+    const block = runtime.systems.entities.getTerrainBlocks()[0];
+    expect(runtime.systems.entities.digTerrainBlock(block)).toBe(true);
+
+    // Line of sight is now clear
+    expect(tools.use()).toBe('attached');
+    expect(tools.getAttachment()?.id).toBe('raised-pickup');
+  });
+
+  it('rejects grapple attachment when target line of sight is blocked by player wall panels', () => {
+    position(400);
+    const tools = runtime.systems.tools;
+    const entities = runtime.systems.entities;
+    tools.select('grapple-hook');
+    // Clear LOS initially
+    expect(tools.use()).toBe('attached');
+    tools.cancel();
+
+    // Place a wall panel between player (400, 495) and anchor (700, 250)
+    const wall = entities.createWall({ x: 500, y: 380, width: 80, height: 80 }, 20);
+    expect(tools.use()).toBe('invalid-target');
+    expect(tools.getAttachment()).toBeNull();
+
+    // Remove the wall
+    entities.removeWall(wall);
+    expect(tools.use()).toBe('attached');
+    expect(tools.getAttachment()?.id).toBe('raised-pickup');
+  });
+
+  it('rejects grapple attachment when blocked by a planet obstacle', () => {
+    position(400);
+    const tools = runtime.systems.tools;
+    const entities = runtime.systems.entities;
+    tools.select('grapple-hook');
+
+    // Place a planet in the line between (400, 495) and (700, 250)
+    const planet = entities.createPlanet(550, 372, 40, 0);
+    expect(tools.use()).toBe('invalid-target');
+    expect(tools.getAttachment()).toBeNull();
+
+    // Remove the planet
+    entities.removeObstacle(planet);
+    expect(tools.use()).toBe('attached');
+  });
+
+  it('picks the nearest unobstructed anchor when a closer anchor is blocked', () => {
+    runtime.reset({
+      ...testLevel(),
+      gameplay: {
+        ...testLevel().gameplay,
+        tools: {
+          ...testLevel().gameplay.tools!,
+          grappleHook: {
+            range: 500,
+            pullSpeed: 360,
+            anchors: [
+              { id: 'near-blocked', x: 550, y: 420 },
+              { id: 'far-open', x: 700, y: 200 },
+            ],
+          },
+        },
+        terrainBlocks: [
+          { id: 'block-near', bounds: { x: 460, y: 440, width: 40, height: 40 }, diggable: false },
+        ],
+      },
+    });
+    runtime.start();
+    pilot = runtime.systems.entities.getAstronaut()!;
+    position(400);
+    const tools = runtime.systems.tools;
+    tools.select('grapple-hook');
+
+    // 'near-blocked' is closer but blocked by block-near
+    // 'far-open' is further but has clear LOS
+    expect(tools.use()).toBe('attached');
+    expect(tools.getAttachment()?.id).toBe('far-open');
+  });
+
+  it('attaches through collectible orb without considering it a line of sight obstacle', () => {
+    position(400);
+    const tools = runtime.systems.tools;
+    const entities = runtime.systems.entities;
+    tools.select('grapple-hook');
+
+    // Create a collectible orb directly on the line of sight between (400, 495) and (700, 250)
+    const orb = entities.createOrb(550, 372, 14, 0);
+    expect(tools.use()).toBe('attached');
+    expect(tools.getAttachment()?.id).toBe('raised-pickup');
+    entities.removeOrb(orb);
+  });
+
+  it('rejects grapple attachment when target anchor is beyond range despite clear line of sight', () => {
+    runtime.reset({
+      ...testLevel(),
+      gameplay: {
+        ...testLevel().gameplay,
+        tools: {
+          ...testLevel().gameplay.tools!,
+          grappleHook: {
+            range: 200, // Reduced range
+            pullSpeed: 360,
+            anchors: [{ id: 'distant-anchor', x: 700, y: 250 }],
+          },
+        },
+      },
+    });
+    runtime.start();
+    pilot = runtime.systems.entities.getAstronaut()!;
+    position(400); // Distance is hypot(300, 245) ≈ 387 > 200
+    const tools = runtime.systems.tools;
+    tools.select('grapple-hook');
+    expect(tools.use()).toBe('invalid-target');
+    expect(tools.getAttachment()).toBeNull();
+  });
+
   it('cancels on repeat use, switch, death, reset and transition without leaking queued input', () => {
     const tools = runtime.systems.tools;
     const attach = () => { position(400); tools.select('grapple-hook'); expect(tools.use()).toBe('attached'); };
